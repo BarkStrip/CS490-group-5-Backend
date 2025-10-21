@@ -56,3 +56,11 @@ def get_categories():
 
     except Exception as e:
         return jsonify({"error": "Database error", "details": str(e)}), 500
+    
+
+@salons_bp.route("/salons/top-rated", methods=["GET"])
+def getTopRated():
+    """
+    Fetches the top rated salons
+    """
+    
