@@ -11,6 +11,10 @@ Before starting, ensure you have the following installed:
 * **A Virtual Environment** (recommended, e.g., `myenv`)
 
 ---
+> ⚠️ **Important:**  
+> Make sure you run the new `.sql` file — which includes **new columns** and **updated data** — **before starting the backend server**.  
+>
+> 📂 [Download the SQL file here](https://drive.google.com/file/d/1Up1kC2FIogDFia8xwv9LOFLWqg4mzEQO/view?usp=drive_link)
 
 ## Setup Instructions
 
