@@ -25,42 +25,69 @@ from app.routes.autocomplete import autocomplete_bp
 load_dotenv()
 
 def create_app():
+    print("🚀 Starting create_app()")
     app = Flask(__name__)
+    print(f"📱 Flask app created: {app}")
+    
     try:
+        print("⚙️ Loading config...")
         app.config.from_object(Config)
-        print("Config loaded successfully")
+        print("✓ Config loaded successfully")
+        print(f"📊 Config items: {len(app.config)} items loaded")
            
+        print("🌐 Initializing CORS...")
         CORS(app)
-        print("CORS initialized")
+        print("✓ CORS initialized")
            
+        print("🗄️ Initializing database...")
         db.init_app(app)
-        print("Database initialized")
+        print("✓ Database initialized")
            
+        print("📋 Registering blueprints...")
+        print(f"📋 Salons blueprint: {salons_bp}")
         app.register_blueprint(salons_bp)
+        print("✓ Salons blueprint registered")
+        
+        print(f"📋 Autocomplete blueprint: {autocomplete_bp}")
         app.register_blueprint(autocomplete_bp)
-        print("Blueprints registered")
+        print("✓ Autocomplete blueprint registered")
+        print("✓ Blueprints registered")
 
-
-        # Handle requests to the base root domain
+        print("🏠 Adding root route...")
         @app.route('/')
         def home():
+            print("🏠 ROOT ROUTE WAS CALLED!")
             return jsonify({
                 "message": "Jade Backend API is running!",
                 "status": "healthy",
-                "version": "1.0.0",
-                "endpoints": {
-                    "salons": "/api/salons/",
-                    "autocomplete": "/api/autocomplete/"
-                }
+                "version": "1.0.0"
             })
+        print("✓ Root route added")
+        
+        print("📍 Checking registered routes:")
+        route_count = 0
+        for rule in app.url_map.iter_rules():
+            route_count += 1
+            print(f"  📍 Route {route_count}: {rule.endpoint} -> {rule.rule} [{list(rule.methods)}]")
+        
+        print(f"✅ Total routes registered: {route_count}")
            
     except Exception as e:
-        print(f"Error during app creation: {e}")
+        print(f"❌ Error during app creation: {e}")
+        print(f"❌ Error type: {type(e)}")
+        import traceback
+        print(f"❌ Full traceback: {traceback.format_exc()}")
         raise
 
+    print("🎯 create_app() completed successfully")
+    print(f"🎯 Returning app: {app}")
     return app
 
+print("🌟 About to call create_app()")
 app = create_app()
+print(f"🌟 App created: {app}")
+print(f"🌟 App name: {app.name}")
+print(f"🌟 App debug: {app.debug}")
 
 
 if __name__ == '__main__':
