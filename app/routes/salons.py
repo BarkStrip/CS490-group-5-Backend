@@ -120,3 +120,6 @@ def getTopRated():
     
     except Exception as e: 
         return jsonify({"error": "database error", "details": str(e)}), 500
+
+
+
