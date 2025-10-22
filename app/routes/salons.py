@@ -1,8 +1,12 @@
 from flask import Blueprint, jsonify, request
 from app.extensions import db
 # Here is where you call the "TABLES" from models. Models is a file that contains all the tables in "Python" format so we can use sqlalchemy
-from ..models import Salon, Service, SalonVerify 
+from ..models import Salon, Service, SalonVerify, Review
+
+#math functions to calculate coordinate distance 
 from math import radians, sin, cos, sqrt, atan2
+
+from sqlalchemy import func, desc
 
 # Create the Blueprint
 salons_bp = Blueprint("salons", __name__, url_prefix="/api/salons")
@@ -109,8 +113,6 @@ def getTopRated():
             else: 
                 distance = None
 
-            #rint(f"DEBUG {salon.name}: user({user_lat}, {user_long}) → salon({salon_lat}, {salon_long}) → {distance:.2f} miles")
-
             #add top-rated salons that fall within distance to user 
             salon_list.append({
                 "id": salon.id,
@@ -129,6 +131,55 @@ def getTopRated():
         top_salons = salon_list[:10]
 
         return jsonify({"salons": top_salons})
+    
+    except Exception as e:
+        return jsonify({"error": "database error", "details": str(e)}), 500
+
+
+@salons_bp.route("/generic", methods=["GET"])
+def getTopGeneric():
+    """
+    Fetches top-rated verified salons anywhere (for users who block location).
+    Sorted by avg_rating descending and limited to 10 results.
+    """
+    try: 
+        salons_query = (
+            db.session.query(
+                Salon.id,
+                Salon.name, 
+                Salon.type,
+                Salon.address, 
+                Salon.city,
+                Salon.latitude, 
+                Salon.longitude,
+                Salon.phone, 
+                func.avg(Review.rating).label("avg_rating"),
+                func.count(Review.id).label("total_reviews")
+            )
+            .join(SalonVerify, SalonVerify.salon_id == Salon.id)
+            .outerjoin(Review, Review.salon_id == Salon.id)
+            .filter(SalonVerify.status == "VERIFIED")
+            .group_by(Salon.id)
+            .order_by(desc("avg_rating"), desc("total_reviews"))
+            .limit(10)
+        )
+
+        salons = salons_query.all()
+
+        salons_list = []
+        for salon in salons: 
+            salons_list.append({
+                "id": salon.id,
+                "name": salon.name, 
+                "type": salon.type, 
+                "address": salon.address,
+                "latitude": float(salon.latitude),
+                "longitude": float(salon.longitude),
+                "phone": salon.phone,
+                "avg_rating": round(float(salon.avg_rating), 2) if salon.avg_rating is not None else None,
+                "total_reviews": salon.total_reviews
+            })
+        return jsonify({"salons": salons_list})
     
     except Exception as e:
         return jsonify({"error": "database error", "details": str(e)}), 500

@@ -20,7 +20,7 @@ from app.extensions import db
 # (Your existing blueprint imports would be here)
 
 from app.routes.salons import salons_bp 
-
+from app.routes.autocomplete import autocomplete_bp
 
 
 def create_app():
@@ -33,7 +33,8 @@ def create_app():
     
     # (Your existing app.register_blueprint() calls would be here)
 
-    app.register_blueprint(salons_bp)    
+    app.register_blueprint(salons_bp)   
+    app.register_blueprint(autocomplete_bp) 
     
     return app
 
