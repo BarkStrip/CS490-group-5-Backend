@@ -57,10 +57,13 @@ from flask import Flask
 from flask_cors import CORS
 from app.config import Config
 from app.extensions import db
+from dotenv import load_dotenv
 
 # (Your existing blueprint imports would be here)
 from app.routes.salons import salons_bp 
 from app.routes.autocomplete import autocomplete_bp
+
+load_dotenv()
 
 def create_app():
     app = Flask(__name__)
@@ -81,7 +84,9 @@ if __name__ == '__main__':
     import os
     from dotenv import load_dotenv
 
-    load_dotenv()  # only needed locally. Create a .env cotaining: MYSQL_PUBLIC_URL= mysql+pymysql://<USER>:<PASSWORD>@<HOST>:<PORT>/salon_app
+    load_dotenv()   # only needed locally. Create a .env contiaining:
+                    # MYSQL_PUBLIC_URL= mysql+pymysql://<USER>:<PASSWORD>@<HOST>:<PORT>/salon_app
 
+    app = create_app()
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
