@@ -48,6 +48,19 @@ def create_app():
 
 app = create_app()
 
+# Handle requests to the base root domain
+@app.route('/')
+def home():
+    return jsonify({
+        "message": "Jade Backend API is running!",
+        "status": "healthy",
+        "version": "1.0.0",
+        "endpoints": {
+            "salons": "/api/salons/",
+            "autocomplete": "/api/autocomplete/"
+        }
+    })
+
 if __name__ == '__main__':
     import os
     from dotenv import load_dotenv

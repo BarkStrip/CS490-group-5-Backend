@@ -11,6 +11,7 @@ from sqlalchemy import func, desc
 # Create the Blueprint
 salons_bp = Blueprint("salons", __name__, url_prefix="/api/salons")
 
+
 @salons_bp.route("/test", methods=["GET"])
 def test_connection():
     """
