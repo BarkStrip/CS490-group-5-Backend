@@ -43,7 +43,7 @@ def create_app():
     except Exception as e:
         print(f"❌ Error during app creation: {e}")
         raise
-    
+
     return app
 
 if __name__ == '__main__':
@@ -55,7 +55,7 @@ if __name__ == '__main__':
 
     app = create_app()
     port = int(os.environ.get("PORT", 5000))
-    debug = os.environ.get("FLASK_ENV") != "production"
-    app.run(host="0.0.0.0", port=port, debug=debug)
+    #debug = os.environ.get("FLASK_ENV") != "production"
+    app.run(host="0.0.0.0", port=port, debug=False)
 
 
