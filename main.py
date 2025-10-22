@@ -89,6 +89,17 @@ print(f"🌟 App created: {app}")
 print(f"🌟 App name: {app.name}")
 print(f"🌟 App debug: {app.debug}")
 
+# Port diagnostics
+import os
+expected_port = os.environ.get("PORT", "NOT SET")
+print(f"🚪 Railway PORT environment variable: {expected_port}")
+print(f"🚪 Gunicorn should be listening on: {expected_port}")
+
+# Check all environment variables related to ports
+for key, value in os.environ.items():
+    if 'PORT' in key.upper():
+        print(f"🚪 {key}: {value}")
+
 
 if __name__ == '__main__':
     import os
