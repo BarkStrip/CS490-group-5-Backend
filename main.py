@@ -12,7 +12,7 @@
 # The main execution block starts the development server when the script is run
 # directly.
 # ----------------------------------------------------------------------------
-from flask import Flask
+from flask import Flask, jsonify
 from flask_cors import CORS
 from app.config import Config
 from app.extensions import db
@@ -28,20 +28,20 @@ def create_app():
     app = Flask(__name__)
     try:
         app.config.from_object(Config)
-        print("✓ Config loaded successfully")
+        print("Config loaded successfully")
            
         CORS(app)
-        print("✓ CORS initialized")
+        print("CORS initialized")
            
         db.init_app(app)
-        print("✓ Database initialized")
+        print("Database initialized")
            
         app.register_blueprint(salons_bp)
         app.register_blueprint(autocomplete_bp)
-        print("✓ Blueprints registered")
+        print("Blueprints registered")
            
     except Exception as e:
-        print(f"❌ Error during app creation: {e}")
+        print(f"Error during app creation: {e}")
         raise
 
     return app
