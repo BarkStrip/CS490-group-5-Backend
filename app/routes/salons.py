@@ -7,6 +7,18 @@ from math import radians, sin, cos, sqrt, atan2
 # Create the Blueprint
 salons_bp = Blueprint("salons", __name__, url_prefix="/api/salons")
 
+@salons_bp.route("/test", methods=["GET"])
+def test_connection():
+    """
+    Simple test endpoint to verify database connection is working.
+    """
+    try:
+        # Test database connection
+        result = db.session.execute(db.text("SELECT 1"))
+        return jsonify({"status": "success", "message": "Database connection working"}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 @salons_bp.route("/cities", methods=["GET"])
 def get_cities():
     """
@@ -118,5 +130,5 @@ def getTopRated():
 
         return jsonify({"salons": top_salons})
     
-    except Exception as e: 
+    except Exception as e:
         return jsonify({"error": "database error", "details": str(e)}), 500
