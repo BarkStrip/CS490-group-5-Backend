@@ -46,6 +46,8 @@ def create_app():
 
     return app
 
+app = create_app()
+
 if __name__ == '__main__':
     import os
     from dotenv import load_dotenv
@@ -53,7 +55,6 @@ if __name__ == '__main__':
     load_dotenv()   # only needed locally. Create a .env contiaining:
                     # MYSQL_PUBLIC_URL= mysql+pymysql://<USER>:<PASSWORD>@<HOST>:<PORT>/salon_app
 
-    app = create_app()
     port = int(os.environ.get("PORT", 5000))
     #debug = os.environ.get("FLASK_ENV") != "production"
     app.run(host="0.0.0.0", port=port, debug=False)
