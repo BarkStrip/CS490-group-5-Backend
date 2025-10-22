@@ -1,5 +1,6 @@
 myenv
+config.py
 __pycache__/
-
+.env
 # Mac config file:
 .DS_Store
