@@ -59,7 +59,7 @@ def get_categories():
         return jsonify({"error": "Database error", "details": str(e)}), 500
     
 
-@salons_bp.route("/salons/top-rated", methods=["GET"])
+@salons_bp.route("/top-rated", methods=["GET"])
 def getTopRated():
     """
     Fetches top-rated verified salons near the user's location (if provided).
@@ -81,8 +81,8 @@ def getTopRated():
         salon_list = []
         for salon in salons: 
             if hasattr(salon, "latitude") and hasattr(salon, "longitude"): 
-                salon_lat = salon.latitude
-                salon_long = salon.longitude 
+                salon_lat = float(salon.latitude)
+                salon_long = float(salon.longitude)
 
                 #calculate the distances from the user to the salons 
                 if user_lat is not None and user_long is not None: 
@@ -96,6 +96,8 @@ def getTopRated():
                     distance = None
             else: 
                 distance = None
+
+            #rint(f"DEBUG {salon.name}: user({user_lat}, {user_long}) → salon({salon_lat}, {salon_long}) → {distance:.2f} miles")
 
             #add top-rated salons that fall within distance to user 
             salon_list.append({
