@@ -341,3 +341,67 @@ def get_salon_details(salon_id):
 
     except Exception as e:
         return jsonify({"error": "Database error", "details": str(e)}), 500
+
+
+
+@salons_bp.route("/details/<int:salon_id>/reviews", methods=["GET"])
+def get_salon_reviews(salon_id):
+    """
+    Fetch all reviews for a specific salon.
+    Works even if the Review table does not include user_name.
+    """
+    try:
+        # --- Detect what columns exist in Review ---
+        review_columns = Review.__table__.columns.keys()
+        has_user_name = "user_name" in review_columns
+        has_user_id = "user_id" in review_columns
+
+        # --- Base Query ---
+        reviews_query = (
+            db.session.query(
+                Review.id,
+                Review.rating,
+                Review.comment,
+                Review.created_at,
+                *( [Review.user_name] if has_user_name else [] ),
+                *( [Review.user_id] if has_user_id else [] )
+            )
+            .join(Salon, Review.salon_id == Salon.id)
+            .filter(Salon.id == salon_id)
+            .order_by(Review.created_at.desc())
+        )
+
+        reviews = reviews_query.all()
+
+        # --- Handle no results ---
+        if not reviews:
+            return jsonify({
+                "salon_id": salon_id,
+                "reviews_found": 0,
+                "reviews": []
+            }), 200
+
+        # --- Build JSON safely ---
+        review_list = []
+        for r in reviews:
+            item = {
+                "id": r.id,
+                "rating": float(r.rating) if r.rating else None,
+                "comment": r.comment,
+                "created_at": r.created_at.strftime("%Y-%m-%d %H:%M:%S") if r.created_at else None
+            }
+            if has_user_name:
+                item["user_name"] = getattr(r, "user_name", "Anonymous")
+            elif has_user_id:
+                item["user_id"] = getattr(r, "user_id", None)
+
+            review_list.append(item)
+
+        return jsonify({
+            "salon_id": salon_id,
+            "reviews_found": len(review_list),
+            "reviews": review_list
+        })
+
+    except Exception as e:
+        return jsonify({"error": "Database error", "details": str(e)}), 500
