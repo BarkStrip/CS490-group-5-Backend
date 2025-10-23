@@ -178,14 +178,15 @@ def getTopGeneric():
 def search_salons():
     """
     Handles user search queries for salons by name, service, or city.
-    Allows filtering by type, price, rating, and distance.
+    Allows filtering by type, rating, and distance.
+    Price filtering is applied via the Service table if price data exists there.
     """
     try:
         # --- Query parameters ---
         q = request.args.get("q", type=str)
         location = request.args.get("location", type=str)
         service_type = request.args.get("type", type=str)
-        price = request.args.get("price", type=str)
+        price = request.args.get("price", type=float)  # assume this refers to max price per service
         min_rating = request.args.get("rating", type=float)
         max_distance = request.args.get("distance", type=float)
         user_lat = request.args.get("lat", type=float)
@@ -201,19 +202,19 @@ def search_salons():
                 Salon.city,
                 Salon.latitude,
                 Salon.longitude,
-                Salon.price_tier,
                 func.avg(Review.rating).label("avg_rating"),
                 func.count(Review.id).label("total_reviews"),
+                func.avg(Service.price).label("avg_service_price")  # NEW: use avg price from services
             )
             .join(SalonVerify, SalonVerify.salon_id == Salon.id)
             .outerjoin(Review, Review.salon_id == Salon.id)
+            .outerjoin(Service, Service.salon_id == Salon.id)
             .filter(SalonVerify.status == "VERIFIED")
             .group_by(Salon.id)
         )
 
         # --- Search keyword (salon name or service) ---
         if q:
-            query = query.join(Service, Service.salon_id == Salon.id, isouter=True)
             query = query.filter(
                 func.lower(Salon.name).like(f"%{q.lower()}%")
                 | func.lower(Service.name).like(f"%{q.lower()}%")
@@ -227,9 +228,9 @@ def search_salons():
         if service_type:
             query = query.filter(func.lower(Salon.type) == service_type.lower())
 
-        # --- Price filter ---
+        # --- Price filter (from services) ---
         if price:
-            query = query.filter(Salon.price_tier == price)
+            query = query.having(func.avg(Service.price) <= price)
 
         # --- Rating filter ---
         if min_rating:
@@ -259,18 +260,19 @@ def search_salons():
                 "type": s.type,
                 "address": s.address,
                 "city": s.city,
-                "price_tier": s.price_tier,
                 "avg_rating": round(float(s.avg_rating), 1) if s.avg_rating else None,
                 "total_reviews": s.total_reviews,
+                "avg_service_price": round(float(s.avg_service_price), 2) if s.avg_service_price else None,
                 "distance_miles": round(distance, 2) if distance else None
             })
 
         # --- Sort by distance if provided ---
         if user_lat and user_lon:
             salon_list.sort(key=lambda x: (x["distance_miles"] if x["distance_miles"] else 9999))
+        else:
+            salon_list.sort(key=lambda x: (x["avg_rating"] if x["avg_rating"] else 0), reverse=True)
 
         return jsonify({"results_found": len(salon_list), "salons": salon_list})
 
     except Exception as e:
         return jsonify({"error": "Database error", "details": str(e)}), 500
-
