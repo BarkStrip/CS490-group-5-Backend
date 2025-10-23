@@ -405,3 +405,67 @@ def get_salon_reviews(salon_id):
 
     except Exception as e:
         return jsonify({"error": "Database error", "details": str(e)}), 500
+
+
+
+@salons_bp.route("/details/<int:salon_id>/services", methods=["GET"])
+def get_salon_services(salon_id):
+    """
+    Fetch all services offered by a specific salon.
+    Includes service name, price, duration, and (if available) image/icon.
+    """
+    try:
+        # Detect existing columns in the Service table
+        service_columns = Service.__table__.columns.keys()
+        has_duration = "duration" in service_columns
+        has_image_url = "image_url" in service_columns
+        has_icon_url = "icon_url" in service_columns
+        has_description = "description" in service_columns
+
+        # --- Query for this salon's services ---
+        service_query = (
+            db.session.query(Service)
+            .filter(Service.salon_id == salon_id)
+            .order_by(Service.name.asc())
+        )
+
+        services = service_query.all()
+
+        if not services:
+            return jsonify({
+                "salon_id": salon_id,
+                "services_found": 0,
+                "services": []
+            }), 200
+
+        # --- Build the service list dynamically ---
+        service_list = []
+        for s in services:
+            service_obj = {
+                "id": s.id,
+                "name": s.name,
+                "price": float(s.price) if hasattr(s, "price") and s.price else None,
+            }
+
+            if has_duration:
+                service_obj["duration"] = getattr(s, "duration", None)
+
+            if has_description:
+                service_obj["description"] = getattr(s, "description", None)
+
+            if has_image_url:
+                service_obj["image_url"] = getattr(s, "image_url", None)
+
+            if has_icon_url:
+                service_obj["icon_url"] = getattr(s, "icon_url", None)
+
+            service_list.append(service_obj)
+
+        return jsonify({
+            "salon_id": salon_id,
+            "services_found": len(service_list),
+            "services": service_list
+        })
+
+    except Exception as e:
+        return jsonify({"error": "Database error", "details": str(e)}), 500
