@@ -171,3 +171,106 @@ def getTopGeneric():
     
     except Exception as e:
         return jsonify({"error": "database error", "details": str(e)}), 500
+    
+
+
+@salons_bp.route("/search", methods=["GET"])
+def search_salons():
+    """
+    Handles user search queries for salons by name, service, or city.
+    Allows filtering by type, price, rating, and distance.
+    """
+    try:
+        # --- Query parameters ---
+        q = request.args.get("q", type=str)
+        location = request.args.get("location", type=str)
+        service_type = request.args.get("type", type=str)
+        price = request.args.get("price", type=str)
+        min_rating = request.args.get("rating", type=float)
+        max_distance = request.args.get("distance", type=float)
+        user_lat = request.args.get("lat", type=float)
+        user_lon = request.args.get("lon", type=float)
+
+        # --- Base Query: Only VERIFIED salons ---
+        query = (
+            db.session.query(
+                Salon.id,
+                Salon.name,
+                Salon.type,
+                Salon.address,
+                Salon.city,
+                Salon.latitude,
+                Salon.longitude,
+                Salon.price_tier,
+                func.avg(Review.rating).label("avg_rating"),
+                func.count(Review.id).label("total_reviews"),
+            )
+            .join(SalonVerify, SalonVerify.salon_id == Salon.id)
+            .outerjoin(Review, Review.salon_id == Salon.id)
+            .filter(SalonVerify.status == "VERIFIED")
+            .group_by(Salon.id)
+        )
+
+        # --- Search keyword (salon name or service) ---
+        if q:
+            query = query.join(Service, Service.salon_id == Salon.id, isouter=True)
+            query = query.filter(
+                func.lower(Salon.name).like(f"%{q.lower()}%")
+                | func.lower(Service.name).like(f"%{q.lower()}%")
+            )
+
+        # --- Location (city) filter ---
+        if location:
+            query = query.filter(func.lower(Salon.city) == location.lower())
+
+        # --- Type filter ---
+        if service_type:
+            query = query.filter(func.lower(Salon.type) == service_type.lower())
+
+        # --- Price filter ---
+        if price:
+            query = query.filter(Salon.price_tier == price)
+
+        # --- Rating filter ---
+        if min_rating:
+            query = query.having(func.avg(Review.rating) >= min_rating)
+
+        salons = query.all()
+        salon_list = []
+
+        # --- Distance calculation (if coordinates provided) ---
+        for s in salons:
+            distance = None
+            if user_lat and user_lon and s.latitude and s.longitude:
+                R = 3958.8  # Earth radius in miles
+                dlat = radians(float(s.latitude) - user_lat)
+                dlon = radians(float(s.longitude) - user_lon)
+                a = sin(dlat / 2) ** 2 + cos(radians(user_lat)) * cos(radians(float(s.latitude))) * sin(dlon / 2) ** 2
+                c = 2 * atan2(sqrt(a), sqrt(1 - a))
+                distance = R * c
+
+            # Apply distance filter if requested
+            if max_distance and distance and distance > max_distance:
+                continue
+
+            salon_list.append({
+                "id": s.id,
+                "name": s.name,
+                "type": s.type,
+                "address": s.address,
+                "city": s.city,
+                "price_tier": s.price_tier,
+                "avg_rating": round(float(s.avg_rating), 1) if s.avg_rating else None,
+                "total_reviews": s.total_reviews,
+                "distance_miles": round(distance, 2) if distance else None
+            })
+
+        # --- Sort by distance if provided ---
+        if user_lat and user_lon:
+            salon_list.sort(key=lambda x: (x["distance_miles"] if x["distance_miles"] else 9999))
+
+        return jsonify({"results_found": len(salon_list), "salons": salon_list})
+
+    except Exception as e:
+        return jsonify({"error": "Database error", "details": str(e)}), 500
+
