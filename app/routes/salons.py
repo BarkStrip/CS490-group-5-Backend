@@ -173,7 +173,9 @@ def getTopGeneric():
         return jsonify({"error": "database error", "details": str(e)}), 500
     
 
-
+# -----------------------------------------------------------------------------
+# SALON Search ENDPOINT all in one big function
+# -----------------------------------------------------------------------------
 @salons_bp.route("/search", methods=["GET"])
 def search_salons():
     """
@@ -273,6 +275,69 @@ def search_salons():
             salon_list.sort(key=lambda x: (x["avg_rating"] if x["avg_rating"] else 0), reverse=True)
 
         return jsonify({"results_found": len(salon_list), "salons": salon_list})
+
+    except Exception as e:
+        return jsonify({"error": "Database error", "details": str(e)}), 500
+
+
+# -----------------------------------------------------------------------------
+# SALON DETAILS ENDPOINTS
+# -----------------------------------------------------------------------------
+
+@salons_bp.route("/details/<int:salon_id>", methods=["GET"])
+def get_salon_details(salon_id):
+    """
+    Fetch full details for a specific salon.
+    Includes basic info, location, contact, and review stats.
+    """
+    try:
+        salon_data = (
+            db.session.query(
+                Salon.id,
+                Salon.name,
+                Salon.type,
+                Salon.address,
+                Salon.city,
+                Salon.latitude,
+                Salon.longitude,
+                Salon.phone,
+                func.avg(Review.rating).label("avg_rating"),
+                func.count(Review.id).label("total_reviews")
+            )
+            .join(SalonVerify, SalonVerify.salon_id == Salon.id)
+            .outerjoin(Review, Review.salon_id == Salon.id)
+            .filter(SalonVerify.status == "VERIFIED", Salon.id == salon_id)
+            .group_by(
+                Salon.id,
+                Salon.name,
+                Salon.type,
+                Salon.address,
+                Salon.city,
+                Salon.latitude,
+                Salon.longitude,
+                Salon.phone
+            )
+            .first()
+        )
+
+        if not salon_data:
+            return jsonify({"error": "Salon not found"}), 404
+
+        # Build JSON response
+        salon_details = {
+            "id": salon_data.id,
+            "name": salon_data.name,
+            "type": salon_data.type,
+            "address": salon_data.address,
+            "city": salon_data.city,
+            "latitude": float(salon_data.latitude) if salon_data.latitude else None,
+            "longitude": float(salon_data.longitude) if salon_data.longitude else None,
+            "phone": salon_data.phone,
+            "avg_rating": round(float(salon_data.avg_rating), 1) if salon_data.avg_rating else None,
+            "total_reviews": salon_data.total_reviews,
+        }
+
+        return jsonify(salon_details)
 
     except Exception as e:
         return jsonify({"error": "Database error", "details": str(e)}), 500
