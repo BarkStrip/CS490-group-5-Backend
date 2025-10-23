@@ -469,3 +469,50 @@ def get_salon_services(salon_id):
 
     except Exception as e:
         return jsonify({"error": "Database error", "details": str(e)}), 500
+
+
+@salons_bp.route("/details/<int:salon_id>/gallery", methods=["GET"])
+def get_salon_gallery(salon_id):
+    """
+    Fetch all gallery images for a specific salon.
+    Uses the SalonImage table.
+    Includes image URL and upload timestamps.
+    """
+    try:
+        # Import the correct model
+        from app.models import SalonImage
+
+        # --- Query all salon images ---
+        images_query = (
+            db.session.query(SalonImage)
+            .filter(SalonImage.salon_id == salon_id)
+            .order_by(SalonImage.created_at.desc())
+        )
+
+        images = images_query.all()
+
+        if not images:
+            return jsonify({
+                "salon_id": salon_id,
+                "media_found": 0,
+                "gallery": []
+            }), 200
+
+        # --- Build JSON response ---
+        gallery_list = []
+        for img in images:
+            gallery_list.append({
+                "id": img.id,
+                "url": img.url,
+                "created_at": img.created_at.strftime("%Y-%m-%d %H:%M:%S") if img.created_at else None,
+                "updated_at": img.updated_at.strftime("%Y-%m-%d %H:%M:%S") if img.updated_at else None
+            })
+
+        return jsonify({
+            "salon_id": salon_id,
+            "media_found": len(gallery_list),
+            "gallery": gallery_list
+        })
+
+    except Exception as e:
+        return jsonify({"error": "Database error", "details": str(e)}), 500
