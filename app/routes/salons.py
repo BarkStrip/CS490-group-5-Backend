@@ -24,6 +24,123 @@ def test_connection():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
+@salons_bp.route("/db-analytics", methods=["GET"])
+def db_analytics():
+    """
+    Comprehensive database analytics endpoint.
+    Returns database info, tables, schemas, and statistics.
+    """
+    try:
+        analytics = {}
+        
+        # 1. Database connection info
+        db_url = str(db.engine.url)
+        # Hide password for security
+        safe_url = db_url.split('@')[1] if '@' in db_url else db_url
+        analytics['database_info'] = {
+            'database_type': db.engine.name,
+            'database_host': safe_url,
+            'database_name': db.engine.url.database,
+            'driver': str(db.engine.url).split('://')[0] if '://' in str(db.engine.url) else 'unknown'
+        }
+        
+        # 2. Get all tables
+        inspector = db.inspect(db.engine)
+        table_names = inspector.get_table_names()
+        analytics['tables'] = {
+            'count': len(table_names),
+            'names': table_names
+        }
+        
+        # 3. Detailed table information
+        table_details = {}
+        for table_name in table_names:
+            try:
+                # Get columns
+                columns = inspector.get_columns(table_name)
+                column_info = []
+                for col in columns:
+                    column_info.append({
+                        'name': col['name'],
+                        'type': str(col['type']),
+                        'nullable': col['nullable'],
+                        'default': str(col['default']) if col['default'] is not None else None
+                    })
+                
+                # Get row count
+                result = db.session.execute(db.text(f"SELECT COUNT(*) FROM {table_name}"))
+                row_count = result.scalar()
+                
+                # Get indexes
+                indexes = inspector.get_indexes(table_name)
+                index_info = [{'name': idx['name'], 'columns': idx['column_names']} for idx in indexes]
+                
+                # Get foreign keys
+                foreign_keys = inspector.get_foreign_keys(table_name)
+                fk_info = []
+                for fk in foreign_keys:
+                    fk_info.append({
+                        'name': fk['name'],
+                        'constrained_columns': fk['constrained_columns'],
+                        'referred_table': fk['referred_table'],
+                        'referred_columns': fk['referred_columns']
+                    })
+                
+                table_details[table_name] = {
+                    'columns': column_info,
+                    'row_count': row_count,
+                    'column_count': len(columns),
+                    'indexes': index_info,
+                    'foreign_keys': fk_info
+                }
+                
+            except Exception as table_error:
+                table_details[table_name] = {'error': str(table_error)}
+        
+        analytics['table_details'] = table_details
+        
+        # 4. Database size and statistics (PostgreSQL specific)
+        try:
+            if 'postgresql' in str(db.engine.url):
+                # Database size
+                size_result = db.session.execute(db.text(
+                    "SELECT pg_size_pretty(pg_database_size(current_database()))"
+                ))
+                analytics['database_size'] = size_result.scalar()
+                
+                # Connection info
+                conn_result = db.session.execute(db.text(
+                    "SELECT count(*) FROM pg_stat_activity WHERE datname = current_database()"
+                ))
+                analytics['active_connections'] = conn_result.scalar()
+                
+                # Version info
+                version_result = db.session.execute(db.text("SELECT version()"))
+                analytics['database_version'] = version_result.scalar()
+                
+        except Exception as pg_error:
+            analytics['postgresql_stats'] = {'error': str(pg_error)}
+        
+        # 5. Schema information
+        try:
+            schemas = inspector.get_schema_names()
+            analytics['schemas'] = schemas
+        except Exception as schema_error:
+            analytics['schemas'] = {'error': str(schema_error)}
+            
+        return jsonify({
+            "status": "success", 
+            "analytics": analytics,
+            "timestamp": str(db.func.now())
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error", 
+            "message": str(e),
+            "error_type": type(e).__name__
+        }), 500
+
 @salons_bp.route("/cities", methods=["GET"])
 def get_cities():
     """
