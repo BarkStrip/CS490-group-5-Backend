@@ -12,31 +12,37 @@
 # The main execution block starts the development server when the script is run
 # directly.
 # ----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# Flask Application Factory (FINAL VERSION — NO FIREBASE)
+# -----------------------------------------------------------------------------
 from flask import Flask
 from flask_cors import CORS
 from app.config import Config
 from app.extensions import db
 
-# (Your existing blueprint imports would be here)
-
-from app.routes.salons import salons_bp 
+# --- Import Blueprints ---
+from app.routes.salons import salons_bp
 from app.routes.autocomplete import autocomplete_bp
+from app.routes.auth import auth_bp
 
 
 def create_app():
     app = Flask(__name__)
-    app.config.from_object(Config) 
-    
-    CORS(app) 
-    
-    db.init_app(app)
-    
-    # (Your existing app.register_blueprint() calls would be here)
+    app.config.from_object(Config)
 
-    app.register_blueprint(salons_bp)   
-    app.register_blueprint(autocomplete_bp) 
-    
+    # --- Enable CORS ---
+    CORS(app)
+
+    # --- Initialize DB ---
+    db.init_app(app)
+
+    # --- Register Blueprints ---
+    app.register_blueprint(salons_bp)
+    app.register_blueprint(autocomplete_bp)
+    app.register_blueprint(auth_bp)
+
     return app
+
 
 if __name__ == "__main__":
     app = create_app()
