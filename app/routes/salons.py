@@ -6,7 +6,7 @@ from ..models import Salon, Service, SalonVerify, Review
 #math functions to calculate coordinate distance 
 from math import radians, sin, cos, sqrt, atan2
 
-from sqlalchemy import func, desc
+from sqlalchemy import func, desc, or_
 
 # Create the Blueprint
 salons_bp = Blueprint("salons", __name__, url_prefix="/api/salons")
@@ -75,29 +75,40 @@ def getTopRated():
 
         #search through verified salons 
         salons_query = (
-            db.session.query(Salon)
+            db.session.query(
+                Salon.id,
+                Salon.name, 
+                Salon.type,
+                Salon.address, 
+                Salon.city,
+                Salon.latitude, 
+                Salon.longitude,
+                Salon.phone, 
+                func.avg(Review.rating).label("avg_rating"),
+                func.count(Review.id).label("total_reviews")
+            )
             .join(SalonVerify, SalonVerify.salon_id == Salon.id)
+            .outerjoin(Review, Review.salon_id == Salon.id)
             .filter(SalonVerify.status == "VERIFIED")
+            .group_by(Salon.id)
+            .order_by(desc("avg_rating"), desc("total_reviews"))
         )
 
         salons = salons_query.all()
 
         salon_list = []
         for salon in salons: 
-            if hasattr(salon, "latitude") and hasattr(salon, "longitude"): 
+            if salon.latitude and salon.longitude and user_lat is not None and user_long is not None: 
                 salon_lat = float(salon.latitude)
                 salon_long = float(salon.longitude)
 
                 #calculate the distances from the user to the salons 
-                if user_lat is not None and user_long is not None: 
-                    R = 3958.8                                          # Earth radius in miles
-                    dlat = radians(salon_lat - user_lat)
-                    dlon = radians(salon_long - user_long)
-                    a = sin(dlat / 2) ** 2 + cos(radians(user_lat)) * cos(radians(salon_lat)) * sin(dlon / 2) ** 2
-                    c = 2 * atan2(sqrt(a), sqrt(1 - a))
-                    distance = R * c
-                else: 
-                    distance = None
+                R = 3958.8                                          # Earth radius in miles
+                dlat = radians(salon_lat - user_lat)
+                dlon = radians(salon_long - user_long)
+                a = sin(dlat / 2) ** 2 + cos(radians(user_lat)) * cos(radians(salon_lat)) * sin(dlon / 2) ** 2
+                c = 2 * atan2(sqrt(a), sqrt(1 - a))
+                distance = R * c
             else: 
                 distance = None
 
@@ -105,9 +116,14 @@ def getTopRated():
             salon_list.append({
                 "id": salon.id,
                 "name": salon.name,
+                "type": salon.type,
+                "address": salon.address,
                 "city": salon.city,
                 "latitude": salon.latitude,
                 "longitude": salon.longitude,
+                "phone": salon.phone,
+                "avg_rating": round(float(salon.avg_rating), 2) if salon.avg_rating is not None else None,
+                "total_reviews": salon.total_reviews,
                 "distance_miles": round(distance, 2) if distance is not None else None
             })
 
@@ -149,7 +165,7 @@ def getTopGeneric():
             .filter(SalonVerify.status == "VERIFIED")
             .group_by(Salon.id)
             .order_by(desc("avg_rating"), desc("total_reviews"))
-            .limit(10)
+            .limit(10)                                             
         )
 
         salons = salons_query.all()
@@ -216,11 +232,19 @@ def search_salons():
         )
 
         # --- Search keyword (salon name or service) ---
+        
         if q:
             query = query.filter(
-                func.lower(Salon.name).like(f"%{q.lower()}%")
-                | func.lower(Service.name).like(f"%{q.lower()}%")
+                func.lower(Salon.name).like(f"{q.lower()}%") | func.lower(Salon.type).like(f"{q.lower()}%")
             )
+
+        #if q:
+        #    query = query.filter(
+        #        or_(
+        #            func.lower(Salon.name).like(f"{q.lower()}%"),
+        #           func.lower(Service.name).like(f"{q.lower()}%")
+        #        )
+        #    )
 
         # --- Location (city) filter ---
         if location:

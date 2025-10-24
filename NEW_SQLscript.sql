@@ -10,7 +10,8 @@
    • We loaded all the mock data generated from Makaro.
 
    • If we need more rules later, we will add CHECKs/ENUMs or extend triggers.
-   • There is clear separation between auth and PII to keep things safer and simpler.
+   • There is clear separation betweengit branch 
+ auth and PII to keep things safer and simpler.
 ----------------------------------------------------------------------------- */
 
 /* We have a clean reset: drop the database if it exists, then create it again so we can run this script anytime without leftovers. */
@@ -454,7 +455,7 @@ CREATE TABLE booking (
 
 /* DATA ENTRY */
 
-insert into users (id) values (1), (2), (3), (4), (5), (6), (7), (8);
+insert into users (id) values (1), (2), (3), (4), (5), (6), (7), (8), (9), (10), (11), (12), (13);
 
 insert into admins (_id, first_name, last_name, email, status, role) values (1, 'Joell', 'Minton', 'jminton0@foxnews.com', 'inactive', 'admin');
 insert into admins (_id, first_name, last_name, email, status, role) values (2, 'Dorotea', 'Lyttle', 'dlyttle1@ucoz.com', 'inactive', 'admin');
@@ -464,6 +465,12 @@ insert into admins (_id, first_name, last_name, email, status, role) values (5, 
 insert into admins (_id, first_name, last_name, email, status, role) values (6, 'Admin', 'Six', 'admin6@example.com', 'active', 'admin');
 insert into admins (_id, first_name, last_name, email, status, role) values (7, 'Admin', 'Seven', 'admin7@example.com', 'active', 'admin');
 insert into admins (_id, first_name, last_name, email, status, role) values (8, 'Admin', 'Eight', 'admin8@example.com', 'active', 'admin');
+
+insert into admins (_id, first_name, last_name, email, status, role) values (9, 'Admin', 'Nine', 'admin9@example.com', 'active', 'admin');
+insert into admins (_id, first_name, last_name, email, status, role) values (10, 'Admin', 'Ten', 'admin10@example.com', 'active', 'admin');
+insert into admins (_id, first_name, last_name, email, status, role) values (11, 'Admin', 'Eleven', 'admin11@example.com', 'active', 'admin');
+insert into admins (_id, first_name, last_name, email, status, role) values (12, 'Admin', 'Twelve', 'admin12@example.com', 'active', 'admin');
+insert into admins (_id, first_name, last_name, email, status, role) values (13, 'Admin', 'Thirteen', 'admin13@example.com', 'active', 'admin');
 
 insert into customers (id, name, email, phone, role) values (1, 'Vassili Isoldi', 'visoldi0@odnoklassniki.ru', '493-932-1279', 'CUSTOMER');
 insert into customers (id, name, email, phone, role) values (2, 'Charlie Beig', 'cbeig1@google.ru', '253-945-3737', 'CUSTOMER');
@@ -595,12 +602,19 @@ insert into customers (id, name, email, phone, role) values (127, 'Customer', '1
 
 insert into salon (id, owner_id, name, type, address, city, phone, latitude, longitude) values (1, 1, 'Valene', 'Hair', '521 Esch Court', 'Newark', '835-196-2708', 40.735660, -74.172370);
 insert into salon (id, owner_id, name, type, address, city, phone, latitude, longitude) values (2, 2, 'Geraldine', 'Nails', '57 Ryan Place', 'Jersey City', '896-925-5906', 40.728220, -74.077640);
-insert into salon (id, owner_id, name, type, address, city, phone, latitude, longitude) values (3, 3, 'George', 'Hair', '66342 Stone Corner Point', 'Hoboken', '828-469-7732', 40.743990, -74.032360);
+insert into salon (id, owner_id, name, type, address, city, phone, latitude, longitude) values (3, 3, 'George', 'Nails', '66342 Stone Corner Point', 'Hoboken', '828-469-7732', 40.743990, -74.032360);
 insert into salon (id, owner_id, name, type, address, city, phone, latitude, longitude) values (4, 4, 'Nathan', 'Hair', '3024 Lunder Alley', 'Montclair', '381-563-8060', 40.823990, -74.211000);
 insert into salon (id, owner_id, name, type, address, city, phone, latitude, longitude) values (5, 5, 'Jermain', 'Nails', '317 Lindbergh Place', 'Paterson', '741-321-8383', 40.916770, -74.171820);
-insert into salon (id, owner_id, name, type, address, city, phone, latitude, longitude) values (6, 6, 'Colene', 'Hair', '31 Annamark Terrace', 'Princeton', '187-715-5483', 40.343060, -74.655070);
-insert into salon (id, owner_id, name, type, address, city, phone, latitude, longitude) values (7, 7, 'Bennie', 'Nails', '5 Kensington Point', 'Atlantic City', '188-669-4263', 39.364280, -74.422930);
+insert into salon (id, owner_id, name, type, address, city, phone, latitude, longitude) values (6, 6, 'Colene', 'Extension', '31 Annamark Terrace', 'Princeton', '187-715-5483', 40.343060, -74.655070);
+insert into salon (id, owner_id, name, type, address, city, phone, latitude, longitude) values (7, 7, 'Bennie', 'Color', '5 Kensington Point', 'Atlantic City', '188-669-4263', 39.364280, -74.422930);
 insert into salon (id, owner_id, name, type, address, city, phone, latitude, longitude) values (8, 8, 'Jemima', 'Hair', '20 Hoard Place', 'Trenton', '232-455-1249', 40.220590, -74.759720);
+
+insert into salon (id, owner_id, name, type, address, city, phone, latitude, longitude) values (9, 9, 'Albert', 'Extension', '88 Bergen Street', 'Newark', '908-552-6732', 40.744950, -74.161850);
+insert into salon (id, owner_id, name, type, address, city, phone, latitude, longitude) values (10, 10, 'Henry', 'Color', '142 Lexington Avenue', 'Clifton', '973-715-4428', 40.869220, -74.157430);
+insert into salon (id, owner_id, name, type, address, city, phone, latitude, longitude) values (11, 11, 'Randy', 'Extension', '56 Stephenville Parkway', 'Edison', '732-931-7804', 40.530300, -74.372500);
+insert into salon (id, owner_id, name, type, address, city, phone, latitude, longitude) values (12, 12, 'Janice', 'Color', '2200 Chapel Avenue W', 'Cherry Hill', '856-744-9683', 39.928600, -75.021300);
+insert into salon (id, owner_id, name, type, address, city, phone, latitude, longitude) values (13, 13, 'Meadow', 'Color', '17 South Street', 'Morristown', '973-582-4609', 40.796000, -74.481800);
+
 
 insert into pay_method (id, user_id, brand, last4, is_default) values (1, 116, 'mastercard', 6458, false);
 insert into pay_method (id, user_id, brand, last4, is_default) values (2, 3, 'mastercard', 9520, true);
@@ -791,13 +805,19 @@ insert into salon_hours (id, salon_id, hours) values (7, 7, '8AM-5PM');
 insert into salon_hours (id, salon_id, hours) values (8, 8, '10AM-7PM');
 
 insert into salon_verify (id, salon_id, admin_id, status) values (1, 1, 1, 'VERIFIED');
-insert into salon_verify (id, salon_id, admin_id, status) values (2, 2, 2, 'SUBMITTED');
-insert into salon_verify (id, salon_id, admin_id, status) values (3, 3, 3, 'SUBMITTED');
-insert into salon_verify (id, salon_id, admin_id, status) values (4, 4, 4, 'REJECTED');
-insert into salon_verify (id, salon_id, admin_id, status) values (5, 5, 5, 'REJECTED');
-insert into salon_verify (id, salon_id, admin_id, status) values (6, 6, 6, 'REJECTED');
-insert into salon_verify (id, salon_id, admin_id, status) values (7, 7, 7, 'REJECTED');
+insert into salon_verify (id, salon_id, admin_id, status) values (2, 2, 2, 'VERIFIED');
+insert into salon_verify (id, salon_id, admin_id, status) values (3, 3, 3, 'VERIFIED');
+insert into salon_verify (id, salon_id, admin_id, status) values (4, 4, 4, 'VERIFIED');
+insert into salon_verify (id, salon_id, admin_id, status) values (5, 5, 5, 'VERIFIED');
+insert into salon_verify (id, salon_id, admin_id, status) values (6, 6, 6, 'VERIFIED');
+insert into salon_verify (id, salon_id, admin_id, status) values (7, 7, 7, 'VERIFIED');
 insert into salon_verify (id, salon_id, admin_id, status) values (8, 8, 8, 'VERIFIED');
+
+insert into salon_verify (id, salon_id, admin_id, status) values (9, 9, 9, 'VERIFIED');
+insert into salon_verify (id, salon_id, admin_id, status) values (10, 10, 10, 'VERIFIED');
+insert into salon_verify (id, salon_id, admin_id, status) values (11, 11, 11, 'VERIFIED');
+insert into salon_verify (id, salon_id, admin_id, status) values (12, 12, 12, 'VERIFIED');
+insert into salon_verify (id, salon_id, admin_id, status) values (13, 13, 13, 'VERIFIED');
 
 insert into service (id, salon_id, name, price, duration, is_active) values (1, 1, 'haircut', 76, 57, 'true');
 insert into service (id, salon_id, name, price, duration, is_active) values (2, 1, 'color', 67, 59, 'true');
@@ -845,93 +865,6 @@ insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (10, 7, 7, 7)
 insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (11, 3, 11, 1);
 insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (12, 5, 0, 2);
 insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (13, 1, 22, 6);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (14, 8, 4, 5);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (15, 1, 0, 16);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (16, 6, 11, 18);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (17, 8, 0, 12);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (18, 2, 17, 15);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (19, 3, 18, 10);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (20, 8, 21, 4);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (21, 6, 12, 6);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (22, 5, 14, 10);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (23, 5, 6, 2);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (24, 3, 17, 15);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (25, 4, 18, 12);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (26, 6, 13, 10);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (27, 8, 11, 16);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (28, 7, 12, 8);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (29, 4, 19, 13);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (30, 4, 6, 4);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (31, 3, 21, 11);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (32, 3, 13, 2);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (33, 7, 8, 10);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (34, 4, 17, 11);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (35, 3, 2, 1);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (36, 6, 3, 14);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (37, 8, 13, 13);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (38, 5, 8, 14);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (39, 2, 13, 3);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (40, 1, 22, 19);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (41, 3, 8, 14);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (42, 5, 6, 9);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (43, 2, 3, 10);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (44, 8, 8, 5);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (45, 2, 10, 12);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (46, 8, 3, 0);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (47, 7, 4, 2);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (48, 7, 6, 9);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (49, 4, 17, 0);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (50, 1, 2, 15);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (51, 1, 24, 18);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (52, 4, 5, 15);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (53, 4, 23, 3);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (54, 2, 9, 10);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (55, 1, 9, 18);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (56, 7, 0, 14);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (57, 7, 10, 2);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (58, 7, 8, 2);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (59, 1, 1, 3);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (60, 5, 17, 10);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (61, 3, 18, 20);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (62, 7, 19, 10);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (63, 5, 8, 19);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (64, 8, 4, 20);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (65, 3, 10, 14);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (66, 4, 22, 9);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (67, 3, 24, 10);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (68, 5, 16, 16);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (69, 7, 22, 11);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (70, 7, 7, 1);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (71, 5, 13, 7);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (72, 5, 6, 0);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (73, 3, 2, 9);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (74, 3, 3, 18);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (75, 2, 10, 10);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (76, 4, 20, 7);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (77, 1, 20, 1);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (78, 4, 14, 17);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (79, 8, 12, 8);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (80, 1, 3, 13);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (81, 6, 18, 4);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (82, 4, 12, 12);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (83, 8, 2, 19);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (84, 3, 6, 19);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (85, 2, 19, 3);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (86, 3, 11, 13);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (87, 8, 0, 5);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (88, 3, 9, 6);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (89, 3, 9, 8);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (90, 6, 21, 20);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (91, 1, 9, 13);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (92, 4, 6, 4);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (93, 7, 8, 6);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (94, 1, 18, 13);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (95, 1, 16, 11);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (96, 8, 6, 6);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (97, 6, 4, 15);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (98, 3, 9, 7);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (99, 2, 24, 19);
-insert into cancel_policy (id, salon_id, cutoff_hours, fee) values (100, 3, 17, 0);
 
 insert into noshow_policy (id, salon_id, grace_min, fee) values (1, 1, 15, 30.49);
 insert into noshow_policy (id, salon_id, grace_min, fee) values (2, 6, 15, 46.92);
@@ -939,100 +872,14 @@ insert into noshow_policy (id, salon_id, grace_min, fee) values (3, 5, 15, 37.67
 insert into noshow_policy (id, salon_id, grace_min, fee) values (4, 4, 15, 39.67);
 insert into noshow_policy (id, salon_id, grace_min, fee) values (5, 7, 15, 32.7);
 insert into noshow_policy (id, salon_id, grace_min, fee) values (6, 2, 15, 40.13);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (7, 6, 15, 29.23);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (8, 4, 15, 35.99);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (9, 5, 15, 28.41);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (10, 5, 15, 37.75);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (11, 6, 15, 21.7);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (12, 8, 15, 35.56);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (13, 7, 15, 42.28);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (14, 3, 15, 44.66);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (15, 8, 15, 42.06);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (16, 4, 15, 45.72);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (17, 8, 15, 42.8);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (18, 7, 15, 39.1);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (19, 7, 15, 41.01);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (20, 5, 15, 26.87);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (21, 5, 15, 45.29);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (22, 4, 15, 23.68);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (23, 5, 15, 22.89);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (24, 3, 15, 21.3);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (25, 8, 15, 22.0);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (26, 6, 15, 29.64);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (27, 5, 15, 24.36);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (28, 1, 15, 48.11);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (29, 1, 15, 28.04);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (30, 7, 15, 33.39);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (31, 4, 15, 38.44);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (32, 2, 15, 26.19);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (33, 6, 15, 47.54);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (34, 5, 15, 38.53);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (35, 6, 15, 20.42);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (36, 4, 15, 31.99);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (37, 3, 15, 26.48);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (38, 6, 15, 32.64);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (39, 1, 15, 49.39);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (40, 8, 15, 41.11);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (41, 2, 15, 33.49);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (42, 6, 15, 40.76);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (43, 3, 15, 42.99);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (44, 5, 15, 47.05);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (45, 8, 15, 40.75);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (46, 1, 15, 23.56);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (47, 7, 15, 44.26);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (48, 8, 15, 42.44);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (49, 1, 15, 32.73);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (50, 5, 15, 44.78);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (51, 3, 15, 27.45);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (52, 8, 15, 37.64);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (53, 6, 15, 25.1);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (54, 5, 15, 39.75);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (55, 4, 15, 48.87);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (56, 7, 15, 30.88);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (57, 2, 15, 21.2);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (58, 1, 15, 43.14);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (59, 4, 15, 35.52);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (60, 5, 15, 39.03);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (61, 2, 15, 36.72);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (62, 4, 15, 29.4);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (63, 8, 15, 25.04);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (64, 8, 15, 34.36);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (65, 5, 15, 25.75);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (66, 5, 15, 26.06);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (67, 2, 15, 36.3);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (68, 6, 15, 27.24);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (69, 3, 15, 20.21);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (70, 8, 15, 46.41);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (71, 5, 15, 33.68);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (72, 8, 15, 25.15);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (73, 1, 15, 25.94);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (74, 8, 15, 48.79);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (75, 7, 15, 22.68);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (76, 4, 15, 27.34);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (77, 5, 15, 35.55);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (78, 8, 15, 44.1);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (79, 7, 15, 23.17);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (80, 7, 15, 32.85);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (81, 8, 15, 26.33);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (82, 6, 15, 21.93);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (83, 4, 15, 32.31);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (84, 8, 15, 38.04);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (85, 6, 15, 29.5);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (86, 5, 15, 29.89);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (87, 4, 15, 38.16);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (88, 8, 15, 40.77);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (89, 8, 15, 45.07);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (90, 1, 15, 32.55);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (91, 3, 15, 39.42);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (92, 1, 15, 37.34);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (93, 6, 15, 48.24);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (94, 5, 15, 49.12);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (95, 6, 15, 30.6);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (96, 1, 15, 30.88);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (97, 3, 15, 43.29);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (98, 5, 15, 48.38);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (99, 8, 15, 34.79);
-insert into noshow_policy (id, salon_id, grace_min, fee) values (100, 2, 15, 41.72);
+insert into noshow_policy (id, salon_id, grace_min, fee) values (7, 9, 15, 29.23);
+insert into noshow_policy (id, salon_id, grace_min, fee) values (8, 10, 15, 35.99);
+insert into noshow_policy (id, salon_id, grace_min, fee) values (9, 8, 15, 28.41);
+insert into noshow_policy (id, salon_id, grace_min, fee) values (10, 3, 15, 37.75);
+
+insert into noshow_policy (id, salon_id, grace_min, fee) values (11, 11, 15, 35.99);
+insert into noshow_policy (id, salon_id, grace_min, fee) values (12, 12, 15, 28.41);
+insert into noshow_policy (id, salon_id, grace_min, fee) values (13, 13, 15, 37.75);
 
 insert into _order (id, customer_id, salon_id, status, subtotal, tip_amnt, tax_amnt, total_amnt, promo_id) values (1, 1, 1, 'OPEN', 24.74, 17, 3, 9, 'LA3944');
 insert into _order (id, customer_id, salon_id, status, subtotal, tip_amnt, tax_amnt, total_amnt, promo_id) values (2, 2, 2, 'SUBMITTED', 67.8, 20, 6, 6, 'AI6621');
@@ -1044,10 +891,71 @@ insert into loyalty_account (id, user_id, salon_id, points) values (2, 2, 1, 12)
 insert into loyalty_account (id, user_id, salon_id, points) values (3, 3, 3, 17);
 insert into loyalty_account (id, user_id, salon_id, points) values (111, 111, 6, 90);
 
-insert into review (id, salon_id, customers_id, rating, comment) values (1, 1, 42, 4, 'integer tincidunt');
-insert into review (id, salon_id, customers_id, rating, comment) values (2, 8, 19, 1, 'nisl');
-insert into review (id, salon_id, customers_id, rating, comment) values (3, 7, 38, 2, 'et');
-insert into review (id, salon_id, customers_id, rating, comment) values (50, 7, 14, 2, 'ante vivamus');
+-- Salon 1
+insert into review (id, salon_id, customers_id, rating, comment) values (5, 1, 12, 5, 'Excellent service and friendly staff');
+insert into review (id, salon_id, customers_id, rating, comment) values (6, 1, 27, 4, 'Nice haircut, would return');
+insert into review (id, salon_id, customers_id, rating, comment) values (7, 1, 33, 3, 'Average experience, a bit slow');
+
+-- Salon 2
+insert into review (id, salon_id, customers_id, rating, comment) values (8, 2, 14, 5, 'Amazing nail art!');
+insert into review (id, salon_id, customers_id, rating, comment) values (9, 2, 21, 4, 'Good service, clean environment');
+insert into review (id, salon_id, customers_id, rating, comment) values (10, 2, 37, 3, 'Decent, but waiting time was long');
+
+-- Salon 3
+insert into review (id, salon_id, customers_id, rating, comment) values (11, 3, 45, 5, 'Loved my nails, very professional');
+insert into review (id, salon_id, customers_id, rating, comment) values (12, 3, 22, 4, 'Friendly staff and cozy atmosphere');
+insert into review (id, salon_id, customers_id, rating, comment) values (13, 3, 30, 4, 'Good service overall');
+
+-- Salon 4
+insert into review (id, salon_id, customers_id, rating, comment) values (14, 4, 18, 5, 'Haircut was perfect, highly recommend');
+insert into review (id, salon_id, customers_id, rating, comment) values (15, 4, 29, 4, 'Great stylist, will come again');
+insert into review (id, salon_id, customers_id, rating, comment) values (16, 4, 41, 3, 'Okay experience, nothing special');
+
+-- Salon 5
+insert into review (id, salon_id, customers_id, rating, comment) values (17, 5, 20, 5, 'Excellent nail designs');
+insert into review (id, salon_id, customers_id, rating, comment) values (18, 5, 26, 4, 'Staff was friendly and helpful');
+insert into review (id, salon_id, customers_id, rating, comment) values (19, 5, 35, 3, 'Average, but nails turned out fine');
+
+-- Salon 6
+insert into review (id, salon_id, customers_id, rating, comment) values (20, 6, 23, 5, 'Loved the extensions, very professional');
+insert into review (id, salon_id, customers_id, rating, comment) values (21, 6, 32, 4, 'Good service, felt comfortable');
+insert into review (id, salon_id, customers_id, rating, comment) values (22, 6, 38, 3, 'Average experience, nothing special');
+
+-- Salon 7
+insert into review (id, salon_id, customers_id, rating, comment) values (23, 7, 16, 4, 'Nice color service');
+insert into review (id, salon_id, customers_id, rating, comment) values (24, 7, 25, 3, 'Decent, could be faster');
+insert into review (id, salon_id, customers_id, rating, comment) values (25, 7, 34, 2, 'Not satisfied with the outcome');
+
+-- Salon 8
+insert into review (id, salon_id, customers_id, rating, comment) values (26, 8, 19, 1, 'Very poor experience');
+insert into review (id, salon_id, customers_id, rating, comment) values (27, 8, 28, 2, 'Staff was rude');
+insert into review (id, salon_id, customers_id, rating, comment) values (28, 8, 36, 3, 'Okay, nothing special');
+
+-- Salon 9
+insert into review (id, salon_id, customers_id, rating, comment) values (29, 9, 13, 5, 'Great extension service');
+insert into review (id, salon_id, customers_id, rating, comment) values (30, 9, 24, 4, 'Friendly and professional');
+insert into review (id, salon_id, customers_id, rating, comment) values (31, 9, 39, 4, 'Good overall experience');
+
+-- Salon 10
+insert into review (id, salon_id, customers_id, rating, comment) values (32, 10, 15, 5, 'Loved my new hair color');
+insert into review (id, salon_id, customers_id, rating, comment) values (33, 10, 26, 4, 'Nice stylist and service');
+insert into review (id, salon_id, customers_id, rating, comment) values (34, 10, 37, 3, 'Okay, could be better');
+
+-- Salon 11
+insert into review (id, salon_id, customers_id, rating, comment) values (35, 11, 21, 5, 'Excellent extension job');
+insert into review (id, salon_id, customers_id, rating, comment) values (36, 11, 30, 4, 'Very happy with service');
+insert into review (id, salon_id, customers_id, rating, comment) values (37, 11, 42, 3, 'Average, but nice staff');
+
+-- Salon 12
+insert into review (id, salon_id, customers_id, rating, comment) values (38, 12, 14, 5, 'Amazing color work');
+insert into review (id, salon_id, customers_id, rating, comment) values (39, 12, 27, 4, 'Good experience');
+insert into review (id, salon_id, customers_id, rating, comment) values (40, 12, 33, 4, 'Would return again');
+
+-- Salon 13
+insert into review (id, salon_id, customers_id, rating, comment) values (41, 13, 18, 5, 'Fantastic color service');
+insert into review (id, salon_id, customers_id, rating, comment) values (42, 13, 29, 4, 'Very satisfied with results');
+insert into review (id, salon_id, customers_id, rating, comment) values (43, 13, 35, 4, 'Good, professional staff');
+
 
 insert into emp_avail (id, employee_id, weekday, start_time, end_time, effective_from, effective_to) values (1, 1, 2, '7:18 AM', '1:48 AM', '1/29/2026', '7/15/2017');
 insert into emp_avail (id, employee_id, weekday, start_time, end_time, effective_from, effective_to) values (2, 2, 4, '7:00 AM', '1:36 AM', '1/6/2021', '7/9/2007');
@@ -1165,4 +1073,3 @@ FOR EACH ROW BEGIN
     JSON_OBJECT('name', NEW.name, 'price', NEW.price, 'salon_id', NEW.salon_id));
 END$$
 DELIMITER ;
-
