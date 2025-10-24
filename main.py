@@ -25,7 +25,7 @@ from app.routes.autocomplete import autocomplete_bp
 load_dotenv()
 
 def create_app():
-    print("🚀 Starting create_app()")
+    print("🚀 Starting create_app() V.2.0")
     app = Flask(__name__)
     print(f"📱 Flask app created: {app}")
     
@@ -56,13 +56,21 @@ def create_app():
         print("🏠 Adding root route...")
         @app.route('/')
         def home():
-            print("🏠 ROOT ROUTE WAS CALLED!")
-            return jsonify({
-                "message": "Jade Backend API is running!",
-                "status": "healthy",
-                "version": "1.0.0"
-            })
+            try:
+                print("📥 Root route accessed")
+                return {"status": "ok", "message": "Backend is running!"}, 200
+            except Exception as e:
+                print(f"❌ Error in root route: {e}")
+                import traceback
+                traceback.print_exc()
+                return {"error": str(e)}, 500
         print("✓ Root route added")
+
+        print("🏠 Adding ping route...")
+        @app.route('/ping')
+        def ping():
+            return "pong"
+        print("✓ Root ping added")
         
         print("📍 Checking registered routes:")
         route_count = 0
