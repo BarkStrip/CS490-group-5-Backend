@@ -24,6 +24,7 @@ from app.extensions import db
 from app.routes.salons import salons_bp
 from app.routes.autocomplete import autocomplete_bp
 from app.routes.auth import auth_bp
+from app.routes.cart import cart_bp
 
 
 def create_app():
@@ -40,6 +41,7 @@ def create_app():
     app.register_blueprint(salons_bp)
     app.register_blueprint(autocomplete_bp)
     app.register_blueprint(auth_bp)
+    app.register_blueprint(cart_bp)
 
     return app
 
