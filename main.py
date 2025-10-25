@@ -18,9 +18,10 @@ from app.config import Config
 from app.extensions import db
 from dotenv import load_dotenv
 
-# (Your existing blueprint imports would be here)
-from app.routes.salons import salons_bp 
+# --- Import Blueprints ---
+from app.routes.salons import salons_bp
 from app.routes.autocomplete import autocomplete_bp
+from app.routes.auth import auth_bp
 
 load_dotenv()
 
