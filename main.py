@@ -14,9 +14,10 @@
 # ----------------------------------------------------------------------------
 from flask import Flask, jsonify
 from flask_cors import CORS
+from dotenv import load_dotenv
+load_dotenv()   # only needed locally. 
 from app.config import Config
 from app.extensions import db
-from dotenv import load_dotenv
 
 # --- Import Blueprints ---
 from app.routes.salons import salons_bp
@@ -24,7 +25,6 @@ from app.routes.autocomplete import autocomplete_bp
 from app.routes.auth import auth_bp
 from app.routes.cart import cart_bp
 
-load_dotenv()
 
 def create_app():
     print("Starting create_app()")
@@ -108,7 +108,6 @@ if __name__ == '__main__':
     import os
     from dotenv import load_dotenv
 
-    load_dotenv()   # only needed locally. 
                     # Create a .env contiaining:
                     #       MYSQL_PUBLIC_URL= mysql+pymysql://<USER>:<PASSWORD>@<HOST>:<PORT>/salon_app
                     # OR railway development DB:
