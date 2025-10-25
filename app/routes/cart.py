@@ -79,3 +79,70 @@ def add_service_to_cart():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
+# -----------------------------------------------------------------------------
+# POST /api/cart/add-product
+# Purpose:
+#   Add a product to the user's cart.
+# -----------------------------------------------------------------------------
+@cart_bp.route("/add-product", methods=["POST"])
+def add_product_to_cart():
+    try:
+        data = request.get_json(force=True)
+        user_id = data.get("user_id")
+        product_id = data.get("product_id")
+        product_name = data.get("product_name")
+        quantity = int(data.get("quantity", 1))
+        salon = data.get("salon")
+        price = float(data.get("price", 0))
+
+        # --- Validate ---
+        if not user_id or not product_id or not product_name:
+            return jsonify({
+                "status": "error",
+                "message": "Missing required fields (user_id, product_id, product_name)"
+            }), 400
+
+        # --- Ensure product exists ---
+        product = db.session.scalar(select(Product).where(Product.id == product_id))
+        if not product:
+            return jsonify({
+                "status": "error",
+                "message": f"Product ID {product_id} not found"
+            }), 404
+
+        # --- Create / get user's cart ---
+        cart = db.session.scalar(select(Cart).where(Cart.user_id == user_id))
+        if not cart:
+            cart = Cart(user_id=user_id)
+            db.session.add(cart)
+            db.session.commit()
+
+        # --- Insert into cart_item ---
+        db.session.execute(
+            text("""
+                INSERT INTO cart_item (cart_id, kind, product_id, qty, price)
+                VALUES (:cart_id, 'product', :product_id, :qty, :price)
+            """),
+            {"cart_id": cart.id, "product_id": product_id, "qty": quantity, "price": price}
+        )
+        db.session.commit()
+
+        return jsonify({
+            "status": "success",
+            "message": "Product added to cart successfully",
+            "cart_item": {
+                "user_id": user_id,
+                "product_id": product_id,
+                "product_name": product_name,
+                "quantity": quantity,
+                "salon": salon,
+                "price": price
+            }
+        }), 201
+
+    except IntegrityError as e:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": str(e.orig)}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": str(e)}), 500
