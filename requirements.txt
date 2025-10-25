@@ -3,9 +3,11 @@ backports-datetime-fromisoformat==2.0.3
 bcrypt==5.0.0
 blinker==1.9.0
 certifi==2022.5.18.1
+cffi==2.0.0
 charset-normalizer==2.0.12
 click==8.1.8
 colorama==0.4.6
+cryptography==46.0.3
 dotenv==0.9.9
 Flask==3.1.2
 flask-cors==6.0.1
@@ -29,6 +31,7 @@ packaging==21.3
 pluggy==1.0.0
 protobuf==3.20.1
 py==1.11.0
+pycparser==2.23
 PyJWT==2.10.1
 PyMySQL==1.1.2
 pyparsing==3.0.9
