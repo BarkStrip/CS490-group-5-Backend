@@ -25,99 +25,90 @@ from app.routes.autocomplete import autocomplete_bp
 load_dotenv()
 
 def create_app():
-    print("🚀 Starting create_app() V.2.0")
+    print("Starting create_app()")
     app = Flask(__name__)
-    print(f"📱 Flask app created: {app}")
+    print(f"Flask app created: {app}")
     
     try:
-        print("⚙️ Loading config...")
+        print("Loading config...")
         app.config.from_object(Config)
-        print("✓ Config loaded successfully")
-        print(f"📊 Config items: {len(app.config)} items loaded")
+        print("Config loaded successfully")
+        print(f"Config items: {len(app.config)} items loaded")
            
-        print("🌐 Initializing CORS...")
+        print("Initializing CORS...")
         CORS(app)
-        print("✓ CORS initialized")
+        print("CORS initialized")
            
-        print("🗄️ Initializing database...")
+        print("Initializing database...")
         db.init_app(app)
-        print("✓ Database initialized")
+        print("Database initialized")
            
-        print("📋 Registering blueprints...")
-        print(f"📋 Salons blueprint: {salons_bp}")
+        print("Registering blueprints...")
+        print(f"Salons blueprint: {salons_bp}")
         app.register_blueprint(salons_bp)
-        print("✓ Salons blueprint registered")
+        print("Salons blueprint registered")
         
-        print(f"📋 Autocomplete blueprint: {autocomplete_bp}")
+        print(f"Autocomplete blueprint: {autocomplete_bp}")
         app.register_blueprint(autocomplete_bp)
-        print("✓ Autocomplete blueprint registered")
-        print("✓ Blueprints registered")
+        print("Autocomplete blueprint registered")
+        print("Blueprints registered")
 
-        print("🏠 Adding root route...")
+        print("Adding root route...")
         @app.route('/')
         def home():
             try:
-                print("📥 Root route accessed")
+                print("Root route accessed")
                 return {"status": "ok", "message": "Backend is running!"}, 200
             except Exception as e:
-                print(f"❌ Error in root route: {e}")
+                print(f"Error in root route: {e}")
                 import traceback
                 traceback.print_exc()
                 return {"error": str(e)}, 500
-        print("✓ Root route added")
-
-        print("🏠 Adding ping route...")
-        @app.route('/ping')
-        def ping():
-            return "pong"
-        print("✓ Root ping added")
+        print("Root route added")
         
-        print("📍 Checking registered routes:")
+        print("Checking registered routes:")
         route_count = 0
         for rule in app.url_map.iter_rules():
             route_count += 1
-            print(f"  📍 Route {route_count}: {rule.endpoint} -> {rule.rule} [{list(rule.methods)}]")
-        
-        print(f"✅ Total routes registered: {route_count}")
+            print(f"   Route {route_count}: {rule.endpoint} -> {rule.rule} [{list(rule.methods)}]")
+        print(f"Total routes registered: {route_count}")
            
     except Exception as e:
-        print(f"❌ Error during app creation: {e}")
-        print(f"❌ Error type: {type(e)}")
+        print(f"Error during app creation: {e}")
+        print(f"Error type: {type(e)}")
         import traceback
-        print(f"❌ Full traceback: {traceback.format_exc()}")
+        print(f"Full traceback: {traceback.format_exc()}")
         raise
 
-    print("🎯 create_app() completed successfully")
-    print(f"🎯 Returning app: {app}")
+    print("create_app() completed successfully")
+    print(f"Returning app: {app}")
     return app
 
-print("🌟 About to call create_app()")
+print("About to call create_app()")
 app = create_app()
-print(f"🌟 App created: {app}")
-print(f"🌟 App name: {app.name}")
-print(f"🌟 App debug: {app.debug}")
+print(f"App created: {app}")
+print(f"App name: {app.name}")
+print(f"App debug: {app.debug}")
 
 # Port diagnostics
 import os
 expected_port = os.environ.get("PORT", "NOT SET")
-print(f"🚪 Railway PORT environment variable: {expected_port}")
-print(f"🚪 Gunicorn should be listening on: {expected_port}")
-
-# Check all environment variables related to ports
-for key, value in os.environ.items():
-    if 'PORT' in key.upper():
-        print(f"🚪 {key}: {value}")
+print(f"Railway PORT environment variable: {expected_port}")
+print(f"Gunicorn should be listening on: {expected_port}")
 
 
 if __name__ == '__main__':
     import os
     from dotenv import load_dotenv
 
-    load_dotenv()   # only needed locally. Create a .env contiaining:
-                    # MYSQL_PUBLIC_URL= mysql+pymysql://<USER>:<PASSWORD>@<HOST>:<PORT>/salon_app
+    load_dotenv()   # only needed locally. 
+                    # Create a .env contiaining:
+                    #       MYSQL_PUBLIC_URL= mysql+pymysql://<USER>:<PASSWORD>@<HOST>:<PORT>/salon_app
+                    # OR railway development DB:
+                    #       MYSQL_PUBLIC_URL= mysql://root:******@mysql.railway.internal:3306/salon_app_dev
+                    #        where ****** ==
 
     port = int(os.environ.get("PORT", 5000))
-    #debug = os.environ.get("FLASK_ENV") != "production"
-    app.run(host="0.0.0.0", port=port, debug=False)
+    app.run(host="0.0.0.0", port=port, debug = os.environ.get("FLASK_ENV") != "production")
 
 
