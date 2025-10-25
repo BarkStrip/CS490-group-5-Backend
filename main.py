@@ -22,6 +22,7 @@ from dotenv import load_dotenv
 from app.routes.salons import salons_bp
 from app.routes.autocomplete import autocomplete_bp
 from app.routes.auth import auth_bp
+from app.routes.cart import cart_bp
 
 load_dotenv()
 
@@ -53,6 +54,8 @@ def create_app():
         app.register_blueprint(autocomplete_bp)
         print("Autocomplete blueprint registered")
         print("Blueprints registered")
+        app.register_blueprint(auth_bp)
+        app.register_blueprint(cart_bp)
 
         print("Adding root route...")
         @app.route('/')
@@ -84,6 +87,9 @@ def create_app():
     print("create_app() completed successfully")
     print(f"Returning app: {app}")
     return app
+
+    # --- Register Blueprints ---
+  
 
 print("About to call create_app()")
 app = create_app()
