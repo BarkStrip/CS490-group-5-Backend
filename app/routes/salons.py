@@ -558,3 +558,56 @@ def get_salon_gallery(salon_id):
 
     except Exception as e:
         return jsonify({"error": "Database error", "details": str(e)}), 500
+
+
+@salons_bp.route("/details/<int:salon_id>/products", methods=["GET"])
+def get_salon_products(salon_id):
+    """
+    Fetch all products for a specific salon.
+    Uses the Product model as defined (no schema or DB changes).
+    """
+
+    try:
+        from app.models import Product
+
+        # Fetch all products for this salon (ORM-style)
+        products = (
+            db.session.query(Product)
+            .filter(Product.salon_id == salon_id)
+            .order_by(Product.name.asc())
+            .all()
+        )
+
+        if not products:
+            return jsonify({
+                "salon_id": salon_id,
+                "products_found": 0,
+                "products": []
+            }), 200
+
+        # Build list dynamically from actual columns
+        product_list = []
+        for p in products:
+            product_list.append({
+                "id": p.id,
+                "name": p.name,
+                "description": p.description,
+                "price": float(p.price) if p.price else None,
+                "stock_qty": p.stock_qty,
+                "is_active": bool(p.is_active),
+                "sku": p.sku,
+                "created_at": p.created_at.strftime("%Y-%m-%d %H:%M:%S") if p.created_at else None,
+                "updated_at": p.updated_at.strftime("%Y-%m-%d %H:%M:%S") if p.updated_at else None,
+            })
+
+        return jsonify({
+            "salon_id": salon_id,
+            "products_found": len(product_list),
+            "products": product_list
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            "error": "Database error",
+            "details": str(e)
+        }), 500
