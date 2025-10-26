@@ -146,3 +146,72 @@ def add_product_to_cart():
     except Exception as e:
         db.session.rollback()
         return jsonify({"status": "error", "message": str(e)}), 500
+
+
+
+@cart_bp.route("/<int:user_id>", methods=["GET"])
+def get_cart_details(user_id):
+    """
+    Fetch detailed cart info for a given user_id.
+    Includes both service and product items with joined salon details.
+    """
+    try:
+        # Step 1: Find user's cart
+        cart = db.session.execute(
+            text("SELECT id FROM cart WHERE user_id = :uid"),
+            {"uid": user_id}
+        ).fetchone()
+
+        if not cart:
+            return jsonify({"status": "error", "message": f"No cart found for user_id {user_id}"}), 404
+
+        # Step 2: Query all cart items with joined data
+        query = text("""
+            SELECT 
+                ci.id AS item_id,
+                ci.kind AS item_type,
+                ci.qty AS quantity,
+                ci.price AS item_price,
+
+                -- Service details
+                s.id AS service_id,
+                s.name AS service_name,
+                s.price AS service_price,
+                s.duration AS service_duration,
+                s.salon_id AS service_salon_id,
+                sl1.name AS service_salon_name,
+
+                -- Product details
+                p.id AS product_id,
+                p.name AS product_name,
+                p.price AS product_price,
+                p.stock_qty AS product_stock,
+                p.salon_id AS product_salon_id,
+                sl2.name AS product_salon_name
+
+            FROM cart_item ci
+            LEFT JOIN service s ON ci.service_id = s.id
+            LEFT JOIN salon sl1 ON s.salon_id = sl1.id
+            LEFT JOIN product p ON ci.product_id = p.id
+            LEFT JOIN salon sl2 ON p.salon_id = sl2.id
+            WHERE ci.cart_id = :cart_id
+        """)
+
+        result = db.session.execute(query, {"cart_id": cart.id})
+        items = [dict(row._mapping) for row in result]
+
+        return jsonify({
+            "status": "success",
+            "cart_id": cart.id,
+            "user_id": user_id,
+            "total_items": len(items),
+            "items": items
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "status": "error",
+            "message": "Internal server error",
+            "details": str(e)
+        }), 500
