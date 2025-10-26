@@ -483,6 +483,7 @@ class Service(Base):
     price = mapped_column(Integer)
     duration = mapped_column(Integer)
     is_active = mapped_column(String(50))
+    icon_url = mapped_column(String(255))
 
     salon: Mapped[Optional['Salon']] = relationship('Salon', back_populates='service')
     order_item: Mapped[List['OrderItem']] = relationship('OrderItem', uselist=True, back_populates='service')
