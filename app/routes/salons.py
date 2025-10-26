@@ -339,6 +339,8 @@ def get_salon_details(salon_id):
                 Salon.latitude,
                 Salon.longitude,
                 Salon.phone,
+                Salon.about,
+
                 func.avg(Review.rating).label("avg_rating"),
                 func.count(Review.id).label("total_reviews")
             )
@@ -352,7 +354,8 @@ def get_salon_details(salon_id):
                 Salon.address,
                 Salon.city,
                 Salon.latitude,
-                Salon.longitude,
+                Salon.longitude,        
+                Salon.about,
                 Salon.phone
             )
             .first()
@@ -373,6 +376,7 @@ def get_salon_details(salon_id):
             "phone": salon_data.phone,
             "avg_rating": round(float(salon_data.avg_rating), 1) if salon_data.avg_rating else None,
             "total_reviews": salon_data.total_reviews,
+            "about" : salon_data.about
         }
 
         return jsonify(salon_details)
