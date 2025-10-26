@@ -1,25 +1,12 @@
-"""
-This file serves as the database schema definition for the application using SQLAlchemy's Object-Relational Mapper (ORM).
+﻿from typing import List, Optional
 
-In general, its purpose is to:
-
-Define the Data Structure: It translates the tables, columns, and relationships of a relational database (like MySQL or PostgreSQL) into structured Python classes.
-
-Enable ORM Operations: It allows developers to interact with the database using Python objects and methods (e.g., customer.appointments.append(new_appt)) instead of writing raw SQL queries.
-
-Specify Constraints and Types: It defines the data types (String, Integer, DateTime), constraints (primary_key, nullable), default values, and specialized types (Enum, JSON, VARBINARY) for every column.
-
-
-
-"""
-from typing import List, Optional
-
-from sqlalchemy import BigInteger, Column, DECIMAL, DateTime, Enum, ForeignKeyConstraint, Index, Integer, JSON, String, Text, VARBINARY, text
+from sqlalchemy import BigInteger, Column, DECIMAL, DateTime, Enum, ForeignKeyConstraint, Index, Integer, JSON, String, Table, Text, VARBINARY, text
 from sqlalchemy.dialects.mysql import TINYINT
 from sqlalchemy.orm import Mapped, declarative_base, mapped_column, relationship
 from sqlalchemy.orm.base import Mapped
 
 Base = declarative_base()
+metadata = Base.metadata
 
 
 class Admins(Base):
@@ -95,6 +82,18 @@ class Payment(Base):
     updated_at = mapped_column(DateTime, nullable=False, server_default=text('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'))
 
     invoice: Mapped[List['Invoice']] = relationship('Invoice', uselist=True, back_populates='payment')
+
+
+class Types(Base):
+    __tablename__ = 'types'
+    __table_args__ = (
+        Index('name', 'name', unique=True),
+    )
+
+    id = mapped_column(Integer, primary_key=True)
+    name = mapped_column(String(100), nullable=False)
+
+    salon: Mapped['Salon'] = relationship('Salon', secondary='salon_type_assignments', back_populates='type_')
 
 
 class Users(Base):
@@ -199,8 +198,10 @@ class Salon(Base):
     address = mapped_column(String(255))
     city = mapped_column(String(100))
     phone = mapped_column(String(25))
+    about = mapped_column(Text)
 
     owner: Mapped['Users'] = relationship('Users', back_populates='salon')
+    type_: Mapped['Types'] = relationship('Types', secondary='salon_type_assignments', back_populates='salon')
     _order: Mapped[List['Order']] = relationship('Order', uselist=True, back_populates='salon')
     cancel_policy: Mapped[List['CancelPolicy']] = relationship('CancelPolicy', uselist=True, back_populates='salon')
     employees: Mapped[List['Employees']] = relationship('Employees', uselist=True, back_populates='salon')
@@ -435,6 +436,16 @@ class SalonImage(Base):
     updated_at = mapped_column(DateTime, nullable=False, server_default=text('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'))
 
     salon: Mapped['Salon'] = relationship('Salon', back_populates='salon_image')
+
+
+t_salon_type_assignments = Table(
+    'salon_type_assignments', metadata,
+    Column('salon_id', Integer, primary_key=True, nullable=False),
+    Column('type_id', Integer, primary_key=True, nullable=False),
+    ForeignKeyConstraint(['salon_id'], ['salon.id'], ondelete='CASCADE', name='salon_type_assignments_ibfk_1'),
+    ForeignKeyConstraint(['type_id'], ['types.id'], ondelete='CASCADE', name='salon_type_assignments_ibfk_2'),
+    Index('type_id', 'type_id')
+)
 
 
 class SalonVerify(Base):
