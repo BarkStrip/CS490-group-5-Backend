@@ -1,12 +1,183 @@
 from flask import Blueprint, jsonify, request, current_app
-from sqlalchemy import distinct
+from sqlalchemy import distinct, select
+from sqlalchemy.exc import IntegrityError
 from app.extensions import db
-from ..models import Service
+from ..models import Service, Users, Customers, AuthUser, Salon, SalonHours, SalonVerify
 from app.utils.s3_utils import upload_file_to_s3
 import uuid, os
+import bcrypt
 
 salon_register_bp = Blueprint("salon_register", __name__, url_prefix="/api/salon_register")
 
+# -------------------------------------------------------------------------
+# REGISTER NEW SALON (with owner account)
+# -------------------------------------------------------------------------
+@salon_register_bp.route("/register", methods=["POST"])
+def register_salon():
+    """
+    Register a new salon with owner account.
+    Creates:
+    1. Owner user account (Users, Customers, AuthUser tables)
+    2. Salon entry
+    3. Salon hours
+    4. Initial services
+    5. Salon verification entry (status: PENDING)
+    """
+    try:
+        data = request.get_json(force=True)
+        
+        # Extract data
+        owner_data = data.get("owner", {})
+        salon_data = data.get("salon", {})
+        hours_data = data.get("hours", {})
+        services_data = data.get("services", [])
+        payment_methods = data.get("payment_methods", {})
+        terms_agreed = data.get("terms_agreed", False)
+        business_confirmed = data.get("business_confirmed", False)
+        
+        # Validate required fields
+        if not owner_data.get("name") or not owner_data.get("email") or not owner_data.get("password"):
+            return jsonify({
+                "status": "error",
+                "message": "Owner information incomplete"
+            }), 400
+            
+        if not salon_data.get("name") or not salon_data.get("type"):
+            return jsonify({
+                "status": "error",
+                "message": "Salon information incomplete"
+            }), 400
+            
+        if not terms_agreed or not business_confirmed:
+            return jsonify({
+                "status": "error",
+                "message": "Must agree to terms and confirm business"
+            }), 400
+        
+        # Check if email already exists
+        existing = db.session.scalar(select(AuthUser).where(AuthUser.email == owner_data["email"]))
+        if existing:
+            return jsonify({
+                "status": "error",
+                "message": "Email already registered"
+            }), 409
+        
+        # Start transaction
+        # 1. Create owner user account
+        hashed_pw = bcrypt.hashpw(owner_data["password"].encode("utf-8"), bcrypt.gensalt())
+        
+        user = Users()
+        db.session.add(user)
+        db.session.flush()  # Get user.id
+        
+        customer = Customers(
+            name=owner_data["name"],
+            email=owner_data["email"],
+            phone=owner_data.get("phone"),
+            role="OWNER"
+        )
+        db.session.add(customer)
+        db.session.flush()
+        
+        auth_user = AuthUser(
+            id=user.id,
+            email=owner_data["email"],
+            password_hash=hashed_pw,
+            role="OWNER"
+        )
+        db.session.add(auth_user)
+        db.session.flush()
+        
+        # 2. Create salon entry
+        salon = Salon(
+            owner_id=user.id,
+            name=salon_data["name"],
+            type=salon_data["type"],
+            address=salon_data.get("address", ""),
+            city=salon_data.get("city", ""),
+            phone=salon_data.get("phone", ""),
+            about=""  # Empty for now
+        )
+        db.session.add(salon)
+        db.session.flush()  # Get salon.id
+        
+        # 3. Create salon hours
+        day_mapping = {
+            "monday": 1,
+            "tuesday": 2,
+            "wednesday": 3,
+            "thursday": 4,
+            "friday": 5,
+            "saturday": 6,
+            "sunday": 7
+        }
+        
+        for day_name, day_num in day_mapping.items():
+            if day_name in hours_data:
+                day_hours = hours_data[day_name]
+                if day_hours.get("closed"):
+                    hours_str = "Closed"
+                else:
+                    open_time = day_hours.get("open", "09:00")
+                    close_time = day_hours.get("close", "17:00")
+                    hours_str = f"{open_time}-{close_time}"
+                
+                salon_hour = SalonHours(
+                    salon_id=salon.id,
+                    weekday=day_num,
+                    hours=hours_str
+                )
+                db.session.add(salon_hour)
+        
+        # 4. Create initial services
+        for service_data in services_data:
+            if service_data.get("name") and service_data.get("price"):
+                service = Service(
+                    salon_id=salon.id,
+                    name=service_data["name"],
+                    price=float(service_data["price"]),
+                    duration=int(service_data.get("duration", 60)),
+                    is_active="true"
+                )
+                db.session.add(service)
+        
+        # 5. Create salon verification entry (pending approval)
+        salon_verify = SalonVerify(
+            salon_id=salon.id,
+            status="PENDING"
+        )
+        db.session.add(salon_verify)
+        
+        # Commit all changes
+        db.session.commit()
+        
+        return jsonify({
+            "status": "success",
+            "message": "Salon registration submitted for verification",
+            "salon_id": salon.id,
+            "owner_id": user.id
+        }), 201
+        
+    except IntegrityError as e:
+        db.session.rollback()
+        return jsonify({
+            "status": "error",
+            "message": "Database integrity error",
+            "details": str(e.orig)
+        }), 400
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "status": "error",
+            "message": "Internal server error",
+            "details": str(e)
+        }), 500
+
+
+# -------------------------------------------------------------------------
+# ADD SERVICE TO EXISTING SALON
+# -------------------------------------------------------------------------
 @salon_register_bp.route("/add_service", methods=["POST"])
 def add_service():
    
@@ -73,7 +244,7 @@ def add_service():
                 "name": name,
                 "price": price,
                 "duration": duration,
-                "is_active": is_active, #
+                "is_active": is_active,
                 "icon_url": icon_url
             }
         }), 201
