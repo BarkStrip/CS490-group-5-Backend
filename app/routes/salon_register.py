@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request, current_app
 from sqlalchemy import distinct
 from app.extensions import db
-from ..models import Service
+from ..models import Service, Product
 from app.utils.s3_utils import upload_file_to_s3
 import uuid, os
 
@@ -82,3 +82,51 @@ def add_service():
         db.session.rollback()
  
         return jsonify({"error": "Failed to add service", "details": str(e)}), 500
+
+@salon_register_bp.route("/delete_service/<int:service_id>", methods=["DELETE"])
+def delete_service(service_id):
+    """
+    Delete a service by its ID.
+    """
+    try:
+        service = db.session.query(Service).get(service_id)
+        if not service:
+            return jsonify({"error": f"Service with id {service_id} not found"}), 404
+
+        db.session.delete(service)
+        db.session.commit()
+
+        return jsonify({
+            "message": f"Service {service_id} deleted successfully"
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "error": "Failed to delete service",
+            "details": str(e)
+        }), 500
+
+@salon_register_bp.route("/delete_product/<int:product_id>", methods=["DELETE"])
+def delete_product(product_id):
+    """
+    Delete a product by its ID.
+    """
+    try:
+        product = db.session.query(Product).get(product_id)
+        if not product:
+            return jsonify({"error": f"Product with id {product_id} not found"}), 404
+
+        db.session.delete(product)
+        db.session.commit()
+
+        return jsonify({
+            "message": f"Product {product_id} deleted successfully"
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "error": "Failed to delete product",
+            "details": str(e)
+        }), 500
