@@ -58,7 +58,7 @@ def add_service():
             name=name,
             price=price,
             duration=duration,
-            is_active=is_active,
+            is_active="true" if is_active else "false",
             icon_url=icon_url
         )
 
