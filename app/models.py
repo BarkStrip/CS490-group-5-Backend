@@ -402,6 +402,7 @@ class Review(Base):
 
     customers: Mapped['Customers'] = relationship('Customers', back_populates='review')
     salon: Mapped['Salon'] = relationship('Salon', back_populates='review')
+    review_image: Mapped[List['ReviewImage']] = relationship('ReviewImage', uselist=True, back_populates='review')
     review_reply: Mapped[List['ReviewReply']] = relationship('ReviewReply', uselist=True, back_populates='review')
 
 
@@ -609,6 +610,22 @@ class OrderItem(Base):
     product: Mapped[Optional['Product']] = relationship('Product', back_populates='order_item')
     service: Mapped[Optional['Service']] = relationship('Service', back_populates='order_item')
     booking: Mapped[List['Booking']] = relationship('Booking', uselist=True, back_populates='order_item')
+
+
+class ReviewImage(Base):
+    __tablename__ = 'review_image'
+    __table_args__ = (
+        ForeignKeyConstraint(['review_id'], ['review.id'], ondelete='CASCADE', name='review_image_ibfk_1'),
+        Index('review_id', 'review_id')
+    )
+
+    id = mapped_column(Integer, primary_key=True)
+    url = mapped_column(String(512), nullable=False)
+    review_id = mapped_column(Integer, nullable=False)
+    created_at = mapped_column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
+    updated_at = mapped_column(DateTime, server_default=text('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'))
+
+    review: Mapped['Review'] = relationship('Review', back_populates='review_image')
 
 
 class ReviewReply(Base):

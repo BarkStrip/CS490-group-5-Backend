@@ -1,13 +1,13 @@
 from flask import Blueprint, jsonify, request
 from app.extensions import db
 # Here is where you call the "TABLES" from models. Models is a file that contains all the tables in "Python" format so we can use sqlalchemy
-from ..models import Salon, Service, SalonVerify, Review
+from ..models import Salon, Service, SalonVerify, Review, Customers
 
 #math functions to calculate coordinate distance 
 from math import radians, sin, cos, sqrt, atan2
 
 from sqlalchemy import func, desc, or_
-
+from sqlalchemy.orm import joinedload 
 # Create the Blueprint
 salons_bp = Blueprint("salons", __name__, url_prefix="/api/salons")
 
@@ -386,59 +386,44 @@ def get_salon_details(salon_id):
         return jsonify({"error": "Database error", "details": str(e)}), 500
 
 
-
 @salons_bp.route("/details/<int:salon_id>/reviews", methods=["GET"])
 def get_salon_reviews(salon_id):
-    """
-    Fetch all reviews for a specific salon.
-    Works even if the Review table does not include user_name.
-    """
-    try:
-        # --- Detect what columns exist in Review ---
-        review_columns = Review.__table__.columns.keys()
-        has_user_name = "user_name" in review_columns
-        has_user_id = "user_id" in review_columns
 
-        # --- Base Query ---
+    try:
         reviews_query = (
             db.session.query(
-                Review.id,
-                Review.rating,
-                Review.comment,
-                Review.created_at,
-                *( [Review.user_name] if has_user_name else [] ),
-                *( [Review.user_id] if has_user_id else [] )
+                Review,         
+                Customers.name  
             )
-            .join(Salon, Review.salon_id == Salon.id)
-            .filter(Salon.id == salon_id)
+            .join(Customers, Review.customers_id == Customers.id) 
+            .filter(Review.salon_id == salon_id)
+            .options(joinedload(Review.review_image)) 
             .order_by(Review.created_at.desc())
         )
 
-        reviews = reviews_query.all()
+        reviews_with_names = reviews_query.all() 
 
-        # --- Handle no results ---
-        if not reviews:
+        if not reviews_with_names:
             return jsonify({
                 "salon_id": salon_id,
                 "reviews_found": 0,
                 "reviews": []
             }), 200
 
-        # --- Build JSON safely ---
         review_list = []
-        for r in reviews:
-            item = {
-                "id": r.id,
-                "rating": float(r.rating) if r.rating else None,
-                "comment": r.comment,
-                "created_at": r.created_at.strftime("%Y-%m-%d %H:%M:%S") if r.created_at else None
-            }
-            if has_user_name:
-                item["user_name"] = getattr(r, "user_name", "Anonymous")
-            elif has_user_id:
-                item["user_id"] = getattr(r, "user_id", None)
+        for review_obj, customer_name in reviews_with_names:
+            
+            image_list = [img.url for img in review_obj.review_image]
 
-            review_list.append(item)
+            review_list.append({
+                "id": review_obj.id,
+                "rating": float(review_obj.rating) if review_obj.rating else None,
+                "comment": review_obj.comment,
+                "created_at": review_obj.created_at.strftime("%Y-%m-%d %H:%M:%S") if review_obj.created_at else None,
+                "customers_id": review_obj.customers_id,
+                "customer_name": customer_name, 
+                "images": image_list 
+            })
 
         return jsonify({
             "salon_id": salon_id,
@@ -448,7 +433,6 @@ def get_salon_reviews(salon_id):
 
     except Exception as e:
         return jsonify({"error": "Database error", "details": str(e)}), 500
-
 
 
 @salons_bp.route("/details/<int:salon_id>/services", methods=["GET"])
