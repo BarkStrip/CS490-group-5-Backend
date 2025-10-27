@@ -191,6 +191,7 @@ def getTopGeneric():
                 "name": salon.name, 
                 "type": salon.type, 
                 "address": salon.address,
+                "city": salon.city,
                 "latitude": float(salon.latitude),
                 "longitude": float(salon.longitude),
                 "phone": salon.phone,
