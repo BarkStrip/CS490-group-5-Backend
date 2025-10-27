@@ -377,6 +377,7 @@ class Product(Base):
     updated_at = mapped_column(DateTime, nullable=False, server_default=text('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'))
     description = mapped_column(String(400))
     sku = mapped_column(String(64))
+    image_url = mapped_column(String(400))
 
     salon: Mapped['Salon'] = relationship('Salon', back_populates='product')
     cart_item: Mapped[List['CartItem']] = relationship('CartItem', uselist=True, back_populates='product')
