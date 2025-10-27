@@ -24,7 +24,7 @@ from app.routes.salons import salons_bp
 from app.routes.autocomplete import autocomplete_bp
 from app.routes.auth import auth_bp
 from app.routes.cart import cart_bp
-
+from app.routes.salon_register import salon_register_bp
 
 def create_app():
     print("Starting create_app()")
@@ -56,7 +56,7 @@ def create_app():
         print("Blueprints registered")
         app.register_blueprint(auth_bp)
         app.register_blueprint(cart_bp)
-
+        app.register_blueprint(salon_register_bp)
         print("Adding root route...")
         @app.route('/')
         def home():
