@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from ..extensions import db
-from ..models import Cart, Service, Product
+from ..models import Cart, Service, Product, CartItem
 
 cart_bp = Blueprint("cart", __name__, url_prefix="/api/cart")
 
@@ -319,3 +319,38 @@ def add_salon_item():
             "message": "Internal server error",
             "details": str(e)
         }), 500
+
+
+@cart_bp.route("/delete-cart-item", methods=["DELETE"])
+def delete_cart_item():
+    """
+    Delete a service or product from a user's cart.
+    """
+    
+    cart_id = request.args.get("cart_id", type=int)
+    item_id = request.args.get("item_id", type=int)
+    kind = request.args.get("kind")
+
+    if not all([cart_id, item_id, kind]):
+        return jsonify({"error": "cart_id, item_id, and kind are required"}), 400
+
+    try:
+
+        if kind == "product":
+            cart_item = db.session.query(CartItem).filter_by(cart_id=cart_id, product_id=item_id).first()
+        elif kind == "service":
+            cart_item = db.session.query(CartItem).filter_by(cart_id=cart_id, service_id=item_id).first()
+        else:
+            return jsonify({"error": "Invalid kind. Must be 'product' or 'service'"}), 400
+
+        if not cart_item:
+            return jsonify({"error": "Item not found in cart"}), 404
+
+        db.session.delete(cart_item)
+        db.session.commit()
+
+        return jsonify({"message": "Item Deleted Successfully"})
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
