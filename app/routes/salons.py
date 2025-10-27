@@ -596,3 +596,4 @@ def get_salon_products(salon_id):
             "error": "Database error",
             "details": str(e)
         }), 500
+
