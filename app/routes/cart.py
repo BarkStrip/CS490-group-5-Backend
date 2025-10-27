@@ -215,3 +215,107 @@ def get_cart_details(user_id):
             "message": "Internal server error",
             "details": str(e)
         }), 500
+
+
+@cart_bp.route("/add-salon-item", methods=["POST"])
+def add_salon_item():
+    """
+    Add a new service or product to a salon's offerings.
+    Request JSON must include:
+      - type: "service" or "product"
+      - salon_id: int
+      - name: str
+      - price: float
+      - duration (for service only)
+      - stock_qty (for product only)
+      - description (optional, for product only)
+    """
+    try:
+        data = request.get_json(force=True)
+        item_type = data.get("type")
+        salon_id = data.get("salon_id")
+        name = data.get("name")
+        price = float(data.get("price", 0))
+        duration = data.get("duration")
+        stock_qty = data.get("stock_qty", 0)
+        description = data.get("description")
+
+        # --- Validate ---
+        if not item_type or not salon_id or not name:
+            return jsonify({
+                "status": "error",
+                "message": "Missing required fields: type, salon_id, or name"
+            }), 400
+
+        # --- Handle adding a SERVICE ---
+        if item_type.lower() == "service":
+            db.session.execute(
+                text("""
+                    INSERT INTO service (name, duration, price, salon_id)
+                    VALUES (:name, :duration, :price, :salon_id)
+                """),
+                {"name": name, "duration": duration, "price": price, "salon_id": salon_id}
+            )
+            db.session.commit()
+
+            return jsonify({
+                "status": "success",
+                "message": "New service added to salon successfully",
+                "data": {
+                    "type": "service",
+                    "salon_id": salon_id,
+                    "name": name,
+                    "price": price,
+                    "duration": duration
+                }
+            }), 201
+
+        # --- Handle adding a PRODUCT ---
+        elif item_type.lower() == "product":
+            db.session.execute(
+                text("""
+                    INSERT INTO product (name, description, price, stock_qty, salon_id)
+                    VALUES (:name, :description, :price, :stock_qty, :salon_id)
+                """),
+                {
+                    "name": name,
+                    "description": description,
+                    "price": price,
+                    "stock_qty": stock_qty,
+                    "salon_id": salon_id
+                }
+            )
+            db.session.commit()
+
+            return jsonify({
+                "status": "success",
+                "message": "New product added to salon successfully",
+                "data": {
+                    "type": "product",
+                    "salon_id": salon_id,
+                    "name": name,
+                    "price": price,
+                    "stock_qty": stock_qty,
+                    "description": description
+                }
+            }), 201
+
+        else:
+            return jsonify({
+                "status": "error",
+                "message": "Invalid type. Must be 'service' or 'product'."
+            }), 400
+
+    except IntegrityError as e:
+        db.session.rollback()
+        return jsonify({
+            "status": "error",
+            "message": str(e.orig)
+        }), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "status": "error",
+            "message": "Internal server error",
+            "details": str(e)
+        }), 500
