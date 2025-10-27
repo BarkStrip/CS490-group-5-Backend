@@ -26,6 +26,7 @@ from app.routes.auth import auth_bp
 from app.routes.cart import cart_bp
 from app.routes.salon_register import salon_register_bp
 from app.routes.upload_image_salon import salon_images_bp
+from app.routes.reviews import reviews_bp
 def create_app():
     print("Starting create_app()")
     app = Flask(__name__)
@@ -58,6 +59,7 @@ def create_app():
         app.register_blueprint(cart_bp)
         app.register_blueprint(salon_register_bp)
         app.register_blueprint(salon_images_bp)
+        app.register_blueprint(reviews_bp)
 
         print("Adding root route...")
         @app.route('/')
