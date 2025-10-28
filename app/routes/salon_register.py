@@ -340,17 +340,6 @@ def add_product():
         db.session.rollback()
         return jsonify({"error": "Failed to add product", "details": str(e)}), 500
 
-    except Exception as e:
-        db.session.rollback()
-        # Print full traceback to console
-        print("Exception occurred while adding product:")
-        traceback.print_exc()
-        # Return the error details in the response
-        return jsonify({
-            "error": "Failed to add product",
-            "details": str(e)
-        }), 500
-
 
 @salon_register_bp.route("/delete_service/<int:service_id>", methods=["DELETE"])
 def delete_service(service_id):
