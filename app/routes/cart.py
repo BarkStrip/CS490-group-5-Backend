@@ -320,6 +320,166 @@ def add_salon_item():
             "details": str(e)
         }), 500
 
+# -------------------------------------------------------------------------
+# PUT /api/cart/update-service/<service_id>
+# Purpose: Edit an existing salon service (update name, price, duration, etc.)
+# -------------------------------------------------------------------------
+@cart_bp.route("/update-service/<int:service_id>", methods=["PUT"])
+def update_salon_service(service_id):
+    try:
+        data = request.get_json(silent=True)
+        if not data:
+            return jsonify({
+                "status": "error",
+                "message": "No valid JSON body found. Ensure Content-Type is application/json."
+            }), 400
+
+        # Extract possible fields
+        name = data.get("name")
+        price = data.get("price")
+        duration = data.get("duration")
+        category_id = data.get("category_id")
+        salon_id = data.get("salon_id")
+
+        # --- Check if service exists ---
+        existing = db.session.execute(
+            text("SELECT id FROM service WHERE id = :sid"), {"sid": service_id}
+        ).fetchone()
+
+        if not existing:
+            return jsonify({
+                "status": "error",
+                "message": f"Service ID {service_id} not found."
+            }), 404
+
+        # --- Build dynamic update query ---
+        fields = []
+        params = {"sid": service_id}
+
+        if name:
+            fields.append("name = :name")
+            params["name"] = name
+        if price is not None:
+            fields.append("price = :price")
+            params["price"] = price
+        if duration is not None:
+            fields.append("duration = :duration")
+            params["duration"] = duration
+        if category_id is not None:
+            fields.append("category_id = :category_id")
+            params["category_id"] = category_id
+        if salon_id is not None:
+            fields.append("salon_id = :salon_id")
+            params["salon_id"] = salon_id
+
+        if not fields:
+            return jsonify({
+                "status": "error",
+                "message": "No valid update fields provided."
+            }), 400
+
+        # Execute query
+        query = text(f"UPDATE service SET {', '.join(fields)} WHERE id = :sid")
+        db.session.execute(query, params)
+        db.session.commit()
+
+        return jsonify({
+            "status": "success",
+            "message": f"Service ID {service_id} updated successfully.",
+            "updated_fields": params
+        }), 200
+
+    except IntegrityError as e:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": str(e.orig)}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "status": "error",
+            "message": "Internal Server Error",
+            "details": str(e)
+        }), 500
+
+
+# -------------------------------------------------------------------------
+# PUT /api/cart/update-product/<product_id>
+# Purpose: Edit an existing salon product (update name, price, stock, etc.)
+# -------------------------------------------------------------------------
+@cart_bp.route("/update-product/<int:product_id>", methods=["PUT"])
+def update_salon_product(product_id):
+    try:
+        data = request.get_json(silent=True)
+        if not data:
+            return jsonify({
+                "status": "error",
+                "message": "No valid JSON body found. Ensure Content-Type is application/json."
+            }), 400
+
+        # Extract possible fields
+        name = data.get("name")
+        description = data.get("description")
+        price = data.get("price")
+        stock_qty = data.get("stock_qty")
+        salon_id = data.get("salon_id")
+
+        # --- Check if product exists ---
+        existing = db.session.execute(
+            text("SELECT id FROM product WHERE id = :pid"), {"pid": product_id}
+        ).fetchone()
+
+        if not existing:
+            return jsonify({
+                "status": "error",
+                "message": f"Product ID {product_id} not found."
+            }), 404
+
+        # --- Build dynamic update query ---
+        fields = []
+        params = {"pid": product_id}
+
+        if name:
+            fields.append("name = :name")
+            params["name"] = name
+        if description:
+            fields.append("description = :description")
+            params["description"] = description
+        if price is not None:
+            fields.append("price = :price")
+            params["price"] = price
+        if stock_qty is not None:
+            fields.append("stock_qty = :stock_qty")
+            params["stock_qty"] = stock_qty
+        if salon_id is not None:
+            fields.append("salon_id = :salon_id")
+            params["salon_id"] = salon_id
+
+        if not fields:
+            return jsonify({
+                "status": "error",
+                "message": "No valid update fields provided."
+            }), 400
+
+        # Execute query
+        query = text(f"UPDATE product SET {', '.join(fields)} WHERE id = :pid")
+        db.session.execute(query, params)
+        db.session.commit()
+
+        return jsonify({
+            "status": "success",
+            "message": f"Product ID {product_id} updated successfully.",
+            "updated_fields": params
+        }), 200
+
+    except IntegrityError as e:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": str(e.orig)}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "status": "error",
+            "message": "Internal Server Error",
+            "details": str(e)
+        }), 500
 
 @cart_bp.route("/delete-cart-item", methods=["DELETE"])
 def delete_cart_item():
