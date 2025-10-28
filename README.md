@@ -30,35 +30,37 @@ Before starting, ensure you have the following installed:
     pip install -r requirements.txt
     # (Example dependencies: Flask Flask-SQLAlchemy PyMySQL sqlacodegen)
     ```
+### 2. Create and Configure Environment Variables
 
-### 2. Create and Configure `Config.py`
+You need to set up environment variables to store your database connection string securely.
 
-You need a configuration file to store the database connection string.
+1.  **Create `.env` File:** Create a file named `.env` in the root of your application directory (same level as your main application file).
 
-1.  **File Location:** Create a file named `config.py` in the root of your application, usually in the **`app/`** directory (e.g., `app/config.py`).
+2.  **Add Database Configuration:** Copy one of the following configurations into your `.env` file:
 
-2.  **File Content:** Copy the following content into **`app/config.py`**.
+   **For Local Database:**
+```env
+    # Local DB Credentials:
+    MYSQL_PUBLIC_URL=mysql+pymysql://<USER>:<PASSWORD>@<HOST>:<PORT>/salon_app
+```
+   **For Railway Development Database:**
+```env
+    # Railway Development DB:
+    MYSQL_PUBLIC_URL=mysql://root:<MYSQL_ROOT_PASSWORD>@mysql.railway.internal:3306/salon_app_dev
+```
 
-    ```python
-    import os
+3.  **Update Your Credentials:** Replace the placeholder values with your actual database information:
+    - `<USER>`: Your database username
+    - `<PASSWORD>`: Your database password  
+    - `<HOST>`: Your database host (typically `localhost` for local)
+    - `<PORT>`: Your database port (typically `3306` for MySQL)
+    - `<MYSQL_ROOT_PASSWORD>`: Your Railway MySQL root password (for Railway option)
 
-    class Config:
-        """
-        Contains the configuration variables for the Flask application.
-        Reads from environment variables if available, otherwise uses a local fallback.
-        """
-     
-        # Database Connection String (MySQL URI)
-        # Prioritizes the environment variable 'DATABASE_URL' for deployment security.
-        # FIX: The local fallback uses the 'pymysql' driver and generic credentials.
-        SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-            'mysql+pymysql://<USER>:<PASSWORD>@<HOST>:<PORT>/<DB_NAME>'
-            
-        # Recommended setting to disable SQLAlchemy event system for better performance.
-        SQLALCHEMY_TRACK_MODIFICATIONS = False
-    ```
 
-3.  **Update Local Fallback:** **Replace** `<USER>`, `<PASSWORD>`, `<HOST>`, `<PORT>`, and `<DB_NAME>` in the `SQLALCHEMY_DATABASE_URI` line with your actual, personal database credentials (e.g., `'mysql+pymysql://root:mysecretpass@localhost:3306/salon_app'`).
+4.  **Security Note:** Add `.env` to your `.gitignore` file to prevent committing sensitive credentials to version control:
+```gitignore
+    .env
+```
 
 
 ### 3. Database Model Generation (`app/models.py`)

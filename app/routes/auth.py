@@ -148,3 +148,36 @@ def login_user():
             "message": "Internal server error",
             "details": str(e)
         }), 500
+
+#-------------------------------------------------------------------------
+#GET /api/auth/user-type/<user_id>
+#Purpose:
+#Given a user ID, return what type of user they are.
+#This helps frontend features verify roles quickly.
+#-------------------------------------------------------------------------
+
+@auth_bp.route("/user-type/<int:user_id>", methods=["GET"])
+def get_user_type(user_id):
+    try:
+        # Step 1: Look up in AuthUser table
+        user = db.session.scalar(select(AuthUser).where(AuthUser.id == user_id))
+        if not user:
+            return jsonify({
+                "status": "error",
+                "message": f"No user found with ID {user_id}"
+            }), 404
+
+        # Step 2: Return the user's role
+        return jsonify({
+            "status": "success",
+            "user_id": user_id,
+            "email": user.email,
+            "role": user.role
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": "Internal server error",
+            "details": str(e)
+        }), 500
