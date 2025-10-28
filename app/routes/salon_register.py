@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request, current_app
 from sqlalchemy import distinct, select
 from sqlalchemy.exc import IntegrityError
 from app.extensions import db
-from ..models import Service, Users, Customers, AuthUser, Salon, SalonHours, SalonVerify
+from ..models import Service, Product, Users, Customers, AuthUser, Salon, SalonHours, SalonVerify
 from app.utils.s3_utils import upload_file_to_s3
 import uuid, os
 import bcrypt
