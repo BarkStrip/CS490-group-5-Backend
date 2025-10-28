@@ -584,6 +584,7 @@ def get_salon_products(salon_id):
                 "stock_qty": p.stock_qty,
                 "is_active": bool(p.is_active),
                 "sku": p.sku,
+                "image_url": p.image_url,
                 "created_at": p.created_at.strftime("%Y-%m-%d %H:%M:%S") if p.created_at else None,
                 "updated_at": p.updated_at.strftime("%Y-%m-%d %H:%M:%S") if p.updated_at else None,
             })
