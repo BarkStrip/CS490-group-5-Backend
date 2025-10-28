@@ -1,7 +1,10 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, current_app
 from app.extensions import db
 # Here is where you call the "TABLES" from models. Models is a file that contains all the tables in "Python" format so we can use sqlalchemy
-from ..models import Salon, Service, SalonVerify, Review, Customers
+from ..models import Salon, Service, SalonVerify, Review, Customers, Product
+from app.utils.s3_utils import upload_file_to_s3
+import uuid
+import traceback
 
 #math functions to calculate coordinate distance 
 from math import radians, sin, cos, sqrt, atan2
@@ -581,6 +584,7 @@ def get_salon_products(salon_id):
                 "stock_qty": p.stock_qty,
                 "is_active": bool(p.is_active),
                 "sku": p.sku,
+                "image_url": p.image_url,
                 "created_at": p.created_at.strftime("%Y-%m-%d %H:%M:%S") if p.created_at else None,
                 "updated_at": p.updated_at.strftime("%Y-%m-%d %H:%M:%S") if p.updated_at else None,
             })
@@ -596,3 +600,5 @@ def get_salon_products(salon_id):
             "error": "Database error",
             "details": str(e)
         }), 500
+
+

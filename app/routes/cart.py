@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from ..extensions import db
-from ..models import Cart, Service, Product
+from ..models import Cart, Service, Product, CartItem
 
 cart_bp = Blueprint("cart", __name__, url_prefix="/api/cart")
 
@@ -319,3 +319,198 @@ def add_salon_item():
             "message": "Internal server error",
             "details": str(e)
         }), 500
+
+# -------------------------------------------------------------------------
+# PUT /api/cart/update-service/<service_id>
+# Purpose: Edit an existing salon service (update name, price, duration, etc.)
+# -------------------------------------------------------------------------
+@cart_bp.route("/update-service/<int:service_id>", methods=["PUT"])
+def update_salon_service(service_id):
+    try:
+        data = request.get_json(silent=True)
+        if not data:
+            return jsonify({
+                "status": "error",
+                "message": "No valid JSON body found. Ensure Content-Type is application/json."
+            }), 400
+
+        # Extract possible fields
+        name = data.get("name")
+        price = data.get("price")
+        duration = data.get("duration")
+        category_id = data.get("category_id")
+        salon_id = data.get("salon_id")
+
+        # --- Check if service exists ---
+        existing = db.session.execute(
+            text("SELECT id FROM service WHERE id = :sid"), {"sid": service_id}
+        ).fetchone()
+
+        if not existing:
+            return jsonify({
+                "status": "error",
+                "message": f"Service ID {service_id} not found."
+            }), 404
+
+        # --- Build dynamic update query ---
+        fields = []
+        params = {"sid": service_id}
+
+        if name:
+            fields.append("name = :name")
+            params["name"] = name
+        if price is not None:
+            fields.append("price = :price")
+            params["price"] = price
+        if duration is not None:
+            fields.append("duration = :duration")
+            params["duration"] = duration
+        if category_id is not None:
+            fields.append("category_id = :category_id")
+            params["category_id"] = category_id
+        if salon_id is not None:
+            fields.append("salon_id = :salon_id")
+            params["salon_id"] = salon_id
+
+        if not fields:
+            return jsonify({
+                "status": "error",
+                "message": "No valid update fields provided."
+            }), 400
+
+        # Execute query
+        query = text(f"UPDATE service SET {', '.join(fields)} WHERE id = :sid")
+        db.session.execute(query, params)
+        db.session.commit()
+
+        return jsonify({
+            "status": "success",
+            "message": f"Service ID {service_id} updated successfully.",
+            "updated_fields": params
+        }), 200
+
+    except IntegrityError as e:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": str(e.orig)}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "status": "error",
+            "message": "Internal Server Error",
+            "details": str(e)
+        }), 500
+
+
+# -------------------------------------------------------------------------
+# PUT /api/cart/update-product/<product_id>
+# Purpose: Edit an existing salon product (update name, price, stock, etc.)
+# -------------------------------------------------------------------------
+@cart_bp.route("/update-product/<int:product_id>", methods=["PUT"])
+def update_salon_product(product_id):
+    try:
+        data = request.get_json(silent=True)
+        if not data:
+            return jsonify({
+                "status": "error",
+                "message": "No valid JSON body found. Ensure Content-Type is application/json."
+            }), 400
+
+        # Extract possible fields
+        name = data.get("name")
+        description = data.get("description")
+        price = data.get("price")
+        stock_qty = data.get("stock_qty")
+        salon_id = data.get("salon_id")
+
+        # --- Check if product exists ---
+        existing = db.session.execute(
+            text("SELECT id FROM product WHERE id = :pid"), {"pid": product_id}
+        ).fetchone()
+
+        if not existing:
+            return jsonify({
+                "status": "error",
+                "message": f"Product ID {product_id} not found."
+            }), 404
+
+        # --- Build dynamic update query ---
+        fields = []
+        params = {"pid": product_id}
+
+        if name:
+            fields.append("name = :name")
+            params["name"] = name
+        if description:
+            fields.append("description = :description")
+            params["description"] = description
+        if price is not None:
+            fields.append("price = :price")
+            params["price"] = price
+        if stock_qty is not None:
+            fields.append("stock_qty = :stock_qty")
+            params["stock_qty"] = stock_qty
+        if salon_id is not None:
+            fields.append("salon_id = :salon_id")
+            params["salon_id"] = salon_id
+
+        if not fields:
+            return jsonify({
+                "status": "error",
+                "message": "No valid update fields provided."
+            }), 400
+
+        # Execute query
+        query = text(f"UPDATE product SET {', '.join(fields)} WHERE id = :pid")
+        db.session.execute(query, params)
+        db.session.commit()
+
+        return jsonify({
+            "status": "success",
+            "message": f"Product ID {product_id} updated successfully.",
+            "updated_fields": params
+        }), 200
+
+    except IntegrityError as e:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": str(e.orig)}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "status": "error",
+            "message": "Internal Server Error",
+            "details": str(e)
+        }), 500
+
+@cart_bp.route("/delete-cart-item", methods=["DELETE"])
+def delete_cart_item():
+    """
+    Delete a service or product from a user's cart.
+    """
+    
+    cart_id = request.args.get("cart_id", type=int)
+    item_id = request.args.get("item_id", type=int)
+    kind = request.args.get("kind")
+
+    if not all([cart_id, item_id, kind]):
+        return jsonify({"error": "cart_id, item_id, and kind are required"}), 400
+
+    try:
+
+        if kind == "product":
+            cart_item = db.session.query(CartItem).filter_by(cart_id=cart_id, product_id=item_id).first()
+        elif kind == "service":
+            cart_item = db.session.query(CartItem).filter_by(cart_id=cart_id, service_id=item_id).first()
+        else:
+            return jsonify({"error": "Invalid kind. Must be 'product' or 'service'"}), 400
+
+        if not cart_item:
+            return jsonify({"error": "Item not found in cart"}), 404
+
+        db.session.delete(cart_item)
+        db.session.commit()
+
+        return jsonify({"message": "Item Deleted Successfully"})
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
