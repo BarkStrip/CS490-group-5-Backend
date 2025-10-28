@@ -116,7 +116,7 @@ if __name__ == '__main__':
                     #       MYSQL_PUBLIC_URL= mysql+pymysql://<USER>:<PASSWORD>@<HOST>:<PORT>/salon_app
                     # OR railway development DB:
                     #       MYSQL_PUBLIC_URL= mysql://root:******@mysql.railway.internal:3306/salon_app_dev
-                    #        where ****** ==
+                    #        where ****** == 
 
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug = os.environ.get("FLASK_ENV") != "production")

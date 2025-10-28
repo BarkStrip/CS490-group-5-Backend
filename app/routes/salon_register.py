@@ -9,9 +9,7 @@ import bcrypt
 
 salon_register_bp = Blueprint("salon_register", __name__, url_prefix="/api/salon_register")
 
-# -------------------------------------------------------------------------
-# REGISTER NEW SALON (with owner account)
-# -------------------------------------------------------------------------
+
 @salon_register_bp.route("/register", methods=["POST"])
 def register_salon():
     """
@@ -70,6 +68,7 @@ def register_salon():
         db.session.add(user)
         db.session.flush()  # Get user.id
         
+        # Customers table: id, name, email, phone, role
         customer = Customers(
             name=owner_data["name"],
             email=owner_data["email"],
@@ -79,6 +78,7 @@ def register_salon():
         db.session.add(customer)
         db.session.flush()
         
+        # AuthUser table: id, email, password_hash, role
         auth_user = AuthUser(
             id=user.id,
             email=owner_data["email"],
@@ -89,19 +89,32 @@ def register_salon():
         db.session.flush()
         
         # 2. Create salon entry
+        # Salon table columns: id, owner_id, name, type, address, city, latitude, longitude, phone, about
+        # Note: Your Salon table does NOT have 'state' or 'zip' columns
+        # So we combine the full address into the 'address' field
+        full_address = salon_data.get("address", "")
+        if salon_data.get("city"):
+            full_address += f", {salon_data.get('city')}"
+        if salon_data.get("state"):
+            full_address += f", {salon_data.get('state')}"
+        if salon_data.get("zip"):
+            full_address += f" {salon_data.get('zip')}"
+        
         salon = Salon(
             owner_id=user.id,
             name=salon_data["name"],
             type=salon_data["type"],
-            address=salon_data.get("address", ""),
+            address=full_address.strip(),  # Combined address with city, state, zip
             city=salon_data.get("city", ""),
             phone=salon_data.get("phone", ""),
             about=""  # Empty for now
+            # latitude and longitude will be NULL (can be geocoded later)
         )
         db.session.add(salon)
         db.session.flush()  # Get salon.id
         
         # 3. Create salon hours
+        # SalonHours table columns: id, salon_id, weekday (1-7), hours (string)
         day_mapping = {
             "monday": 1,
             "tuesday": 2,
@@ -120,6 +133,7 @@ def register_salon():
                 else:
                     open_time = day_hours.get("open", "09:00")
                     close_time = day_hours.get("close", "17:00")
+                    # Format: "9AM-6PM" to match your database
                     hours_str = f"{open_time}-{close_time}"
                 
                 salon_hour = SalonHours(
@@ -130,6 +144,7 @@ def register_salon():
                 db.session.add(salon_hour)
         
         # 4. Create initial services
+        # Service table columns: id, salon_id, name, price, duration, is_active, icon_url
         for service_data in services_data:
             if service_data.get("name") and service_data.get("price"):
                 service = Service(
@@ -137,18 +152,20 @@ def register_salon():
                     name=service_data["name"],
                     price=float(service_data["price"]),
                     duration=int(service_data.get("duration", 60)),
-                    is_active="true"
+                    is_active="true"  # String "true", not boolean
+                    # icon_url will be NULL initially
                 )
                 db.session.add(service)
         
         # 5. Create salon verification entry (pending approval)
+        # SalonVerify table: salon_id, status (PENDING/VERIFIED/REJECTED)
         salon_verify = SalonVerify(
             salon_id=salon.id,
             status="PENDING"
         )
         db.session.add(salon_verify)
         
-        # Commit all changes
+        # Commit all changes to database
         db.session.commit()
         
         return jsonify({
@@ -174,10 +191,6 @@ def register_salon():
             "details": str(e)
         }), 500
 
-
-# -------------------------------------------------------------------------
-# ADD SERVICE TO EXISTING SALON
-# -------------------------------------------------------------------------
 @salon_register_bp.route("/add_service", methods=["POST"])
 def add_service():
    
@@ -224,12 +237,13 @@ def add_service():
     
 
         # Create new service entry
+        # Service table: id, salon_id, name, price (int), duration (int), is_active (string), icon_url (text)
         new_service = Service(
             salon_id=salon_id,
             name=name,
             price=price,
             duration=duration,
-            is_active="true" if is_active else "false",
+            is_active="true" if is_active else "false",  # String, not boolean
             icon_url=icon_url
         )
 
