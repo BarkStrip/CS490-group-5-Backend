@@ -12,11 +12,10 @@
 # The main execution block starts the development server when the script is run
 # directly.
 # ----------------------------------------------------------------------------
-# -----------------------------------------------------------------------------
-# Flask Application Factory (FINAL VERSION — NO FIREBASE)
-# -----------------------------------------------------------------------------
-from flask import Flask
+from flask import Flask, jsonify
 from flask_cors import CORS
+from dotenv import load_dotenv
+load_dotenv()   # only needed locally. 
 from app.config import Config
 from app.extensions import db
 
@@ -24,26 +23,102 @@ from app.extensions import db
 from app.routes.salons import salons_bp
 from app.routes.autocomplete import autocomplete_bp
 from app.routes.auth import auth_bp
-
-
+from app.routes.cart import cart_bp
+from app.routes.salon_register import salon_register_bp
+from app.routes.upload_image_salon import salon_images_bp
+from app.routes.reviews import reviews_bp
 def create_app():
+    print("Starting create_app()")
     app = Flask(__name__)
-    app.config.from_object(Config)
+    print(f"Flask app created: {app}")
+    
+    try:
+        print("Loading config...")
+        app.config.from_object(Config)
+        print("Config loaded successfully")
+        print(f"Config items: {len(app.config)} items loaded")
+           
+        print("Initializing CORS...")
+        CORS(app)
+        print("CORS initialized")
+           
+        print("Initializing database...")
+        db.init_app(app)
+        print("Database initialized")
+           
+        print("Registering blueprints...")
+        print(f"Salons blueprint: {salons_bp}")
+        app.register_blueprint(salons_bp)
+        print("Salons blueprint registered")
+        
+        print(f"Autocomplete blueprint: {autocomplete_bp}")
+        app.register_blueprint(autocomplete_bp)
+        print("Autocomplete blueprint registered")
+        print("Blueprints registered")
+        app.register_blueprint(auth_bp)
+        app.register_blueprint(cart_bp)
+        app.register_blueprint(salon_register_bp)
+        app.register_blueprint(salon_images_bp)
+        app.register_blueprint(reviews_bp)
 
-    # --- Enable CORS ---
-    CORS(app)
+        print("Adding root route...")
+        @app.route('/')
+        def home():
+            try:
+                print("Root route accessed")
+                return {"status": "ok", "message": "Backend is running!"}, 200
+            except Exception as e:
+                print(f"Error in root route: {e}")
+                import traceback
+                traceback.print_exc()
+                return {"error": str(e)}, 500
+        print("Root route added")
+        
+        print("Checking registered routes:")
+        route_count = 0
+        for rule in app.url_map.iter_rules():
+            route_count += 1
+            print(f"   Route {route_count}: {rule.endpoint} -> {rule.rule} [{list(rule.methods)}]")
+        print(f"Total routes registered: {route_count}")
+           
+    except Exception as e:
+        print(f"Error during app creation: {e}")
+        print(f"Error type: {type(e)}")
+        import traceback
+        print(f"Full traceback: {traceback.format_exc()}")
+        raise
 
-    # --- Initialize DB ---
-    db.init_app(app)
-
-    # --- Register Blueprints ---
-    app.register_blueprint(salons_bp)
-    app.register_blueprint(autocomplete_bp)
-    app.register_blueprint(auth_bp)
-
+    print("create_app() completed successfully")
+    print(f"Returning app: {app}")
     return app
 
+    # --- Register Blueprints ---
+  
 
-if __name__ == "__main__":
-    app = create_app()
-    app.run(debug=True)
+print("About to call create_app()")
+app = create_app()
+print(f"App created: {app}")
+print(f"App name: {app.name}")
+print(f"App debug: {app.debug}")
+
+# Port diagnostics
+import os
+expected_port = os.environ.get("PORT", "NOT SET")
+print(f"Railway PORT environment variable: {expected_port}")
+print(f"Gunicorn should be listening on: {expected_port}")
+
+
+if __name__ == '__main__':
+    import os
+    from dotenv import load_dotenv
+
+                    # Create a .env contiaining:
+                    #       MYSQL_PUBLIC_URL= mysql+pymysql://<USER>:<PASSWORD>@<HOST>:<PORT>/salon_app
+                    # OR railway development DB:
+                    #       MYSQL_PUBLIC_URL= mysql://root:******@mysql.railway.internal:3306/salon_app_dev
+                    #        where ****** == 
+
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug = os.environ.get("FLASK_ENV") != "production")
+
+

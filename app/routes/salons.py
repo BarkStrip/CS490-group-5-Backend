@@ -1,15 +1,32 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, current_app
 from app.extensions import db
 # Here is where you call the "TABLES" from models. Models is a file that contains all the tables in "Python" format so we can use sqlalchemy
-from ..models import Salon, Service, SalonVerify, Review
+from ..models import Salon, Service, SalonVerify, Review, Customers, Product
+from app.utils.s3_utils import upload_file_to_s3
+import uuid
+import traceback
 
 #math functions to calculate coordinate distance 
 from math import radians, sin, cos, sqrt, atan2
 
 from sqlalchemy import func, desc, or_
-
+from sqlalchemy.orm import joinedload 
 # Create the Blueprint
 salons_bp = Blueprint("salons", __name__, url_prefix="/api/salons")
+
+
+@salons_bp.route("/test", methods=["GET"])
+def test_connection():
+    """
+    Simple test endpoint to verify database connection is working.
+    """
+    try:
+        # Test database connection
+        result = db.session.execute(db.text("SELECT 1"))
+        return jsonify({"status": "success", "message": "Database connection working"}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 
 @salons_bp.route("/cities", methods=["GET"])
 def get_cities():
@@ -136,7 +153,7 @@ def getTopRated():
 
         return jsonify({"salons": top_salons})
     
-    except Exception as e: 
+    except Exception as e:
         return jsonify({"error": "database error", "details": str(e)}), 500
 
 
@@ -177,6 +194,7 @@ def getTopGeneric():
                 "name": salon.name, 
                 "type": salon.type, 
                 "address": salon.address,
+                "city": salon.city,
                 "latitude": float(salon.latitude),
                 "longitude": float(salon.longitude),
                 "phone": salon.phone,
@@ -325,6 +343,8 @@ def get_salon_details(salon_id):
                 Salon.latitude,
                 Salon.longitude,
                 Salon.phone,
+                Salon.about,
+
                 func.avg(Review.rating).label("avg_rating"),
                 func.count(Review.id).label("total_reviews")
             )
@@ -338,7 +358,8 @@ def get_salon_details(salon_id):
                 Salon.address,
                 Salon.city,
                 Salon.latitude,
-                Salon.longitude,
+                Salon.longitude,        
+                Salon.about,
                 Salon.phone
             )
             .first()
@@ -359,6 +380,7 @@ def get_salon_details(salon_id):
             "phone": salon_data.phone,
             "avg_rating": round(float(salon_data.avg_rating), 1) if salon_data.avg_rating else None,
             "total_reviews": salon_data.total_reviews,
+            "about" : salon_data.about
         }
 
         return jsonify(salon_details)
@@ -367,59 +389,44 @@ def get_salon_details(salon_id):
         return jsonify({"error": "Database error", "details": str(e)}), 500
 
 
-
 @salons_bp.route("/details/<int:salon_id>/reviews", methods=["GET"])
 def get_salon_reviews(salon_id):
-    """
-    Fetch all reviews for a specific salon.
-    Works even if the Review table does not include user_name.
-    """
-    try:
-        # --- Detect what columns exist in Review ---
-        review_columns = Review.__table__.columns.keys()
-        has_user_name = "user_name" in review_columns
-        has_user_id = "user_id" in review_columns
 
-        # --- Base Query ---
+    try:
         reviews_query = (
             db.session.query(
-                Review.id,
-                Review.rating,
-                Review.comment,
-                Review.created_at,
-                *( [Review.user_name] if has_user_name else [] ),
-                *( [Review.user_id] if has_user_id else [] )
+                Review,         
+                Customers.name  
             )
-            .join(Salon, Review.salon_id == Salon.id)
-            .filter(Salon.id == salon_id)
+            .join(Customers, Review.customers_id == Customers.id) 
+            .filter(Review.salon_id == salon_id)
+            .options(joinedload(Review.review_image)) 
             .order_by(Review.created_at.desc())
         )
 
-        reviews = reviews_query.all()
+        reviews_with_names = reviews_query.all() 
 
-        # --- Handle no results ---
-        if not reviews:
+        if not reviews_with_names:
             return jsonify({
                 "salon_id": salon_id,
                 "reviews_found": 0,
                 "reviews": []
             }), 200
 
-        # --- Build JSON safely ---
         review_list = []
-        for r in reviews:
-            item = {
-                "id": r.id,
-                "rating": float(r.rating) if r.rating else None,
-                "comment": r.comment,
-                "created_at": r.created_at.strftime("%Y-%m-%d %H:%M:%S") if r.created_at else None
-            }
-            if has_user_name:
-                item["user_name"] = getattr(r, "user_name", "Anonymous")
-            elif has_user_id:
-                item["user_id"] = getattr(r, "user_id", None)
+        for review_obj, customer_name in reviews_with_names:
+            
+            image_list = [img.url for img in review_obj.review_image]
 
-            review_list.append(item)
+            review_list.append({
+                "id": review_obj.id,
+                "rating": float(review_obj.rating) if review_obj.rating else None,
+                "comment": review_obj.comment,
+                "created_at": review_obj.created_at.strftime("%Y-%m-%d %H:%M:%S") if review_obj.created_at else None,
+                "customers_id": review_obj.customers_id,
+                "customer_name": customer_name, 
+                "images": image_list 
+            })
 
         return jsonify({
             "salon_id": salon_id,
@@ -429,7 +436,6 @@ def get_salon_reviews(salon_id):
 
     except Exception as e:
         return jsonify({"error": "Database error", "details": str(e)}), 500
-
 
 
 @salons_bp.route("/details/<int:salon_id>/services", methods=["GET"])
@@ -540,3 +546,59 @@ def get_salon_gallery(salon_id):
 
     except Exception as e:
         return jsonify({"error": "Database error", "details": str(e)}), 500
+
+
+@salons_bp.route("/details/<int:salon_id>/products", methods=["GET"])
+def get_salon_products(salon_id):
+    """
+    Fetch all products for a specific salon.
+    Uses the Product model as defined (no schema or DB changes).
+    """
+
+    try:
+        from app.models import Product
+
+        # Fetch all products for this salon (ORM-style)
+        products = (
+            db.session.query(Product)
+            .filter(Product.salon_id == salon_id)
+            .order_by(Product.name.asc())
+            .all()
+        )
+
+        if not products:
+            return jsonify({
+                "salon_id": salon_id,
+                "products_found": 0,
+                "products": []
+            }), 200
+
+        # Build list dynamically from actual columns
+        product_list = []
+        for p in products:
+            product_list.append({
+                "id": p.id,
+                "name": p.name,
+                "description": p.description,
+                "price": float(p.price) if p.price else None,
+                "stock_qty": p.stock_qty,
+                "is_active": bool(p.is_active),
+                "sku": p.sku,
+                "image_url": p.image_url,
+                "created_at": p.created_at.strftime("%Y-%m-%d %H:%M:%S") if p.created_at else None,
+                "updated_at": p.updated_at.strftime("%Y-%m-%d %H:%M:%S") if p.updated_at else None,
+            })
+
+        return jsonify({
+            "salon_id": salon_id,
+            "products_found": len(product_list),
+            "products": product_list
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            "error": "Database error",
+            "details": str(e)
+        }), 500
+
+
