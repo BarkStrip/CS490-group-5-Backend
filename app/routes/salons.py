@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request, current_app
 from app.extensions import db
 # Here is where you call the "TABLES" from models. Models is a file that contains all the tables in "Python" format so we can use sqlalchemy
-from ..models import Salon, Service, SalonVerify, Review, Customers, Product
+from ..models import Salon, Service, SalonVerify, Review, Customers, Product, Types, t_salon_type_assignments
 from app.utils.s3_utils import upload_file_to_s3
 import uuid
 import traceback
@@ -36,7 +36,7 @@ def get_cities():
     try:
         # This query now works because 'SalonVerify' is imported
         city_query = db.session.query(Salon.city)\
-                               .filter(Salon.salon_verify.any(SalonVerify.status == 'VERIFIED'))\
+                               .filter(Salon.salon_verify.any(SalonVerify.status == 'APPROVED'))\
                                .distinct()\
                                .order_by(Salon.city)
         
@@ -95,18 +95,20 @@ def getTopRated():
             db.session.query(
                 Salon.id,
                 Salon.name, 
-                Salon.type,
+                func.group_concat(func.distinct(Types.name)).label("salon_types"), 
                 Salon.address, 
                 Salon.city,
                 Salon.latitude, 
                 Salon.longitude,
                 Salon.phone, 
                 func.avg(Review.rating).label("avg_rating"),
-                func.count(Review.id).label("total_reviews")
+                func.count(func.distinct(Review.id)).label("total_reviews") 
             )
             .join(SalonVerify, SalonVerify.salon_id == Salon.id)
+            .outerjoin(t_salon_type_assignments, t_salon_type_assignments.c.salon_id == Salon.id)  
+            .outerjoin(Types, Types.id == t_salon_type_assignments.c.type_id)                      
             .outerjoin(Review, Review.salon_id == Salon.id)
-            .filter(SalonVerify.status == "VERIFIED")
+            .filter(SalonVerify.status == "APPROVED")
             .group_by(Salon.id)
             .order_by(desc("avg_rating"), desc("total_reviews"))
         )
@@ -133,7 +135,7 @@ def getTopRated():
             salon_list.append({
                 "id": salon.id,
                 "name": salon.name,
-                "type": salon.type,
+                "types": salon.salon_types.split(',') if salon.salon_types else [],  # Convert to array
                 "address": salon.address,
                 "city": salon.city,
                 "latitude": salon.latitude,
@@ -168,18 +170,20 @@ def getTopGeneric():
             db.session.query(
                 Salon.id,
                 Salon.name, 
-                Salon.type,
+                func.group_concat(func.distinct(Types.name)).label("salon_types"), 
                 Salon.address, 
                 Salon.city,
                 Salon.latitude, 
                 Salon.longitude,
                 Salon.phone, 
                 func.avg(Review.rating).label("avg_rating"),
-                func.count(Review.id).label("total_reviews")
+                func.count(func.distinct(Review.id)).label("total_reviews") 
             )
             .join(SalonVerify, SalonVerify.salon_id == Salon.id)
+            .outerjoin(t_salon_type_assignments, t_salon_type_assignments.c.salon_id == Salon.id)  
+            .outerjoin(Types, Types.id == t_salon_type_assignments.c.type_id)                      
             .outerjoin(Review, Review.salon_id == Salon.id)
-            .filter(SalonVerify.status == "VERIFIED")
+            .filter(SalonVerify.status == "APPROVED")
             .group_by(Salon.id)
             .order_by(desc("avg_rating"), desc("total_reviews"))
             .limit(10)                                             
@@ -192,11 +196,9 @@ def getTopGeneric():
             salons_list.append({
                 "id": salon.id,
                 "name": salon.name, 
-                "type": salon.type, 
+                "types": salon.salon_types.split(',') if salon.salon_types else [],  # Changed from "type" to "types" and split the string
                 "address": salon.address,
                 "city": salon.city,
-                "latitude": float(salon.latitude),
-                "longitude": float(salon.longitude),
                 "phone": salon.phone,
                 "avg_rating": round(float(salon.avg_rating), 2) if salon.avg_rating is not None else None,
                 "total_reviews": salon.total_reviews
@@ -337,7 +339,7 @@ def get_salon_details(salon_id):
             db.session.query(
                 Salon.id,
                 Salon.name,
-                Salon.type,
+                func.group_concat(func.distinct(Types.name)).label("salon_types"), 
                 Salon.address,
                 Salon.city,
                 Salon.latitude,
@@ -349,19 +351,11 @@ def get_salon_details(salon_id):
                 func.count(Review.id).label("total_reviews")
             )
             .join(SalonVerify, SalonVerify.salon_id == Salon.id)
+            .outerjoin(t_salon_type_assignments, t_salon_type_assignments.c.salon_id == Salon.id)  
+            .outerjoin(Types, Types.id == t_salon_type_assignments.c.type_id)   
             .outerjoin(Review, Review.salon_id == Salon.id)
-            .filter(SalonVerify.status == "VERIFIED", Salon.id == salon_id)
-            .group_by(
-                Salon.id,
-                Salon.name,
-                Salon.type,
-                Salon.address,
-                Salon.city,
-                Salon.latitude,
-                Salon.longitude,        
-                Salon.about,
-                Salon.phone
-            )
+            .filter(SalonVerify.status == "APPROVED", Salon.id == salon_id)
+            .group_by(Salon.id)
             .first()
         )
 
@@ -372,7 +366,7 @@ def get_salon_details(salon_id):
         salon_details = {
             "id": salon_data.id,
             "name": salon_data.name,
-            "type": salon_data.type,
+            "types": salon_data.salon_types.split(',') if salon_data.salon_types else [],
             "address": salon_data.address,
             "city": salon_data.city,
             "latitude": float(salon_data.latitude) if salon_data.latitude else None,
@@ -396,7 +390,8 @@ def get_salon_reviews(salon_id):
         reviews_query = (
             db.session.query(
                 Review,         
-                Customers.name  
+                Customers.first_name,
+                Customers.last_name  
             )
             .join(Customers, Review.customers_id == Customers.id) 
             .filter(Review.salon_id == salon_id)
@@ -414,7 +409,7 @@ def get_salon_reviews(salon_id):
             }), 200
 
         review_list = []
-        for review_obj, customer_name in reviews_with_names:
+        for review_obj, customer_first_name, customer_last_name in reviews_with_names:
             
             image_list = [img.url for img in review_obj.review_image]
 
@@ -424,7 +419,7 @@ def get_salon_reviews(salon_id):
                 "comment": review_obj.comment,
                 "created_at": review_obj.created_at.strftime("%Y-%m-%d %H:%M:%S") if review_obj.created_at else None,
                 "customers_id": review_obj.customers_id,
-                "customer_name": customer_name, 
+                "customer_name": f"{customer_first_name} {customer_last_name}",
                 "images": image_list 
             })
 
