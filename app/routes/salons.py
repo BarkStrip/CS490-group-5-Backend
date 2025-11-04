@@ -235,19 +235,21 @@ def search_salons():
             db.session.query(
                 Salon.id,
                 Salon.name,
-                Salon.type,
+                func.group_concat(func.distinct(Types.name)).label("salon_types"),
                 Salon.address,
                 Salon.city,
                 Salon.latitude,
                 Salon.longitude,
                 func.avg(Review.rating).label("avg_rating"),
-                func.count(Review.id).label("total_reviews"),
+                func.count(func.distinct(Review.id)).label("total_reviews"),
                 func.avg(Service.price).label("avg_service_price")  # NEW: use avg price from services
             )
             .join(SalonVerify, SalonVerify.salon_id == Salon.id)
+            .outerjoin(t_salon_type_assignments, t_salon_type_assignments.c.salon_id == Salon.id)
+            .outerjoin(Types, Types.id == t_salon_type_assignments.c.type_id)
             .outerjoin(Review, Review.salon_id == Salon.id)
             .outerjoin(Service, Service.salon_id == Salon.id)
-            .filter(SalonVerify.status == "VERIFIED")
+            .filter(SalonVerify.status == "APPROVED")
             .group_by(Salon.id)
         )
 
@@ -255,7 +257,7 @@ def search_salons():
         
         if q:
             query = query.filter(
-                func.lower(Salon.name).like(f"{q.lower()}%") | func.lower(Salon.type).like(f"{q.lower()}%")
+                func.lower(Salon.name).like(f"{q.lower()}%") | func.lower(Types.name).like(f"{q.lower()}%") 
             )
 
         #if q:
@@ -272,7 +274,12 @@ def search_salons():
 
         # --- Type filter ---
         if service_type:
-            query = query.filter(func.lower(Salon.type) == service_type.lower())
+            type_subquery = (
+                db.session.query(t_salon_type_assignments.c.salon_id)
+                .join(Types, Types.id == t_salon_type_assignments.c.type_id)
+                .filter(func.lower(Types.name) == service_type.lower())
+            )
+            query = query.filter(Salon.id.in_(type_subquery))
 
         # --- Price filter (from services) ---
         if price:
@@ -303,7 +310,7 @@ def search_salons():
             salon_list.append({
                 "id": s.id,
                 "name": s.name,
-                "type": s.type,
+                "types": s.salon_types.split(',') if s.salon_types else [], 
                 "address": s.address,
                 "city": s.city,
                 "avg_rating": round(float(s.avg_rating), 1) if s.avg_rating else None,
