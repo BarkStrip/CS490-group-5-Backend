@@ -217,10 +217,8 @@ def add_service():
         )
         if existing:
             return jsonify({"error": "Service already exists"}), 409
-        
 
         icon_url = None
-       
 
         if icon_file:
          
@@ -250,8 +248,6 @@ def add_service():
 
         db.session.add(new_service)
         db.session.commit()
-
- 
 
         return jsonify({
             "message": "Service added successfully",
