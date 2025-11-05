@@ -32,6 +32,7 @@ def autocomplete_suggestions():
     salon_query = db.session.query(Salon.id, Salon.name)
     if city_filter:
         salon_query = salon_query.filter(Salon.city == city_filter)
+    
     salon_query = salon_query.filter(Salon.name.ilike(search_pattern)) \
                              .order_by(Salon.name) \
                              .limit(LIMIT)
@@ -49,6 +50,7 @@ def autocomplete_suggestions():
             # Join Salon to ensure service belongs to salon in that exact city
             service_query = service_query.join(Service.salon) \
                                          .filter(Salon.city == city_filter)
+        
         service_query = service_query.filter(Service.name.ilike(search_pattern)) \
                                      .distinct() \
                                      .order_by(Service.name) \
