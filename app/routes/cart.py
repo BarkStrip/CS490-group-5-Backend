@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from ..extensions import db
-from ..models import Cart, Service, Product, CartItem
+from ..models import Cart, Service, Product, CartItem, Customers
 
 cart_bp = Blueprint("cart", __name__, url_prefix="/api/cart")
 
@@ -30,6 +30,14 @@ def add_service_to_cart():
                 "status": "error",
                 "message": "Missing required fields (user_id, service_id)"
             }), 400
+
+        customer = db.session.scalar(select(Customers).where(Customers.user_id == user_id))
+        if not customer:
+            return jsonify({
+                "status": "error", 
+                "message": "Customer not found"
+            }), 404
+
 
         # --- Ensure service exists ---
         service = db.session.scalar(select(Service).where(Service.id == service_id))
