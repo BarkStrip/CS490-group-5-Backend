@@ -25,6 +25,7 @@ print("----------------------------")
 class Config:
     SQLALCHEMY_DATABASE_URI = url
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SECRET_KEY = os.environ.get("SECRET_KEY", "supersecretdevkey123")
 
     S3_BUCKET_NAME = S3_BUCKET_NAME
     S3_REGION = S3_REGION
