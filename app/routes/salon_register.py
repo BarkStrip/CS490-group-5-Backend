@@ -14,7 +14,6 @@ from datetime import time
 
 salon_register_bp = Blueprint("salon_register", __name__, url_prefix="/api/salon_register")
 
-
 @salon_register_bp.route("/register", methods=["POST"])
 def register_salon():
 

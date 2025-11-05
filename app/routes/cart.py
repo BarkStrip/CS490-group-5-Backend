@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from ..extensions import db
-from ..models import Cart, Service, Product, CartItem, Customers
+from ..models import Cart, Service, Product, CartItem, Customers, AppointmentImage, Salon
 
 cart_bp = Blueprint("cart", __name__, url_prefix="/api/cart")
 
@@ -15,7 +15,7 @@ cart_bp = Blueprint("cart", __name__, url_prefix="/api/cart")
 def add_service_to_cart():
     try:
         data = request.get_json(force=True)
-        user_id = data.get("user_id")
+        customer_id = data.get("user_id")
         service_id = data.get("service_id")
         quantity = int(data.get("quantity", 1))
         appt_date = data.get("appt_date")
@@ -25,63 +25,104 @@ def add_service_to_cart():
         notes = data.get("notes")
 
         # --- Validate ---
-        if not user_id or not service_id:
-            return jsonify({
+        if not customer_id or not service_id:            return jsonify({
                 "status": "error",
                 "message": "Missing required fields (user_id, service_id)"
             }), 400
 
-        customer = db.session.scalar(select(Customers).where(Customers.user_id == user_id))
+         # --- Ensure service exists ---
+        customer = db.session.scalar(select(Customers).where(Customers.id == customer_id))
         if not customer:
             return jsonify({
                 "status": "error", 
                 "message": "Customer not found"
             }), 404
 
-
-        # --- Ensure service exists ---
-        service = db.session.scalar(select(Service).where(Service.id == service_id))
+        # --- Ensure service exists and is active ---
+        service = db.session.scalar(select(Service).where(
+            Service.id == service_id,
+            Service.is_active == True
+        ))
         if not service:
             return jsonify({
                 "status": "error",
-                "message": f"Service ID {service_id} not found"
+                "message": f"Service ID {service_id} not found or inactive"
             }), 404
 
         # --- Create / get user's cart ---
-        cart = db.session.scalar(select(Cart).where(Cart.user_id == user_id))
+        cart = db.session.scalar(select(Cart).where(Cart.user_id == customer.id))
         if not cart:
-            cart = Cart(user_id=user_id)
+            cart = Cart(user_id=customer.id)
             db.session.add(cart)
-            db.session.commit()
+            db.session.flush()  # Get cart.id before using it
+
+        # --- Prepare appointment datetime if provided --- 
+        start_datetime = None
+        end_datetime = None
+        if appt_date and appt_time:
+            from datetime import datetime, timedelta
+            try:
+                # Combine date and time
+                start_datetime = datetime.strptime(f"{appt_date} {appt_time}", "%Y-%m-%d %H:%M")
+                # Calculate end time based on service duration
+                end_datetime = start_datetime + timedelta(minutes=service.duration)
+            except ValueError:
+                return jsonify({
+                    "status": "error",
+                    "message": "Invalid date/time format. Use YYYY-MM-DD for date and HH:MM for time"
+                }), 400
 
         # --- Insert into cart_item ---
-        db.session.execute(
-            text("""
-                INSERT INTO cart_item (cart_id, kind, service_id, qty, price)
-                VALUES (:cart_id, 'service', :service_id, :qty, :price)
-            """),
-            {"cart_id": cart.id, "service_id": service_id, "qty": quantity, "price": service.price}
+        cart_item = CartItem(
+            cart_id=cart.id,
+            kind='service',
+            service_id=service_id,
+            qty=quantity,
+            price=service.price,
+            start_at=start_datetime,
+            end_at=end_datetime,
+            notes=notes
         )
+        db.session.add(cart_item)
+        db.session.flush()  # Get cart_item.id before using it
+
+        # --- Insert iamge into AppointmentImage table ---
+        created_images = []
+        if pictures:
+            for picture_url in pictures:
+                appointment_image = AppointmentImage(
+                    url=picture_url,
+                    cart_item_id=cart_item.id,
+                    appointment_id=None  # Will be set during checkout
+                )
+                db.session.add(appointment_image)
+                created_images.append(picture_url)
+
         db.session.commit()
 
         return jsonify({
             "status": "success",
             "message": "Service added to cart successfully",
             "cart_item": {
-                "user_id": user_id,
+                "cart_item_id": cart_item.id,
+                "customer_id": customer_id,
                 "service_id": service_id,
                 "quantity": quantity,
-                "stylist": stylist,
-                "appt_date": appt_date,
-                "appt_time": appt_time,
+                "price": float(service.price),
+                "start_at": start_datetime.isoformat() if start_datetime else None,
+                "end_at": end_datetime.isoformat() if end_datetime else None,
                 "notes": notes,
-                "pictures": pictures
+                "pictures": created_images,
+                "stylist": stylist  # Note: Still not stored in database
             }
         }), 201
 
     except IntegrityError as e:
         db.session.rollback()
         return jsonify({"status": "error", "message": str(e.orig)}), 400
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": f"Invalid data: {str(e)}"}), 400
     except Exception as e:
         db.session.rollback()
         return jsonify({"status": "error", "message": str(e)}), 500
@@ -98,19 +139,16 @@ def add_product_to_cart():
         data = request.get_json(force=True)
         user_id = data.get("user_id")
         product_id = data.get("product_id")
-        product_name = data.get("product_name")
         quantity = int(data.get("quantity", 1))
-        salon = data.get("salon")
-        price = float(data.get("price", 0))
 
         # --- Validate ---
-        if not user_id or not product_id or not product_name:
+        if not user_id or not product_id :
             return jsonify({
                 "status": "error",
-                "message": "Missing required fields (user_id, product_id, product_name)"
+                "message": "Missing required fields (user_id, product_id)"
             }), 400
 
-        # --- Ensure product exists ---
+        # --- Ensure product exists and fetch price from database ---
         product = db.session.scalar(select(Product).where(Product.id == product_id))
         if not product:
             return jsonify({
@@ -125,13 +163,13 @@ def add_product_to_cart():
             db.session.add(cart)
             db.session.commit()
 
-        # --- Insert into cart_item ---
+        # --- Insert into cart_item with auto-fetched price ---
         db.session.execute(
             text("""
                 INSERT INTO cart_item (cart_id, kind, product_id, qty, price)
                 VALUES (:cart_id, 'product', :product_id, :qty, :price)
             """),
-            {"cart_id": cart.id, "product_id": product_id, "qty": quantity, "price": price}
+            {"cart_id": cart.id, "product_id": product_id, "qty": quantity, "price": float(product.price)}
         )
         db.session.commit()
 
@@ -141,10 +179,8 @@ def add_product_to_cart():
             "cart_item": {
                 "user_id": user_id,
                 "product_id": product_id,
-                "product_name": product_name,
                 "quantity": quantity,
-                "salon": salon,
-                "price": price
+                "price": float(product.price)
             }
         }), 201
 
@@ -161,52 +197,59 @@ def add_product_to_cart():
 def get_cart_details(user_id):
     """
     Fetch detailed cart info for a given user_id.
-    Includes both service and product items with joined salon details.
     """
     try:
-        # Step 1: Find user's cart
-        cart = db.session.execute(
-            text("SELECT id FROM cart WHERE user_id = :uid"),
-            {"uid": user_id}
-        ).fetchone()
+        from sqlalchemy.orm import joinedload
+
+        # --- Find user's cart ---
+        cart = db.session.scalar(
+            select(Cart)
+            .where(Cart.user_id == user_id)
+            .options(
+                joinedload(Cart.cart_item).joinedload(CartItem.service).joinedload(Service.salon),
+                joinedload(Cart.cart_item).joinedload(CartItem.product).joinedload(Product.salon)
+            )
+        )
 
         if not cart:
             return jsonify({"status": "error", "message": f"No cart found for user_id {user_id}"}), 404
 
-        # Step 2: Query all cart items with joined data
-        query = text("""
-            SELECT 
-                ci.id AS item_id,
-                ci.kind AS item_type,
-                ci.qty AS quantity,
-                ci.price AS item_price,
+        # --- Build response with all details ---
+        items = []
+        for cart_item in cart.cart_item:
+            item_data = {
+                "item_id": cart_item.id,
+                "item_type": cart_item.kind,
+                "quantity": cart_item.qty,
+                "item_price": float(cart_item.price) if cart_item.price else None,
+                "start_at": cart_item.start_at.isoformat() if cart_item.start_at else None,
+                "end_at": cart_item.end_at.isoformat() if cart_item.end_at else None,
+                "notes": cart_item.notes,
+            }
 
-                -- Service details
-                s.id AS service_id,
-                s.name AS service_name,
-                s.price AS service_price,
-                s.duration AS service_duration,
-                s.salon_id AS service_salon_id,
-                sl1.name AS service_salon_name,
+            if cart_item.service:
+                item_data["service_id"] = cart_item.service.id
+                item_data["service_name"] = cart_item.service.name
+                item_data["service_price"] = float(cart_item.service.price)
+                item_data["service_duration"] = cart_item.service.duration
+                item_data["service_salon_id"] = cart_item.service.salon_id
+                item_data["service_salon_name"] = cart_item.service.salon.name if cart_item.service.salon else None
 
-                -- Product details
-                p.id AS product_id,
-                p.name AS product_name,
-                p.price AS product_price,
-                p.stock_qty AS product_stock,
-                p.salon_id AS product_salon_id,
-                sl2.name AS product_salon_name
+            if cart_item.product:
+                item_data["product_id"] = cart_item.product.id
+                item_data["product_name"] = cart_item.product.name
+                item_data["product_price"] = float(cart_item.product.price)
+                item_data["product_stock"] = cart_item.product.stock_qty
+                item_data["product_salon_id"] = cart_item.product.salon_id
+                item_data["product_salon_name"] = cart_item.product.salon.name if cart_item.product.salon else None
 
-            FROM cart_item ci
-            LEFT JOIN service s ON ci.service_id = s.id
-            LEFT JOIN salon sl1 ON s.salon_id = sl1.id
-            LEFT JOIN product p ON ci.product_id = p.id
-            LEFT JOIN salon sl2 ON p.salon_id = sl2.id
-            WHERE ci.cart_id = :cart_id
-        """)
+            # Add associated appointment images
+            images = db.session.scalars(
+                select(AppointmentImage).where(AppointmentImage.cart_item_id == cart_item.id)
+            ).all()
+            item_data["images"] = [img.url for img in images]
 
-        result = db.session.execute(query, {"cart_id": cart.id})
-        items = [dict(row._mapping) for row in result]
+            items.append(item_data)
 
         return jsonify({
             "status": "success",
@@ -225,108 +268,6 @@ def get_cart_details(user_id):
         }), 500
 
 
-@cart_bp.route("/add-salon-item", methods=["POST"])
-def add_salon_item():
-    """
-    Add a new service or product to a salon's offerings.
-    Request JSON must include:
-      - type: "service" or "product"
-      - salon_id: int
-      - name: str
-      - price: float
-      - duration (for service only)
-      - stock_qty (for product only)
-      - description (optional, for product only)
-    """
-    try:
-        data = request.get_json(force=True)
-        item_type = data.get("type")
-        salon_id = data.get("salon_id")
-        name = data.get("name")
-        price = float(data.get("price", 0))
-        duration = data.get("duration")
-        stock_qty = data.get("stock_qty", 0)
-        description = data.get("description")
-
-        # --- Validate ---
-        if not item_type or not salon_id or not name:
-            return jsonify({
-                "status": "error",
-                "message": "Missing required fields: type, salon_id, or name"
-            }), 400
-
-        # --- Handle adding a SERVICE ---
-        if item_type.lower() == "service":
-            db.session.execute(
-                text("""
-                    INSERT INTO service (name, duration, price, salon_id)
-                    VALUES (:name, :duration, :price, :salon_id)
-                """),
-                {"name": name, "duration": duration, "price": price, "salon_id": salon_id}
-            )
-            db.session.commit()
-
-            return jsonify({
-                "status": "success",
-                "message": "New service added to salon successfully",
-                "data": {
-                    "type": "service",
-                    "salon_id": salon_id,
-                    "name": name,
-                    "price": price,
-                    "duration": duration
-                }
-            }), 201
-
-        # --- Handle adding a PRODUCT ---
-        elif item_type.lower() == "product":
-            db.session.execute(
-                text("""
-                    INSERT INTO product (name, description, price, stock_qty, salon_id)
-                    VALUES (:name, :description, :price, :stock_qty, :salon_id)
-                """),
-                {
-                    "name": name,
-                    "description": description,
-                    "price": price,
-                    "stock_qty": stock_qty,
-                    "salon_id": salon_id
-                }
-            )
-            db.session.commit()
-
-            return jsonify({
-                "status": "success",
-                "message": "New product added to salon successfully",
-                "data": {
-                    "type": "product",
-                    "salon_id": salon_id,
-                    "name": name,
-                    "price": price,
-                    "stock_qty": stock_qty,
-                    "description": description
-                }
-            }), 201
-
-        else:
-            return jsonify({
-                "status": "error",
-                "message": "Invalid type. Must be 'service' or 'product'."
-            }), 400
-
-    except IntegrityError as e:
-        db.session.rollback()
-        return jsonify({
-            "status": "error",
-            "message": str(e.orig)
-        }), 400
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({
-            "status": "error",
-            "message": "Internal server error",
-            "details": str(e)
-        }), 500
 
 # -------------------------------------------------------------------------
 # PUT /api/cart/update-service/<service_id>
@@ -334,6 +275,9 @@ def add_salon_item():
 # -------------------------------------------------------------------------
 @cart_bp.route("/update-service/<int:service_id>", methods=["PUT"])
 def update_salon_service(service_id):
+    """
+    Update an existing salon service.
+    """
     try:
         data = request.get_json(silent=True)
         if not data:
@@ -342,69 +286,86 @@ def update_salon_service(service_id):
                 "message": "No valid JSON body found. Ensure Content-Type is application/json."
             }), 400
 
-        # Extract possible fields
-        name = data.get("name")
-        price = data.get("price")
-        duration = data.get("duration")
-        category_id = data.get("category_id")
-        salon_id = data.get("salon_id")
-
-        # --- Check if service exists ---
-        existing = db.session.execute(
-            text("SELECT id FROM service WHERE id = :sid"), {"sid": service_id}
-        ).fetchone()
-
-        if not existing:
+        # --- Fetch service ---
+        service = db.session.get(Service, service_id)
+        if not service:
             return jsonify({
                 "status": "error",
-                "message": f"Service ID {service_id} not found."
+                "message": f"Service ID {service_id} not found"
             }), 404
 
-        # --- Build dynamic update query ---
-        fields = []
-        params = {"sid": service_id}
+        # --- Track updated fields ---
+        updated_fields = {}
 
-        if name:
-            fields.append("name = :name")
-            params["name"] = name
-        if price is not None:
-            fields.append("price = :price")
-            params["price"] = price
-        if duration is not None:
-            fields.append("duration = :duration")
-            params["duration"] = duration
-        if category_id is not None:
-            fields.append("category_id = :category_id")
-            params["category_id"] = category_id
-        if salon_id is not None:
-            fields.append("salon_id = :salon_id")
-            params["salon_id"] = salon_id
+        # --- Update fields dynamically ---
+        if "name" in data and data.get("name"):
+            service.name = data["name"]
+            updated_fields["name"] = data["name"]
 
-        if not fields:
+        if "price" in data and data.get("price") is not None:
+            service.price = float(data["price"])
+            updated_fields["price"] = float(data["price"])
+
+        if "duration" in data and data.get("duration") is not None:
+            service.duration = int(data["duration"])
+            updated_fields["duration"] = int(data["duration"])
+
+        if "salon_id" in data and data.get("salon_id") is not None:
+            service.salon_id = int(data["salon_id"])
+            updated_fields["salon_id"] = int(data["salon_id"])
+
+        if "is_active" in data and data.get("is_active") is not None:
+            service.is_active = bool(data["is_active"])
+            updated_fields["is_active"] = bool(data["is_active"])
+
+        if "icon_url" in data:
+            service.icon_url = data.get("icon_url")
+            updated_fields["icon_url"] = data.get("icon_url")
+
+        # --- Check if any updates were provided ---
+        if not updated_fields:
             return jsonify({
                 "status": "error",
-                "message": "No valid update fields provided."
+                "message": "No valid update fields provided"
             }), 400
 
-        # Execute query
-        query = text(f"UPDATE service SET {', '.join(fields)} WHERE id = :sid")
-        db.session.execute(query, params)
+        # --- Commit changes ---
         db.session.commit()
 
         return jsonify({
             "status": "success",
-            "message": f"Service ID {service_id} updated successfully.",
-            "updated_fields": params
+            "message": f"Service ID {service_id} updated successfully",
+            "data": {
+                "id": service.id,
+                "salon_id": service.salon_id,
+                "name": service.name,
+                "price": float(service.price),
+                "duration": service.duration,
+                "is_active": bool(service.is_active),
+                "icon_url": service.icon_url
+            },
+            "updated_fields": updated_fields
         }), 200
 
     except IntegrityError as e:
         db.session.rollback()
-        return jsonify({"status": "error", "message": str(e.orig)}), 400
+        return jsonify({
+            "status": "error",
+            "message": "Database integrity error",
+            "details": str(e.orig)
+        }), 400
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({
+            "status": "error",
+            "message": "Invalid data type provided",
+            "details": str(e)
+        }), 400
     except Exception as e:
         db.session.rollback()
         return jsonify({
             "status": "error",
-            "message": "Internal Server Error",
+            "message": "Internal server error",
             "details": str(e)
         }), 500
 
@@ -423,69 +384,91 @@ def update_salon_product(product_id):
                 "message": "No valid JSON body found. Ensure Content-Type is application/json."
             }), 400
 
-        # Extract possible fields
-        name = data.get("name")
-        description = data.get("description")
-        price = data.get("price")
-        stock_qty = data.get("stock_qty")
-        salon_id = data.get("salon_id")
-
-        # --- Check if product exists ---
-        existing = db.session.execute(
-            text("SELECT id FROM product WHERE id = :pid"), {"pid": product_id}
-        ).fetchone()
-
-        if not existing:
+        # --- Fetch product ---
+        product = db.session.get(Product, product_id)
+        if not product:
             return jsonify({
                 "status": "error",
-                "message": f"Product ID {product_id} not found."
+                "message": f"Product ID {product_id} not found"
             }), 404
 
-        # --- Build dynamic update query ---
-        fields = []
-        params = {"pid": product_id}
+        # --- Track updated fields ---
+        updated_fields = {}
 
-        if name:
-            fields.append("name = :name")
-            params["name"] = name
-        if description:
-            fields.append("description = :description")
-            params["description"] = description
-        if price is not None:
-            fields.append("price = :price")
-            params["price"] = price
-        if stock_qty is not None:
-            fields.append("stock_qty = :stock_qty")
-            params["stock_qty"] = stock_qty
-        if salon_id is not None:
-            fields.append("salon_id = :salon_id")
-            params["salon_id"] = salon_id
+        # --- Update fields dynamically ---
+        if "name" in data and data.get("name"):
+            product.name = data["name"]
+            updated_fields["name"] = data["name"]
 
-        if not fields:
+        if "description" in data:
+            product.description = data.get("description")
+            updated_fields["description"] = data.get("description")
+
+        if "price" in data and data.get("price") is not None:
+            product.price = float(data["price"])
+            updated_fields["price"] = float(data["price"])
+
+        if "stock_qty" in data and data.get("stock_qty") is not None:
+            product.stock_qty = int(data["stock_qty"])
+            updated_fields["stock_qty"] = int(data["stock_qty"])
+
+        if "salon_id" in data and data.get("salon_id") is not None:
+            product.salon_id = int(data["salon_id"])
+            updated_fields["salon_id"] = int(data["salon_id"])
+
+        if "is_active" in data and data.get("is_active") is not None:
+            product.is_active = bool(data["is_active"])
+            updated_fields["is_active"] = bool(data["is_active"])
+
+        if "image_url" in data:
+            product.image_url = data.get("image_url")
+            updated_fields["image_url"] = data.get("image_url")
+
+        # --- Check if any updates were provided ---
+        if not updated_fields:
             return jsonify({
                 "status": "error",
-                "message": "No valid update fields provided."
+                "message": "No valid update fields provided"
             }), 400
 
-        # Execute query
-        query = text(f"UPDATE product SET {', '.join(fields)} WHERE id = :pid")
-        db.session.execute(query, params)
+        # --- Commit changes ---
         db.session.commit()
 
         return jsonify({
             "status": "success",
-            "message": f"Product ID {product_id} updated successfully.",
-            "updated_fields": params
+            "message": f"Product ID {product_id} updated successfully",
+            "data": {
+                "id": product.id,
+                "salon_id": product.salon_id,
+                "name": product.name,
+                "description": product.description,
+                "price": float(product.price),
+                "stock_qty": product.stock_qty,
+                "is_active": bool(product.is_active),
+                "image_url": product.image_url
+            },
+            "updated_fields": updated_fields
         }), 200
 
     except IntegrityError as e:
         db.session.rollback()
-        return jsonify({"status": "error", "message": str(e.orig)}), 400
+        return jsonify({
+            "status": "error",
+            "message": "Database integrity error",
+            "details": str(e.orig)
+        }), 400
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({
+            "status": "error",
+            "message": "Invalid data type provided",
+            "details": str(e)
+        }), 400
     except Exception as e:
         db.session.rollback()
         return jsonify({
             "status": "error",
-            "message": "Internal Server Error",
+            "message": "Internal server error",
             "details": str(e)
         }), 500
 
@@ -497,7 +480,7 @@ def delete_cart_item():
     
     cart_id = request.args.get("cart_id", type=int)
     item_id = request.args.get("item_id", type=int)
-    kind = request.args.get("kind")
+    kind = request.args.get("kind") #product or service
 
     if not all([cart_id, item_id, kind]):
         return jsonify({"error": "cart_id, item_id, and kind are required"}), 400
