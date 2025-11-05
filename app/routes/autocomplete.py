@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from app.extensions import db
-from ..models import Salon, Service, SalonVerify  # <--- Import SalonVerify
+from ..models import Salon, Service, SalonVerify  
 
 autocomplete_bp = Blueprint("autocomplete", __name__, url_prefix="/api")
 
@@ -31,7 +31,7 @@ def autocomplete_suggestions():
     salon_query = db.session.query(Salon.id, Salon.name)
     
     salon_query = salon_query.filter(
-        Salon.salon_verify.any(SalonVerify.status == 'APPROVED')  # <--- ADDED
+        Salon.salon_verify.any(SalonVerify.status == 'APPROVED')  
     )
     
     if city_filter:
