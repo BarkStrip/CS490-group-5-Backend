@@ -1,10 +1,12 @@
 #Book, edit, cancel appointments
 from flask import Blueprint, jsonify, request
-from app.extensions import db  # Assuming 'db' is from your extensions file
+from app.extensions import db  
 from ...models import Salon, Employees, SalonHours, EmpAvail, Appointment,Customers, TimeBlock 
 import datetime
 from sqlalchemy import and_, or_
 appointments_bp = Blueprint("appointments", __name__, url_prefix="/api/appointments")
+
+
 
 @appointments_bp.route("/<int:salon_id>/hours", methods=["GET"])
 def get_salon_hours(salon_id):
@@ -224,3 +226,132 @@ def get_employee_available_times(employee_id):
         current_time += slot_increment
 
     return jsonify(available_slots)
+
+
+@appointments_bp.route("/<int:customer_id>/upcoming", methods=["GET"])
+def get_upcoming_appointments(customer_id):
+    """
+    GET /api/appointments/<customer_id>/upcoming
+    Purpose: Retrieve all future appointments for a specific customer.
+    Input: customer_id (integer) from the URL path.
+
+    Behavior:
+    - If customer_id is valid:
+        → Return a list of all Appointment objects where start_at > current datetime,
+          ordered by start_at (earliest first).
+    - If no upcoming appointments are found:
+        → Return an empty list [].
+    - If customer_id does not exist:
+        → Return a 404 error.
+    """
+
+    # Check if customer exists
+    customer = db.session.get(Customers, customer_id)
+
+    if not customer:
+        return jsonify({"error": "Customer not found"}), 404
+
+    # Get current datetime
+    now = datetime.datetime.now()
+
+    # Query for upcoming appointments (start_at > now), ordered by start_at
+    upcoming_appointments = db.session.query(Appointment).filter(
+        and_(
+            Appointment.customer_id == customer_id,
+            Appointment.start_at > now
+        )
+    ).order_by(Appointment.start_at).all()
+
+    # Serialize the appointments with all fields (flattened)
+    results = [
+        {
+            "id": apt.id,
+            "salon_id": apt.salon_id,
+            "salon_name": apt.salon.name if apt.salon else None,
+            "salon_phone": apt.salon.phone if apt.salon else None,
+            "salon_address": apt.salon.address if apt.salon else None,
+            "customer_id": apt.customer_id,
+            "employee_id": apt.employee_id,
+            "employee_first_name": apt.employee.first_name if apt.employee else None,
+            "employee_last_name": apt.employee.last_name if apt.employee else None,
+            "employee_phone": apt.employee.phone_number if apt.employee else None,
+            "service_id": apt.service_id,
+            "service_name": apt.service.name if apt.service else None,
+            "service_duration": apt.service.duration if apt.service else None,
+            "service_price": float(apt.service.price) if apt.service and apt.service.price else None,
+            "start_at": apt.start_at.isoformat() if apt.start_at else None,
+            "end_at": apt.end_at.isoformat() if apt.end_at else None,
+            "status": apt.status,
+            "price_at_book": float(apt.price_at_book) if apt.price_at_book else None,
+            "notes": apt.notes
+        }
+        for apt in upcoming_appointments
+    ]
+
+    return jsonify(results)
+
+
+@appointments_bp.route("/<int:customer_id>/previous", methods=["GET"])
+def get_previous_appointments(customer_id):
+    """
+    GET /api/appointments/<customer_id>/previous
+    Purpose: Retrieve all past appointments for a specific customer.
+    Input: customer_id (integer) from the URL path.
+
+    Behavior:
+    - If customer_id is valid:
+        → Return a list of all Appointment objects where start_at < current datetime,
+          ordered by start_at (most recent first).
+    - If no previous appointments are found:
+        → Return an empty list [].
+    - If customer_id does not exist:
+        → Return a 404 error.
+    """
+
+    # Check if customer exists
+    customer = db.session.get(Customers, customer_id)
+
+    if not customer:
+        return jsonify({"error": "Customer not found"}), 404
+
+    # Get current datetime
+    now = datetime.datetime.now()
+
+    # Query for previous appointments (start_at < now), ordered by start_at descending (most recent first)
+    previous_appointments = db.session.query(Appointment).filter(
+        and_(
+            Appointment.customer_id == customer_id,
+            Appointment.start_at < now
+        )
+    ).order_by(Appointment.start_at.desc()).all()
+
+    # Serialize the appointments with all fields (flattened)
+    results = [
+        {
+            "id": apt.id,
+            "salon_id": apt.salon_id,
+            "salon_name": apt.salon.name if apt.salon else None,
+            "salon_phone": apt.salon.phone if apt.salon else None,
+            "salon_address": apt.salon.address if apt.salon else None,
+            "customer_id": apt.customer_id,
+            "employee_id": apt.employee_id,
+            "employee_first_name": apt.employee.first_name if apt.employee else None,
+            "employee_last_name": apt.employee.last_name if apt.employee else None,
+            "employee_phone": apt.employee.phone_number if apt.employee else None,
+            "service_id": apt.service_id,
+            "service_name": apt.service.name if apt.service else None,
+            "service_duration": apt.service.duration if apt.service else None,
+            "service_price": float(apt.service.price) if apt.service and apt.service.price else None,
+            "start_at": apt.start_at.isoformat() if apt.start_at else None,
+            "end_at": apt.end_at.isoformat() if apt.end_at else None,
+            "status": apt.status,
+            "price_at_book": float(apt.price_at_book) if apt.price_at_book else None,
+            "notes": apt.notes
+        }
+        for apt in previous_appointments
+    ]
+
+    return jsonify(results)
+
+
+    
