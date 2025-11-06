@@ -40,7 +40,12 @@ def create_app():
         print(f"Config items: {len(app.config)} items loaded")
            
         print("Initializing CORS...")
-        CORS(app)
+        CORS(app, resources={r"/*": {
+            "origins": ["http://localhost:4173", "http://localhost:5173"],
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization"],
+            "supports_credentials": True
+        }})
         print("CORS initialized")
            
         print("Initializing database...")
