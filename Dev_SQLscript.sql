@@ -1073,3 +1073,28 @@ FOR EACH ROW BEGIN
     JSON_OBJECT('name', NEW.name, 'price', NEW.price, 'salon_id', NEW.salon_id));
 END$$
 DELIMITER ;
+
+
+-- Barek Stripling 11/5/25 - Added columns to cart_item and appointments table
+ALTER TABLE t_salon_app.cart_item ADD start_at DATETIME NULL;
+ALTER TABLE t_salon_app.cart_item ADD end_at DATETIME NULL;
+ALTER TABLE t_salon_app.cart_item ADD notes TEXT NULL;
+
+-- Barek Stripling 11/5/25 - Add appointment_image table to store images for carts --> appointments
+CREATE TABLE t_salon_app.appointment_image (
+	id int auto_increment NOT NULL,
+	url varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+	cart_item_id int NULL,
+	appointment_id int NULL,
+	created_at datetime DEFAULT CURRENT_TIMESTAMP  NULL,
+	updated_at datetime DEFAULT CURRENT_TIMESTAMP  on update CURRENT_TIMESTAMP NULL,
+	CONSTRAINT appointment_image_pk PRIMARY KEY (id),
+	CONSTRAINT appointment_image_cart_item_FK FOREIGN KEY (cart_item_id) REFERENCES t_salon_app.cart_item(id) ON DELETE CASCADE,
+	CONSTRAINT appointment_image_appointment_FK FOREIGN KEY (appointment_id) REFERENCES t_salon_app.appointment(id) ON DELETE CASCADE
+)
+ENGINE=InnoDB
+DEFAULT CHARSET=utf8mb4
+COLLATE=utf8mb4_0900_ai_ci
+AUTO_INCREMENT=3;
+
+

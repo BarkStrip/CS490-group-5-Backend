@@ -555,11 +555,14 @@ class Appointment(Base):
     price_at_book = mapped_column(DECIMAL(10, 2))
     notes = mapped_column(Text)
 
+
     customer: Mapped[Optional['Customers']] = relationship('Customers', back_populates='appointment')
     employee: Mapped[Optional['Employees']] = relationship('Employees', back_populates='appointment')
     salon: Mapped[Optional['Salon']] = relationship('Salon', back_populates='appointment')
     service: Mapped[Optional['Service']] = relationship('Service', back_populates='appointment')
     booking: Mapped[List['Booking']] = relationship('Booking', uselist=True, back_populates='appointment')
+    #-- Barek Stripling 11/5/25 - Add appointment_image table to store images for carts --> appointments
+    images: Mapped[List['AppointmentImage']] = relationship('AppointmentImage', back_populates='appointment')
 
 
 class CartItem(Base):
@@ -583,9 +586,17 @@ class CartItem(Base):
     added_at = mapped_column(TIMESTAMP, server_default=text('CURRENT_TIMESTAMP'))
     updated_at = mapped_column(TIMESTAMP, server_default=text('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'))
 
+    # NEW COLUMNS ADDED "Barek Stripling 11/5/25 - Added columns to cart_item and appointments table":
+    start_at = mapped_column(DateTime)
+    end_at = mapped_column(DateTime)
+    notes = mapped_column(Text)
+
     cart: Mapped['Cart'] = relationship('Cart', back_populates='cart_item')
     product: Mapped[Optional['Product']] = relationship('Product', back_populates='cart_item')
     service: Mapped[Optional['Service']] = relationship('Service', back_populates='cart_item')
+
+    #Barek Stripling 11/5/25 - Add appointment_image table to store images for carts --> appointments
+    images: Mapped[List['AppointmentImage']] = relationship('AppointmentImage', back_populates='cart_item')
 
 
 class EmpAvail(Base):
@@ -802,3 +813,24 @@ class Invoice(Base):
     emailed_to = mapped_column(String(255))
 
     payment: Mapped[Optional['Payment']] = relationship('Payment', back_populates='invoice')
+
+# Barek Stripling 11/5/25 - Add appointment_image table to store images for carts --> appointments
+class AppointmentImage(Base):
+    __tablename__ = 'appointment_image'
+    __table_args__ = (
+        ForeignKeyConstraint(['cart_item_id'], ['cart_item.id'], ondelete='CASCADE', name='fk_appt_img_cart_item'),
+        ForeignKeyConstraint(['appointment_id'], ['appointment.id'], ondelete='CASCADE', name='fk_appt_img_appointment'),
+        Index('idx_cart_item', 'cart_item_id'),
+        Index('idx_appointment', 'appointment_id')
+    )
+
+    id = mapped_column(Integer, primary_key=True)
+    url = mapped_column(String(512), nullable=False)
+    cart_item_id = mapped_column(Integer)
+    appointment_id = mapped_column(Integer)
+    created_at = mapped_column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
+    updated_at = mapped_column(DateTime, server_default=text('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'))
+
+    # Relationships
+    cart_item: Mapped[Optional['CartItem']] = relationship('CartItem', back_populates='images')
+    appointment: Mapped[Optional['Appointment']] = relationship('Appointment', back_populates='images')
