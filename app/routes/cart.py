@@ -505,3 +505,97 @@ def delete_cart_item():
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
+
+
+@cart_bp.route("/update-item-quantity", methods=["PATCH"])
+def update_cart_item_quantity():
+    """
+    Updates the quantity of a single item in the cart
+    based on cart_id, item_id (product_id), and kind.
+    """
+    try:
+        data = request.get_json(force=True)
+        cart_id = data.get("cart_id")
+        item_id = data.get("item_id") 
+        kind = data.get("kind")
+        new_quantity = data.get("quantity")
+
+        if not all([cart_id, item_id, kind, new_quantity is not None]):
+            return jsonify({
+                "status": "error",
+                "message": "Missing required fields: cart_id, item_id, kind, quantity"
+            }), 400
+        
+        if kind != 'product':
+             return jsonify({
+                "status": "error",
+                "message": "This endpoint only supports updating 'product' quantities."
+            }), 400
+
+        try:
+            new_quantity = int(new_quantity)
+            if new_quantity <= 0:
+                return jsonify({
+                    "status": "error",
+                    "message": "Quantity must be a positive integer. To remove, use the delete endpoint."
+                }), 400
+        except ValueError:
+            return jsonify({
+                "status": "error",
+                "message": "Quantity must be a valid integer."
+            }), 400
+
+        cart_item = db.session.scalar(
+            select(CartItem).where(
+                CartItem.cart_id == cart_id,
+                CartItem.product_id == item_id,
+                CartItem.kind == 'product'
+            )
+        )
+
+        if not cart_item:
+            return jsonify({
+                "status": "error",
+                "message": f"No product with ID {item_id} found in cart {cart_id}"
+            }), 404
+        
+
+        product = db.session.get(Product, item_id)
+        if not product:
+             return jsonify({
+                "status": "error",
+                "message": f"Associated product (ID: {item_id}) not found. Cannot validate stock."
+            }), 404
+        
+        if new_quantity > product.stock_qty:
+            return jsonify({
+                "status": "error",
+                "message": f"Not enough stock for {product.name}. Available: {product.stock_qty}"
+            }), 409 
+
+        cart_item.qty = new_quantity
+        
+        db.session.commit()
+
+        return jsonify({
+            "status": "success",
+            "message": f"Quantity for product {item_id} updated to {new_quantity}",
+            "cart_item": {
+                "cart_item_id": cart_item.id,
+                "kind": cart_item.kind,
+                "product_id": cart_item.product_id,
+                "quantity": cart_item.qty,
+                "unit_price": float(cart_item.price)
+            }
+        }), 200
+
+    except IntegrityError as e:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": str(e.orig)}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "status": "error",
+            "message": "Internal server error",
+            "details": str(e)
+        }), 500
