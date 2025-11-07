@@ -14,10 +14,11 @@ auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
 def signup_user():
     try:
         data = request.get_json(force=True)
+        name = data.get("first_name")
+        last_name = data.get("last_name")
         email = data.get("email")
         password = data.get("password")
-        name = data.get("name")
-        phone = data.get("phone")
+        phone = data.get("phone_number")
         address = data.get("address") 
         role = data.get("role", "CUSTOMER").upper()
 
@@ -51,8 +52,7 @@ def signup_user():
         db.session.add(auth_user)
         db.session.flush()
 
-        first_name = ""
-        last_name = ""
+ 
         if name:
             parts = name.split(" ", 1)
             first_name = parts[0]
@@ -187,6 +187,34 @@ def get_user_type(user_id):
             "email": user.email,
             "role": user.role
         }), 200
+
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": "Internal server error",
+            "details": str(e)
+        }), 500
+    
+
+
+@auth_bp.route("/check-email", methods=["POST"])
+def check_email_exists():
+    """
+    Checks if an email already exists in the AuthUser table.
+    """
+    try:
+        data = request.get_json(force=True)
+        email = data.get("email")
+
+        if not email:
+            return jsonify({
+                "status": "error",
+                "message": "Email is required"
+            }), 400
+
+        existing = db.session.scalar(select(AuthUser).where(AuthUser.email == email))
+        
+        return jsonify({"exists": bool(existing)}), 200
 
     except Exception as e:
         return jsonify({
