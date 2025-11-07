@@ -295,14 +295,14 @@ def get_upcoming_appointments(customer_id):
 def get_previous_appointments(customer_id):
     """
     GET /api/appointments/<customer_id>/previous
-    Purpose: Retrieve all past appointments for a specific customer.
+    Purpose: Retrieve all completed past appointments for a specific customer.
     Input: customer_id (integer) from the URL path.
 
     Behavior:
     - If customer_id is valid:
-        → Return a list of all Appointment objects where start_at < current datetime,
-          ordered by start_at (most recent first).
-    - If no previous appointments are found:
+        → Return a list of all Appointment objects where start_at < current datetime
+          AND status = 'COMPLETED', ordered by start_at (most recent first).
+    - If no completed previous appointments are found:
         → Return an empty list [].
     - If customer_id does not exist:
         → Return a 404 error.
@@ -317,11 +317,12 @@ def get_previous_appointments(customer_id):
     # Get current datetime
     now = datetime.datetime.now()
 
-    # Query for previous appointments (start_at < now), ordered by start_at descending (most recent first)
+    # Query for completed previous appointments (start_at < now AND status = 'COMPLETED'), ordered by start_at descending (most recent first)
     previous_appointments = db.session.query(Appointment).filter(
         and_(
             Appointment.customer_id == customer_id,
-            Appointment.start_at < now
+            Appointment.start_at < now,
+            Appointment.status == "COMPLETED"
         )
     ).order_by(Appointment.start_at.desc()).all()
 
@@ -354,4 +355,116 @@ def get_previous_appointments(customer_id):
     return jsonify(results)
 
 
-    
+@appointments_bp.route("/<int:customer_id>/appointments/<int:appointment_id>", methods=["PUT"])
+def edit_appointment(customer_id, appointment_id):
+    """
+    PUT /api/appointments/<customer_id>/appointments/<appointment_id>
+    Purpose: Update an appointment for a specific customer.
+    Input:
+        - customer_id (integer) from the URL path
+        - appointment_id (integer) from the URL path
+        - JSON body with optional fields to update:
+          * employee_id
+          * service_id
+          * start_at (ISO format: YYYY-MM-DDTHH:MM:SS)
+          * end_at (ISO format: YYYY-MM-DDTHH:MM:SS)
+          * status (e.g., BOOKED, CONFIRMED, PENDING, COMPLETED, CANCELLED)
+          * price_at_book
+          * notes
+
+    Behavior:
+    - If customer_id or appointment_id does not exist:
+        → Return a 404 error.
+    - If the appointment does not belong to the customer:
+        → Return a 403 error (Forbidden).
+    - If update is successful:
+        → Return the updated appointment object with 200 status.
+    - If validation fails:
+        → Return a 400 error with details.
+    """
+
+    # Check if customer exists
+    customer = db.session.get(Customers, customer_id)
+    if not customer:
+        return jsonify({"error": "Customer not found"}), 404
+
+    # Get the appointment
+    appointment = db.session.get(Appointment, appointment_id)
+    if not appointment:
+        return jsonify({"error": "Appointment not found"}), 404
+
+    # Verify the appointment belongs to the customer
+    if appointment.customer_id != customer_id:
+        return jsonify({"error": "Appointment does not belong to this customer"}), 403
+
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "Request body is required"}), 400
+
+        # Update optional fields
+        if "employee_id" in data:
+            appointment.employee_id = data.get("employee_id")
+
+        if "service_id" in data:
+            appointment.service_id = data.get("service_id")
+
+        if "start_at" in data:
+            start_at_str = data.get("start_at")
+            try:
+                appointment.start_at = datetime.datetime.fromisoformat(start_at_str)
+            except (ValueError, TypeError):
+                return jsonify({"error": "start_at must be in ISO format (YYYY-MM-DDTHH:MM:SS)"}), 400
+
+        if "end_at" in data:
+            end_at_str = data.get("end_at")
+            try:
+                appointment.end_at = datetime.datetime.fromisoformat(end_at_str)
+            except (ValueError, TypeError):
+                return jsonify({"error": "end_at must be in ISO format (YYYY-MM-DDTHH:MM:SS)"}), 400
+
+        if "status" in data:
+            appointment.status = data.get("status")
+
+        if "price_at_book" in data:
+            price = data.get("price_at_book")
+            if price is not None:
+                try:
+                    appointment.price_at_book = float(price)
+                except (ValueError, TypeError):
+                    return jsonify({"error": "price_at_book must be a valid number"}), 400
+
+        if "notes" in data:
+            appointment.notes = data.get("notes")
+
+        # Commit changes
+        db.session.commit()
+
+        # Return the updated appointment
+        updated = {
+            "id": appointment.id,
+            "salon_id": appointment.salon_id,
+            "salon_name": appointment.salon.name if appointment.salon else None,
+            "salon_phone": appointment.salon.phone if appointment.salon else None,
+            "salon_address": appointment.salon.address if appointment.salon else None,
+            "customer_id": appointment.customer_id,
+            "employee_id": appointment.employee_id,
+            "employee_first_name": appointment.employee.first_name if appointment.employee else None,
+            "employee_last_name": appointment.employee.last_name if appointment.employee else None,
+            "employee_phone": appointment.employee.phone_number if appointment.employee else None,
+            "service_id": appointment.service_id,
+            "service_name": appointment.service.name if appointment.service else None,
+            "service_duration": appointment.service.duration if appointment.service else None,
+            "service_price": float(appointment.service.price) if appointment.service and appointment.service.price else None,
+            "start_at": appointment.start_at.isoformat() if appointment.start_at else None,
+            "end_at": appointment.end_at.isoformat() if appointment.end_at else None,
+            "status": appointment.status,
+            "price_at_book": float(appointment.price_at_book) if appointment.price_at_book else None,
+            "notes": appointment.notes
+        }
+
+        return jsonify(updated), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": "Database error", "details": str(e)}), 500
