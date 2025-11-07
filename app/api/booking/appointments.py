@@ -1,4 +1,4 @@
-#Book, edit, cancel appointments
+#Book, edit, cancel appointments and set availability
 from flask import Blueprint, jsonify, request
 from app.extensions import db  
 from ...models import Salon, Employees, SalonHours, EmpAvail, Appointment,Customers, TimeBlock 
