@@ -22,7 +22,7 @@ def signup_user():
         address = data.get("address") 
         role = data.get("role", "CUSTOMER").upper()
 
-        if not email or not password or not name:
+        if not email or not password or not name or not phone:
             return jsonify({
                 "status": "error",
                 "message": "Missing required fields (email, password, name)"
