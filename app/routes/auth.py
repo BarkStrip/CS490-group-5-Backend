@@ -22,13 +22,15 @@ def signup_user():
         address = data.get("address") 
         role = data.get("role", "CUSTOMER").upper()
 
+        salon_id = data.get("salon_id")
+
         if not email or not password or not name or not phone:
             return jsonify({
                 "status": "error",
                 "message": "Missing required fields (email, password, name)"
             }), 400
         
-        if role not in ["CUSTOMER", "ADMIN", "OWNER"]:
+        if role not in ["CUSTOMER", "ADMIN", "OWNER", "EMPLOYEE"]:
             return jsonify({
                 "status": "error",
                 "message": f"Role '{role}' is not a valid or supported role for this signup."
@@ -42,6 +44,19 @@ def signup_user():
             }), 400
 
         hashed_pw = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
+        
+        if role == "EMPLOYEE" and not salon_id:
+            return jsonify({
+                "status": "error",
+                "message": "Salon ID is required for employee registration"
+            }), 400
+        
+        if role == "EMPLOYEE" and not address:
+            return jsonify({
+                "status": "error",
+                "message": "Address is required for employee registration"
+            }), 400
+
 
 
         auth_user = AuthUser(
@@ -84,8 +99,20 @@ def signup_user():
                 phone_number=phone,
                 address=address 
             )
-        db.session.add(profile)
+
+        elif role == "EMPLOYEE":
+            # Create Employee profile with salon_id
+            profile = Employees(
+                user_id=auth_user.id,
+                salon_id=salon_id,  # Link to salon
+                first_name=first_name,
+                last_name=last_name,
+                phone_number=phone_number,
+                address=address,
+                employment_status="deactive"  # Default to active
+            )
         
+        db.session.add(profile)
         db.session.commit()
 
         return jsonify({
