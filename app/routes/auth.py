@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify, current_app
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from ..extensions import db
-from ..models import AuthUser, Customers, Admins, SalonOwners
+from ..models import AuthUser, Customers, Admins, SalonOwners, Employees  # ADDED Employees
 import bcrypt
 import jwt
 import datetime
@@ -14,28 +14,44 @@ auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
 def signup_user():
     try:
         data = request.get_json(force=True)
-        name = data.get("first_name")
+        first_name = data.get("first_name")
         last_name = data.get("last_name")
         email = data.get("email")
         password = data.get("password")
-        phone = data.get("phone_number")
+        phone_number = data.get("phone_number")
         address = data.get("address") 
         role = data.get("role", "CUSTOMER").upper()
-
         salon_id = data.get("salon_id")
 
-        if not email or not password or not name or not phone:
+        # Validate required fields
+        if not email or not password or not first_name or not phone_number:
             return jsonify({
                 "status": "error",
-                "message": "Missing required fields (email, password, name)"
+                "message": "Missing required fields (email, password, first_name, phone_number)"
             }), 400
         
+        # Validate role
         if role not in ["CUSTOMER", "ADMIN", "OWNER", "EMPLOYEE"]:
             return jsonify({
                 "status": "error",
                 "message": f"Role '{role}' is not a valid or supported role for this signup."
             }), 400
+        
+        # EMPLOYEE-specific validation
+        if role == "EMPLOYEE":
+            if not salon_id:
+                return jsonify({
+                    "status": "error",
+                    "message": "Salon ID is required for employee registration"
+                }), 400
+            
+            if not address:
+                return jsonify({
+                    "status": "error",
+                    "message": "Address is required for employee registration"
+                }), 400
 
+        # Check if email already exists
         existing = db.session.scalar(select(AuthUser).where(AuthUser.email == email))
         if existing:
             return jsonify({
@@ -43,22 +59,10 @@ def signup_user():
                 "message": "Email already exists"
             }), 400
 
+        # Hash password
         hashed_pw = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
-        
-        if role == "EMPLOYEE" and not salon_id:
-            return jsonify({
-                "status": "error",
-                "message": "Salon ID is required for employee registration"
-            }), 400
-        
-        if role == "EMPLOYEE" and not address:
-            return jsonify({
-                "status": "error",
-                "message": "Address is required for employee registration"
-            }), 400
 
-
-
+        # Create AuthUser
         auth_user = AuthUser(
             email=email,
             password_hash=hashed_pw,
@@ -67,20 +71,13 @@ def signup_user():
         db.session.add(auth_user)
         db.session.flush()
 
- 
-        if name:
-            parts = name.split(" ", 1)
-            first_name = parts[0]
-            if len(parts) > 1:
-                last_name = parts[1]
-
-
+        # Create profile based on role
         if role == "CUSTOMER":
             profile = Customers(
                 user_id=auth_user.id,
                 first_name=first_name,
                 last_name=last_name,
-                phone_number=phone,
+                phone_number=phone_number,
                 address=address 
             )
         elif role == "ADMIN":
@@ -88,7 +85,7 @@ def signup_user():
                 user_id=auth_user.id,
                 first_name=first_name,
                 last_name=last_name,
-                phone_number=phone,
+                phone_number=phone_number,
                 address=address 
             )
         elif role == "OWNER":
@@ -96,35 +93,43 @@ def signup_user():
                 user_id=auth_user.id,
                 first_name=first_name,
                 last_name=last_name,
-                phone_number=phone,
+                phone_number=phone_number,
                 address=address 
             )
-
         elif role == "EMPLOYEE":
             profile = Employees(
                 user_id=auth_user.id,
                 salon_id=salon_id,
                 first_name=first_name,
                 last_name=last_name,
-                phone_number=phone,
+                phone_number=phone_number,
                 address=address,
-                employment_status="deactive"
+                employment_status="inactive"  # Pending salon owner approval
             )
         
         db.session.add(profile)
         db.session.commit()
 
+        # Build response
+        response_user = {
+            "id": auth_user.id, 
+            "first_name": first_name,
+            "last_name": last_name,
+            "email": email,
+            "phone_number": phone_number,
+            "address": address, 
+            "role": role
+        }
+        
+        # Add salon_id to response for employees
+        if role == "EMPLOYEE":
+            response_user["salon_id"] = salon_id
+            response_user["employment_status"] = "inactive"
+
         return jsonify({
             "status": "success",
             "message": "User registered successfully",
-            "user": {
-                "id": auth_user.id, 
-                "name": name,
-                "email": email,
-                "phone": phone,
-                "address": address, 
-                "role": role
-            }
+            "user": response_user
         }), 201
 
     except IntegrityError as e:
@@ -196,7 +201,6 @@ def login_user():
         }), 500
 
 
-
 @auth_bp.route("/user-type/<int:user_id>", methods=["GET"])
 def get_user_type(user_id):
     try:
@@ -220,7 +224,6 @@ def get_user_type(user_id):
             "message": "Internal server error",
             "details": str(e)
         }), 500
-    
 
 
 @auth_bp.route("/check-email", methods=["POST"])
