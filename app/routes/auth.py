@@ -101,15 +101,14 @@ def signup_user():
             )
 
         elif role == "EMPLOYEE":
-            # Create Employee profile with salon_id
             profile = Employees(
                 user_id=auth_user.id,
-                salon_id=salon_id,  # Link to salon
+                salon_id=salon_id,
                 first_name=first_name,
                 last_name=last_name,
                 phone_number=phone,
                 address=address,
-                employment_status="deactive"  # Default to active
+                employment_status="deactive"
             )
         
         db.session.add(profile)
