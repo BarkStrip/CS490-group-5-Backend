@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify, current_app
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from ..extensions import db
-from ..models import AuthUser, Customers, Admins, SalonOwners, Employees  # ADDED Employees
+from ..models import AuthUser, Customers, Admins, SalonOwners, Employees
 import bcrypt
 import jwt
 import datetime
