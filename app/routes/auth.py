@@ -107,7 +107,7 @@ def signup_user():
                 salon_id=salon_id,  # Link to salon
                 first_name=first_name,
                 last_name=last_name,
-                phone_number=phone_number,
+                phone_number=phone,
                 address=address,
                 employment_status="deactive"  # Default to active
             )
