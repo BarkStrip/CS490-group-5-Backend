@@ -322,7 +322,7 @@ class Employees(Base):
     last_name = mapped_column(String(100))
     phone_number = mapped_column(String(100))
     address = mapped_column(String(100))
-    employment_status = mapped_column(String(6))
+    employment_status = mapped_column(String(50))
 
     salon: Mapped['Salon'] = relationship('Salon', back_populates='employees')
     user: Mapped['AuthUser'] = relationship('AuthUser', back_populates='employees')
