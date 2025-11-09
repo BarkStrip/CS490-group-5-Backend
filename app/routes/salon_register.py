@@ -89,7 +89,7 @@ def register_salon():
         if salon_data.get("zip"):
             full_address += f" {salon_data.get('zip')}"
         
-        salon = Salon(
+        salon = Salon( ## add salon_status="deactive"
             salon_owner_id=salon_owner.id,  
             name=salon_data["name"],
             address=full_address.strip(),
