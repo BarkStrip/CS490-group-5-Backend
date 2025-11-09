@@ -1,4 +1,4 @@
-﻿from typing import List, Optional
+from typing import List, Optional
 
 from sqlalchemy import BigInteger, CHAR, Column, DECIMAL, Date, DateTime, Enum, ForeignKeyConstraint, Index, Integer, JSON, String, TIMESTAMP, Table, Text, Time, VARBINARY, text
 from sqlalchemy.dialects.mysql import TINYINT, VARCHAR
@@ -307,7 +307,7 @@ class CancelPolicy(Base):
 class Employees(Base):
     __tablename__ = 'employees'
     __table_args__ = (
-        ForeignKeyConstraint(['salon_id'], ['salon.id'], name='fk_emp_salon'),
+        ForeignKeyConstraint(['salon_id'], ['salon.id'], ondelete='SET NULL', name='fk_emp_salon'),
         ForeignKeyConstraint(['user_id'], ['auth_user.id'], ondelete='CASCADE', name='fk_employee_auth_user'),
         Index('fk_emp_salon', 'salon_id'),
         Index('user_id_unique', 'user_id', unique=True)
@@ -315,16 +315,16 @@ class Employees(Base):
 
     id = mapped_column(Integer, primary_key=True)
     user_id = mapped_column(Integer, nullable=False)
-    salon_id = mapped_column(Integer, nullable=False)
+    salon_id = mapped_column(Integer, nullable=True)
     created_at = mapped_column(DateTime, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
     updated_at = mapped_column(DateTime, nullable=False, server_default=text('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'))
     first_name = mapped_column(String(100))
     last_name = mapped_column(String(100))
     phone_number = mapped_column(String(100))
-    address = mapped_column(String(100))
+    address = mapped_column(String(255))
     employment_status = mapped_column(String(50))
 
-    salon: Mapped['Salon'] = relationship('Salon', back_populates='employees')
+    salon: Mapped[Optional['Salon']] = relationship('Salon', back_populates='employees')
     user: Mapped['AuthUser'] = relationship('AuthUser', back_populates='employees')
     appointment: Mapped[List['Appointment']] = relationship('Appointment', uselist=True, back_populates='employee')
     emp_avail: Mapped[List['EmpAvail']] = relationship('EmpAvail', uselist=True, back_populates='employee')
