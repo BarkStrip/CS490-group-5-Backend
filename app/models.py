@@ -312,7 +312,7 @@ class CancelPolicy(Base):
 class Employees(Base):
     __tablename__ = 'employees'
     __table_args__ = (
-        ForeignKeyConstraint(['salon_id'], ['salons.id'], ondelete='SET NULL', name='fk_emp_salon'),
+        ForeignKeyConstraint(['salon_id'], ['salon.id'], ondelete='SET NULL', name='fk_emp_salon'),
         ForeignKeyConstraint(['user_id'], ['auth_user.id'], ondelete='CASCADE', name='fk_employee_auth_user'),
         Index('fk_emp_salon', 'salon_id'),
         Index('user_id_unique', 'user_id', unique=True)
