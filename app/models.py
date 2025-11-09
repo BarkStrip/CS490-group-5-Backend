@@ -1,4 +1,4 @@
-﻿from typing import List, Optional
+from typing import List, Optional
 
 from sqlalchemy import BigInteger, CHAR, Column, DECIMAL, Date, DateTime, Enum, ForeignKeyConstraint, Index, Integer, JSON, String, TIMESTAMP, Table, Text, Time, VARBINARY, text
 from sqlalchemy.dialects.mysql import TINYINT, VARCHAR
@@ -330,6 +330,7 @@ class Employees(Base):
     emp_avail: Mapped[List['EmpAvail']] = relationship('EmpAvail', uselist=True, back_populates='employee')
     message: Mapped[List['Message']] = relationship('Message', uselist=True, back_populates='employee')
     time_block: Mapped[List['TimeBlock']] = relationship('TimeBlock', uselist=True, back_populates='employee')
+
 
 class LoyaltyAccount(Base):
     __tablename__ = 'loyalty_account'
@@ -848,9 +849,6 @@ class LoyaltyTransaction(Base):
     order_id = mapped_column(Integer)
     appointment_id = mapped_column(Integer)
 
-    # Relationships
-    cart_item: Mapped[Optional['CartItem']] = relationship('CartItem', back_populates='images')
-    appointment: Mapped[Optional['Appointment']] = relationship('Appointment', back_populates='images')
     appointment: Mapped[Optional['Appointment']] = relationship('Appointment', back_populates='loyalty_transaction')
     loyalty_account: Mapped['LoyaltyAccount'] = relationship('LoyaltyAccount', back_populates='loyalty_transaction')
     order: Mapped[Optional['Order']] = relationship('Order', back_populates='loyalty_transaction')
