@@ -203,7 +203,21 @@ def login_user():
 
 @auth_bp.route("/user-type/<int:user_id>", methods=["GET"])
 def get_user_type(user_id):
+    """
+    GET /api/auth/user-type/<user_id>
+    Purpose: Retrieve detailed user information including role, email, names, phone, address, etc.
+    Input: user_id (integer) from the URL path.
+
+    Behavior:
+    - Returns comprehensive user data based on their role
+    - Includes role-specific profile information
+    - For CUSTOMER role: customer profile data
+    - For EMPLOYEE role: employee profile + salon info
+    - For ADMIN role: admin profile data
+    - For OWNER role: owner profile data
+    """
     try:
+        # Get the auth user
         user = db.session.scalar(select(AuthUser).where(AuthUser.id == user_id))
         if not user:
             return jsonify({
@@ -211,12 +225,61 @@ def get_user_type(user_id):
                 "message": f"No user found with ID {user_id}"
             }), 404
 
-        return jsonify({
+        # Base response structure
+        response = {
             "status": "success",
-            "user_id": user_id,
+            "user_id": user.id,
             "email": user.email,
-            "role": user.role
-        }), 200
+            "role": user.role,
+            "created_at": user.created_at.isoformat() if user.created_at else None,
+            "updated_at": user.updated_at.isoformat() if user.updated_at else None,
+            "first_name": None,
+            "last_name": None,
+            "phone_number": None,
+            "address": None
+        }
+
+        # Get role-specific profile information and add to response
+        if user.role == "CUSTOMER":
+            customer = db.session.scalar(select(Customers).where(Customers.user_id == user_id))
+            if customer:
+                response["profile_id"] = customer.id
+                response["first_name"] = customer.first_name
+                response["last_name"] = customer.last_name
+                response["phone_number"] = customer.phone_number
+                response["address"] = customer.address
+
+        elif user.role == "EMPLOYEE":
+            employee = db.session.scalar(select(Employees).where(Employees.user_id == user_id))
+            if employee:
+                response["profile_id"] = employee.id
+                response["first_name"] = employee.first_name
+                response["last_name"] = employee.last_name
+                response["phone_number"] = employee.phone_number
+                response["address"] = employee.address
+                response["employment_status"] = employee.employment_status
+                response["salon_id"] = employee.salon_id
+
+        elif user.role == "ADMIN":
+            admin = db.session.scalar(select(Admins).where(Admins.user_id == user_id))
+            if admin:
+                response["profile_id"] = admin.id
+                response["first_name"] = admin.first_name
+                response["last_name"] = admin.last_name
+                response["phone_number"] = admin.phone_number
+                response["address"] = admin.address
+                response["status"] = admin.status
+
+        elif user.role == "OWNER":
+            owner = db.session.scalar(select(SalonOwners).where(SalonOwners.user_id == user_id))
+            if owner:
+                response["profile_id"] = owner.id
+                response["first_name"] = owner.first_name
+                response["last_name"] = owner.last_name
+                response["phone_number"] = owner.phone_number
+                response["address"] = owner.address
+
+        return jsonify(response), 200
 
     except Exception as e:
         return jsonify({
