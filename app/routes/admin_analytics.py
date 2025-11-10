@@ -75,4 +75,20 @@ def get_feature_usage():
     response = [{"name": row.name or "Unknown", "value": row.value} for row in data]
     return jsonify(response)
 
+@admin_analytics_bp.route("/retention-cohort", methods=["GET"])
+def get_retention_cohort():
+    data = (
+        db.session.query(
+            func.date_format(Appointment.created_at, "%b").label("month"),
+            func.count(Appointment.id).label("rate")
+        )
+        .group_by(func.date_format(Appointment.created_at, "%b"))
+        .order_by(func.min(Appointment.created_at))
+        .all()
+    )
+
+    response = [{"month": row.month, "rate": row.rate} for row in data]
+    return jsonify(response)
+
+
 
