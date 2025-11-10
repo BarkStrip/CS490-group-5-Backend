@@ -77,5 +77,35 @@ def get_revenue():
         "topSalons": salon_data
     })
 
+@admin_reports_bp.route("/generate", methods=["POST"])
+def generate_combined_report():
+    """Generates an Excel file combining selected report sections."""
+    selected = request.json or {}
+    output = BytesIO()
 
+    with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+        if selected.get("demographics"):
+            gender_data = db.session.query(Customers.gender, func.count(Customers.id)).group_by(Customers.gender).all()
+            df_gender = pd.DataFrame(gender_data, columns=["Gender", "Count"])
+            df_gender.to_excel(writer, sheet_name="Demographics", index=False)
+
+        if selected.get("engagement"):
+            engagement_data = db.session.query(Appointment.id, Appointment.status, Appointment.created_at).all()
+            df_engagement = pd.DataFrame(engagement_data, columns=["Appointment ID", "Status", "Created At"])
+            df_engagement.to_excel(writer, sheet_name="Engagement", index=False)
+
+        if selected.get("revenue"):
+            invoice_data = db.session.query(Invoice.id, Invoice.total, Invoice.created_at).all()
+            df_revenue = pd.DataFrame(invoice_data, columns=["Invoice ID", "Total", "Created At"])
+            df_revenue.to_excel(writer, sheet_name="Revenue", index=False)
+
+    output.seek(0)
+    filename = f"JADE_Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name=filename,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 
