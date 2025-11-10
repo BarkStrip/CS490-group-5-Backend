@@ -78,3 +78,15 @@ def get_errors():
 
     return jsonify({"errors": errors})
 
+@admin_system_bp.route("/filters", methods=["GET"])
+def get_filters():
+    """
+    Returns selectable date ranges and salon cities.
+    """
+    cities = [c.city for c in db.session.query(Salon.city).distinct() if c.city]
+
+    return jsonify({
+        "date_ranges": ["Past Week", "Past Month", "Past 3 Months"],
+        "stores": ["All"] + cities,
+    })
+
