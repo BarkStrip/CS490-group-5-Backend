@@ -54,3 +54,28 @@ def get_engagement():
         "engagementRate": engagement_rate
     })
 
+@admin_reports_bp.route("/revenue", methods=["GET"])
+def get_revenue():
+    """Summarizes revenue across invoices."""
+    total_revenue = db.session.query(func.sum(Invoice.total)).scalar() or 0.0
+    avg_revenue = db.session.query(func.avg(Invoice.total)).scalar() or 0.0
+
+    top_salon_revenue = (
+        db.session.query(Salon.name, func.sum(Invoice.total).label("total"))
+        .join(Appointment, Appointment.salon_id == Salon.id)
+        .group_by(Salon.name)
+        .order_by(func.sum(Invoice.total).desc())
+        .limit(5)
+        .all()
+    )
+
+    salon_data = [{"name": name, "total": float(total)} for name, total in top_salon_revenue]
+
+    return jsonify({
+        "totalRevenue": round(total_revenue, 2),
+        "averageRevenue": round(avg_revenue, 2),
+        "topSalons": salon_data
+    })
+
+
+
