@@ -49,5 +49,25 @@ def get_top_salons():
     ]
     return jsonify(response)
 
+@admin_salon_activity_bp.route("/trends", methods=["GET"])
+def get_appointment_trends():
+    today = datetime.utcnow().date()
+    week_ago = today - timedelta(days=6)
+
+    daily_data = (
+        db.session.query(
+            func.date(Appointment.created_at).label("day"),
+            func.count(Appointment.id).label("count")
+        )
+        .filter(Appointment.created_at >= week_ago)
+        .group_by(func.date(Appointment.created_at))
+        .order_by(func.date(Appointment.created_at))
+        .all()
+    )
+
+    response = [{"day": str(row.day)[-5:], "count": row.count} for row in daily_data]
+    return jsonify(response)
+
+
 
 
