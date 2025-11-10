@@ -242,3 +242,49 @@ def set_default_payment_method(customer_id, method_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": "Database error", "details": str(e)}), 500
+
+@payments_bp.route("/<int:customer_id>/methods/<int:method_id>", methods=["DELETE"])
+def delete_payment_method(customer_id, method_id):
+    """
+    DELETE /api/payments/<customer_id>/methods/<int:method_id>
+    Purpose: Delete a specific payment method for a customer.
+    Input:
+        - customer_id (integer) from the URL path
+        - method_id (integer) from the URL path
+
+    Behavior:
+    - If customer_id does not exist:
+        → Return a 404 error.
+    - If method_id does not exist:
+        → Return a 404 error.
+    - If the payment method does not belong to the customer:
+        → Return a 403 error (Forbidden).
+    - If successful:
+        → Delete the payment method from the database.
+        → Return a 200 status with a success message.
+    """
+
+    # Check if customer exists
+    customer = db.session.get(Customers, customer_id)
+    if not customer:
+        return jsonify({"error": "Customer not found"}), 404
+
+    # Get the payment method
+    payment_method = db.session.get(PayMethod, method_id)
+    if not payment_method:
+        return jsonify({"error": "Payment method not found"}), 404
+
+    # Verify the payment method belongs to the customer
+    if payment_method.user_id != customer_id:
+        return jsonify({"error": "Payment method does not belong to this customer"}), 403
+
+    try:
+        # Delete the payment method
+        db.session.delete(payment_method)
+        db.session.commit()
+
+        return jsonify({"message": "Payment method deleted successfully"}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": "Database error", "details": str(e)}), 500
