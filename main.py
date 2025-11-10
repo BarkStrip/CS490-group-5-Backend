@@ -35,6 +35,7 @@ from app.routes.admin_analytics import admin_analytics_bp
 from app.routes.admin_demographics import admin_demo_bp
 from app.routes.admin_reports import admin_reports_bp
 from app.routes.admin_system import admin_system_bp
+from app.routes.admin_salon_activity import admin_salon_activity_bp
 
 
 def create_app():
@@ -78,6 +79,7 @@ def create_app():
         print("Admin Analytics blueprint registered")
         app.register_blueprint(admin_demo_bp)
         app.register_blueprint(admin_system_bp)
+        app.register_blueprint(admin_salon_activity_bp)
 
         print("Adding root route...")
         app.register_blueprint(admin_reports_bp)
