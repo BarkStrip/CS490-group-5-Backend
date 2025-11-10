@@ -53,4 +53,28 @@ def get_status():
 
     return jsonify(data)
 
+@admin_system_bp.route("/errors", methods=["GET"])
+def get_errors():
+    """
+    Returns recent error messages and affected users from SystemLog.
+    """
+    error_rows = (
+        db.session.query(SystemLog)
+        .filter(SystemLog.status_msg.ilike("%error%"))
+        .order_by(SystemLog.created_at.desc())
+        .limit(10)
+        .all()
+    )
+
+    errors = [
+        {
+            "component": row.component,
+            "message": row.status_msg,
+            "affected_users": row.affected_users or 0,
+            "timestamp": row.created_at.isoformat() if row.created_at else None,
+        }
+        for row in error_rows
+    ]
+
+    return jsonify({"errors": errors})
 
