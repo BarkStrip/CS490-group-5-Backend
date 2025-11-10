@@ -1,3 +1,4 @@
+#Points, promotions, redemption
 from flask import Blueprint, jsonify, request, current_app
 from sqlalchemy import select, func
 from app.extensions import db
@@ -277,3 +278,186 @@ def redeem_loyalty_reward(customer_id, salon_id):
         db.session.rollback()
         current_app.logger.error(f"Failed to redeem reward for cust {customer_id}, salon {salon_id}: {e}")
         return jsonify({"status": "error", "message": "Failed to redeem reward", "details": str(e)}), 500
+
+
+@loyalty_bp.route("/salon/<int:salon_id>", methods=["GET"])
+def get_salon_loyalty_program(salon_id):
+    """
+    GET /api/loyalty/salon/<salon_id>
+    Purpose: Retrieve loyalty program details for a specific salon.
+    Input: salon_id (integer) from the URL path.
+    Behavior:
+    - Check if salon exists
+    - Retrieve loyalty program details if it exists
+    - Return flattened loyalty program data with 200 status
+    - Return None if no loyalty program exists for salon
+    """
+    try:
+        # Verify salon exists
+        salon = db.session.get(Salon, salon_id)
+        if not salon:
+            return jsonify({
+                "error": "Salon not found",
+                "message": f"No salon found with ID {salon_id}"
+            }), 404
+
+        # Get loyalty program for this salon
+        loyalty_program = db.session.query(LoyaltyProgram).filter(
+            LoyaltyProgram.salon_id == salon_id
+        ).first()
+
+        if not loyalty_program:
+            return jsonify({
+                "status": "success",
+                "salon_id": salon_id,
+                "id": None,
+                "active": None,
+                "visits_for_reward": None,
+                "reward_type": None,
+                "reward_value": None,
+                "reward_description": None,
+                "created_at": None,
+                "updated_at": None
+            }), 200
+
+        # Return flattened loyalty program details (no nested object)
+        return jsonify({
+            "status": "success",
+            "salon_id": salon_id,
+            "id": loyalty_program.id,
+            "active": loyalty_program.active,
+            "visits_for_reward": loyalty_program.visits_for_reward,
+            "reward_type": loyalty_program.reward_type,
+            "reward_value": str(loyalty_program.reward_value) if loyalty_program.reward_value else None,
+            "reward_description": loyalty_program.reward_description,
+            "created_at": loyalty_program.created_at.isoformat() if loyalty_program.created_at else None,
+            "updated_at": loyalty_program.updated_at.isoformat() if loyalty_program.updated_at else None
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            "error": "Database error",
+            "details": str(e)
+        }), 500
+
+
+@loyalty_bp.route("/salon/<int:salon_id>", methods=["PUT"])
+def update_salon_loyalty_program(salon_id):
+    """
+    PUT /api/loyalty/salon/<salon_id>
+    Purpose: Update loyalty program details for a specific salon.
+    Input:
+        - salon_id (integer) from the URL path
+        - JSON body with fields to update:
+          * active (optional, 0 or 1)
+          * visits_for_reward (optional, integer)
+          * reward_type (optional, 'PERCENT', 'FIXED_AMOUNT', or 'FREE_ITEM')
+          * reward_value (optional, decimal)
+          * reward_description (optional, string)
+    Behavior:
+    - Check if salon exists
+    - Retrieve loyalty program for salon
+    - If no loyalty program exists, create a new one
+    - Update provided fields
+    - Return updated loyalty program data
+    """
+    try:
+        # Verify salon exists
+        salon = db.session.get(Salon, salon_id)
+        if not salon:
+            return jsonify({
+                "error": "Salon not found",
+                "message": f"No salon found with ID {salon_id}"
+            }), 404
+
+        # Get request body
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                "error": "Request body required",
+                "message": "JSON body with fields to update is required"
+            }), 400
+
+        # Get or create loyalty program
+        loyalty_program = db.session.query(LoyaltyProgram).filter(
+            LoyaltyProgram.salon_id == salon_id
+        ).first()
+
+        if not loyalty_program:
+            # Create new loyalty program
+            loyalty_program = LoyaltyProgram(salon_id=salon_id)
+            db.session.add(loyalty_program)
+
+        # Update fields if provided
+        if "active" in data:
+            active = data.get("active")
+            if active not in [0, 1]:
+                return jsonify({
+                    "error": "Invalid value",
+                    "message": "active must be 0 or 1"
+                }), 400
+            loyalty_program.active = active
+
+        if "visits_for_reward" in data:
+            visits = data.get("visits_for_reward")
+            if not isinstance(visits, int) or visits < 0:
+                return jsonify({
+                    "error": "Invalid value",
+                    "message": "visits_for_reward must be a non-negative integer"
+                }), 400
+            loyalty_program.visits_for_reward = visits
+
+        if "reward_type" in data:
+            reward_type = data.get("reward_type")
+            if reward_type not in ["PERCENT", "FIXED_AMOUNT", "FREE_ITEM"]:
+                return jsonify({
+                    "error": "Invalid value",
+                    "message": "reward_type must be 'PERCENT', 'FIXED_AMOUNT', or 'FREE_ITEM'"
+                }), 400
+            loyalty_program.reward_type = reward_type
+
+        if "reward_value" in data:
+            reward_value = data.get("reward_value")
+            try:
+                # Convert to Decimal for validation
+                from decimal import Decimal
+                loyalty_program.reward_value = Decimal(str(reward_value))
+            except:
+                return jsonify({
+                    "error": "Invalid value",
+                    "message": "reward_value must be a valid decimal number"
+                }), 400
+
+        if "reward_description" in data:
+            reward_description = data.get("reward_description")
+            if reward_description and len(str(reward_description)) > 255:
+                return jsonify({
+                    "error": "Invalid value",
+                    "message": "reward_description cannot exceed 255 characters"
+                }), 400
+            loyalty_program.reward_description = reward_description
+
+        # Commit changes
+        db.session.commit()
+
+        # Return updated loyalty program
+        return jsonify({
+            "status": "success",
+            "message": "Loyalty program updated successfully",
+            "salon_id": salon_id,
+            "id": loyalty_program.id,
+            "active": loyalty_program.active,
+            "visits_for_reward": loyalty_program.visits_for_reward,
+            "reward_type": loyalty_program.reward_type,
+            "reward_value": str(loyalty_program.reward_value) if loyalty_program.reward_value else None,
+            "reward_description": loyalty_program.reward_description,
+            "created_at": loyalty_program.created_at.isoformat() if loyalty_program.created_at else None,
+            "updated_at": loyalty_program.updated_at.isoformat() if loyalty_program.updated_at else None
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "error": "Database error",
+            "details": str(e)
+        }), 500
