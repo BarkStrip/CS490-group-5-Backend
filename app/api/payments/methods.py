@@ -1,10 +1,9 @@
 #Payment processing, tips
 from flask import Blueprint, jsonify, request
 from app.extensions import db
-from app.models import PayMethod, Customers
+from app.models import PayMethod, Customers, Order, OrderItem, Cart, CartItem
 from datetime import datetime
-from sqlalchemy import select
-from sqlalchemy import update
+from sqlalchemy import select, delete, update
 payments_bp = Blueprint("payments", __name__, url_prefix="/api/payments")
 
 
@@ -53,7 +52,6 @@ def get_customer_payment_methods(customer_id):
     ]
 
     return jsonify(results)
-
 
 @payments_bp.route("/<int:customer_id>/methods", methods=["POST"])
 def create_payment_method(customer_id):
@@ -288,3 +286,73 @@ def delete_payment_method(customer_id, method_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": "Database error", "details": str(e)}), 500
+
+@payments_bp.route("/create_order", methods=["POST"])
+def create_order():  
+
+    data = request.get_json(force=True)
+    customer_id = data.get("customer_id")
+    salon_id = data.get("salon_id")
+    subtotal = data.get("subtotal")
+    tip_amnt = data.get("tip_amnt", 0)
+    tax_amnt = data.get("tax_amnt", 0)
+    total_amnt = data.get("total_amnt")
+    promo_id = data.get("promo_id", 0)
+    cart_items = data.get("cart_items", [])
+
+    if not data:
+        return jsonify({"error": "No JSON body received"}), 400
+    
+    required_fields = ["customer_id", "cart_items", "total_amnt"]
+    for field in required_fields:
+        if field not in data:
+            return jsonify({"error": f"Missing required field: {field}"}), 400
+
+    if not customer_id or not cart_items:
+        return jsonify({"error": "Missing required fields"}), 400
+        
+    try: 
+        new_order = Order(
+            customer_id=customer_id,
+            salon_id=salon_id,
+            status="completed", 
+            subtotal=subtotal,
+            tip_amnt=tip_amnt,
+            tax_amnt=tax_amnt,
+            total_amnt=total_amnt,
+            promo_id=promo_id
+        )
+        db.session.add(new_order)
+        db.session.flush()
+
+        for item in cart_items:
+            order_item = OrderItem(
+                order_id=new_order.id,
+                kind=item.get("kind"),
+                product_id=item.get("product_id"),
+                service_id=item.get("service_id"),
+                qty=item.get("qty", 1),
+                unit_price=item.get("unit_price"),
+                line_total=item.get("unit_price") * item.get("qty", 1)
+            )
+            db.session.add(order_item)
+
+        cart_stmt = select(Cart).filter_by(user_id=customer_id)
+        customer_cart = db.session.scalar(cart_stmt)
+
+        if customer_cart: 
+            delete_stmt = delete(CartItem).where(CartItem.cart_id == customer_cart.id)
+            db.session.execute(delete_stmt)
+
+        db.session.commit()
+
+        return jsonify({
+            "message": "Order created successfully",
+            "order_id": new_order.id
+        }), 201
+    
+    except Exception as e: 
+        db.session.rollback()
+        print(f"Error creating order: {e}")
+        error_response = {"error": "unexpected error", "details": str(e)}
+        return error_response, 500

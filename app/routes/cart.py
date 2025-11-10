@@ -127,7 +127,6 @@ def add_service_to_cart():
         db.session.rollback()
         return jsonify({"status": "error", "message": str(e)}), 500
 
-
 # -----------------------------------------------------------------------------
 # POST /api/cart/add-product
 # Purpose:
@@ -190,8 +189,6 @@ def add_product_to_cart():
     except Exception as e:
         db.session.rollback()
         return jsonify({"status": "error", "message": str(e)}), 500
-
-
 
 @cart_bp.route("/<int:user_id>", methods=["GET"])
 def get_cart_details(user_id):
@@ -266,8 +263,6 @@ def get_cart_details(user_id):
             "message": "Internal server error",
             "details": str(e)
         }), 500
-
-
 
 # -------------------------------------------------------------------------
 # PUT /api/cart/update-service/<service_id>
@@ -368,7 +363,6 @@ def update_salon_service(service_id):
             "message": "Internal server error",
             "details": str(e)
         }), 500
-
 
 # -------------------------------------------------------------------------
 # PUT /api/cart/update-product/<product_id>
@@ -505,7 +499,6 @@ def delete_cart_item():
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
-
 
 @cart_bp.route("/update-item-quantity", methods=["PATCH"])
 def update_cart_item_quantity():
