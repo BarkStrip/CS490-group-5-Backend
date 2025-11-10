@@ -33,6 +33,7 @@ from app.api.payments.receipts import receipts_bp
 from app.api.loyalty.customer_loyaltyp import loyalty_bp
 from app.routes.admin_analytics import admin_analytics_bp
 from app.routes.admin_demographics import admin_demo_bp
+from app.routes.admin_reports import admin_reports_bp
 
 
 def create_app():
@@ -77,6 +78,7 @@ def create_app():
         app.register_blueprint(admin_demo_bp)
 
         print("Adding root route...")
+        app.register_blueprint(admin_reports_bp)
         @app.route('/')
         def home():
             try:
