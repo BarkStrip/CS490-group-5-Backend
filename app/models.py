@@ -1,7 +1,7 @@
 from typing import List, Optional
 
 from sqlalchemy import BigInteger, CHAR, Column, DECIMAL, Date, DateTime, Enum, ForeignKeyConstraint, Index, Integer, JSON, String, TIMESTAMP, Table, Text, Time, VARBINARY, text
-from sqlalchemy.dialects.mysql import TINYINT
+from sqlalchemy.dialects.mysql import TINYINT, VARCHAR
 from sqlalchemy.orm import Mapped, declarative_base, mapped_column, relationship
 from sqlalchemy.orm.base import Mapped
 
@@ -70,14 +70,6 @@ class Types(Base):
     name = mapped_column(String(100), nullable=False)
 
     salon: Mapped['Salon'] = relationship('Salon', secondary='salon_type_assignments', back_populates='type')
-
-
-class Users(Base):
-    __tablename__ = 'users'
-
-    id = mapped_column(Integer, primary_key=True)
-    created_at = mapped_column(DateTime, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
-    updated_at = mapped_column(DateTime, nullable=False, server_default=text('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'))
 
 
 class Admins(Base):
@@ -199,7 +191,7 @@ class PayMethod(Base):
     updated_at = mapped_column(DateTime, nullable=False, server_default=text('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'))
     brand = mapped_column(String(50))
     last4 = mapped_column(CHAR(4))
-    expiration = mapped_column(Date)
+    Expiration = mapped_column(Date)
 
     user: Mapped['Customers'] = relationship('Customers', back_populates='pay_method')
     payment: Mapped[List['Payment']] = relationship('Payment', uselist=True, back_populates='pay_method')
@@ -284,6 +276,7 @@ class Order(Base):
     total_amnt = mapped_column(DECIMAL(10, 2))
     promo_id = mapped_column(Integer)
     submitted_at = mapped_column(DateTime)
+    refund_reason = mapped_column(Text)
 
     customer: Mapped[Optional['Customers']] = relationship('Customers', back_populates='_order')
     promo: Mapped[Optional['Promos']] = relationship('Promos', back_populates='_order')
@@ -291,6 +284,7 @@ class Order(Base):
     order_item: Mapped[List['OrderItem']] = relationship('OrderItem', uselist=True, back_populates='order')
     payment: Mapped[List['Payment']] = relationship('Payment', uselist=True, back_populates='order')
     review_token: Mapped[List['ReviewToken']] = relationship('ReviewToken', uselist=True, back_populates='order')
+    loyalty_transaction: Mapped[List['LoyaltyTransaction']] = relationship('LoyaltyTransaction', uselist=True, back_populates='order')
 
 
 class CancelPolicy(Base):
@@ -313,7 +307,7 @@ class CancelPolicy(Base):
 class Employees(Base):
     __tablename__ = 'employees'
     __table_args__ = (
-        ForeignKeyConstraint(['salon_id'], ['salon.id'], name='fk_emp_salon'),
+        ForeignKeyConstraint(['salon_id'], ['salon.id'], ondelete='SET NULL', name='fk_emp_salon'),
         ForeignKeyConstraint(['user_id'], ['auth_user.id'], ondelete='CASCADE', name='fk_employee_auth_user'),
         Index('fk_emp_salon', 'salon_id'),
         Index('user_id_unique', 'user_id', unique=True)
@@ -321,16 +315,16 @@ class Employees(Base):
 
     id = mapped_column(Integer, primary_key=True)
     user_id = mapped_column(Integer, nullable=False)
-    salon_id = mapped_column(Integer, nullable=False)
+    salon_id = mapped_column(Integer, nullable=True)
     created_at = mapped_column(DateTime, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
     updated_at = mapped_column(DateTime, nullable=False, server_default=text('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'))
     first_name = mapped_column(String(100))
     last_name = mapped_column(String(100))
     phone_number = mapped_column(String(100))
-    address = mapped_column(String(100))
-    employment_status = mapped_column(String(6))
+    address = mapped_column(String(255))
+    employment_status = mapped_column(String(50))
 
-    salon: Mapped['Salon'] = relationship('Salon', back_populates='employees')
+    salon: Mapped[Optional['Salon']] = relationship('Salon', back_populates='employees')
     user: Mapped['AuthUser'] = relationship('AuthUser', back_populates='employees')
     appointment: Mapped[List['Appointment']] = relationship('Appointment', uselist=True, back_populates='employee')
     emp_avail: Mapped[List['EmpAvail']] = relationship('EmpAvail', uselist=True, back_populates='employee')
@@ -356,6 +350,7 @@ class LoyaltyAccount(Base):
 
     salon: Mapped['Salon'] = relationship('Salon', back_populates='loyalty_account')
     user: Mapped['Customers'] = relationship('Customers', back_populates='loyalty_account')
+    loyalty_transaction: Mapped[List['LoyaltyTransaction']] = relationship('LoyaltyTransaction', uselist=True, back_populates='loyalty_account')
 
 
 class LoyaltyProgram(Base):
@@ -368,11 +363,15 @@ class LoyaltyProgram(Base):
     id = mapped_column(Integer, primary_key=True)
     salon_id = mapped_column(Integer, nullable=False)
     active = mapped_column(TINYINT(1), nullable=False, server_default=text("'0'"))
-    visits_for_reward = mapped_column(Integer, nullable=False, server_default=text("'0'"))
+    program_type = mapped_column(Enum('POINTS', 'VISITS'), nullable=False, server_default=text("'POINTS'"))
     created_at = mapped_column(DateTime, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
     updated_at = mapped_column(DateTime, nullable=False, server_default=text('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'))
+    points_per_dollar = mapped_column(DECIMAL(10, 2), server_default=text("'1.00'"))
+    visits_for_reward = mapped_column(Integer)
     reward_type = mapped_column(Enum('PERCENT', 'FIXED_AMOUNT', 'FREE_ITEM'))
     reward_value = mapped_column(DECIMAL(10, 2))
+    reward_description = mapped_column(String(255), server_default=text("'Reward'"))
+    points_for_reward = mapped_column(Integer, server_default=text("'1000'"))
 
     salon: Mapped['Salon'] = relationship('Salon', back_populates='loyalty_program')
 
@@ -556,14 +555,13 @@ class Appointment(Base):
     price_at_book = mapped_column(DECIMAL(10, 2))
     notes = mapped_column(Text)
 
-
     customer: Mapped[Optional['Customers']] = relationship('Customers', back_populates='appointment')
     employee: Mapped[Optional['Employees']] = relationship('Employees', back_populates='appointment')
     salon: Mapped[Optional['Salon']] = relationship('Salon', back_populates='appointment')
     service: Mapped[Optional['Service']] = relationship('Service', back_populates='appointment')
+    appointment_image: Mapped[List['AppointmentImage']] = relationship('AppointmentImage', uselist=True, back_populates='appointment')
     booking: Mapped[List['Booking']] = relationship('Booking', uselist=True, back_populates='appointment')
-    #-- Barek Stripling 11/5/25 - Add appointment_image table to store images for carts --> appointments
-    images: Mapped[List['AppointmentImage']] = relationship('AppointmentImage', back_populates='appointment')
+    loyalty_transaction: Mapped[List['LoyaltyTransaction']] = relationship('LoyaltyTransaction', uselist=True, back_populates='appointment')
 
 
 class CartItem(Base):
@@ -586,8 +584,6 @@ class CartItem(Base):
     price = mapped_column(DECIMAL(10, 2))
     added_at = mapped_column(TIMESTAMP, server_default=text('CURRENT_TIMESTAMP'))
     updated_at = mapped_column(TIMESTAMP, server_default=text('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'))
-
-    # NEW COLUMNS ADDED "Barek Stripling 11/5/25 - Added columns to cart_item and appointments table":
     start_at = mapped_column(DateTime)
     end_at = mapped_column(DateTime)
     notes = mapped_column(Text)
@@ -595,9 +591,7 @@ class CartItem(Base):
     cart: Mapped['Cart'] = relationship('Cart', back_populates='cart_item')
     product: Mapped[Optional['Product']] = relationship('Product', back_populates='cart_item')
     service: Mapped[Optional['Service']] = relationship('Service', back_populates='cart_item')
-
-    #Barek Stripling 11/5/25 - Add appointment_image table to store images for carts --> appointments
-    images: Mapped[List['AppointmentImage']] = relationship('AppointmentImage', back_populates='cart_item')
+    appointment_image: Mapped[List['AppointmentImage']] = relationship('AppointmentImage', uselist=True, back_populates='cart_item')
 
 
 class EmpAvail(Base):
@@ -777,6 +771,26 @@ class TimeBlock(Base):
     salon: Mapped[Optional['Salon']] = relationship('Salon', back_populates='time_block')
 
 
+class AppointmentImage(Base):
+    __tablename__ = 'appointment_image'
+    __table_args__ = (
+        ForeignKeyConstraint(['appointment_id'], ['appointment.id'], ondelete='CASCADE', name='appointment_image_appointment_FK'),
+        ForeignKeyConstraint(['cart_item_id'], ['cart_item.id'], ondelete='CASCADE', name='appointment_image_cart_item_FK'),
+        Index('appointment_image_appointment_FK', 'appointment_id'),
+        Index('appointment_image_cart_item_FK', 'cart_item_id')
+    )
+
+    id = mapped_column(Integer, primary_key=True)
+    url = mapped_column(VARCHAR(512), nullable=False)
+    cart_item_id = mapped_column(Integer)
+    appointment_id = mapped_column(Integer)
+    created_at = mapped_column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
+    updated_at = mapped_column(DateTime, server_default=text('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'))
+
+    appointment: Mapped[Optional['Appointment']] = relationship('Appointment', back_populates='appointment_image')
+    cart_item: Mapped[Optional['CartItem']] = relationship('CartItem', back_populates='appointment_image')
+
+
 class Booking(Base):
     __tablename__ = 'booking'
     __table_args__ = (
@@ -815,23 +829,26 @@ class Invoice(Base):
 
     payment: Mapped[Optional['Payment']] = relationship('Payment', back_populates='invoice')
 
-# Barek Stripling 11/5/25 - Add appointment_image table to store images for carts --> appointments
-class AppointmentImage(Base):
-    __tablename__ = 'appointment_image'
+
+class LoyaltyTransaction(Base):
+    __tablename__ = 'loyalty_transaction'
     __table_args__ = (
-        ForeignKeyConstraint(['cart_item_id'], ['cart_item.id'], ondelete='CASCADE', name='fk_appt_img_cart_item'),
-        ForeignKeyConstraint(['appointment_id'], ['appointment.id'], ondelete='CASCADE', name='fk_appt_img_appointment'),
-        Index('idx_cart_item', 'cart_item_id'),
-        Index('idx_appointment', 'appointment_id')
+        ForeignKeyConstraint(['appointment_id'], ['appointment.id'], ondelete='SET NULL', name='loyalty_transaction_ibfk_3'),
+        ForeignKeyConstraint(['loyalty_account_id'], ['loyalty_account.id'], ondelete='CASCADE', name='loyalty_transaction_ibfk_1'),
+        ForeignKeyConstraint(['order_id'], ['_order.id'], ondelete='SET NULL', name='loyalty_transaction_ibfk_2'),
+        Index('idx_appointment', 'appointment_id'),
+        Index('idx_loyalty_account', 'loyalty_account_id'),
+        Index('idx_order', 'order_id')
     )
 
     id = mapped_column(Integer, primary_key=True)
-    url = mapped_column(String(512), nullable=False)
-    cart_item_id = mapped_column(Integer)
+    loyalty_account_id = mapped_column(Integer, nullable=False)
+    points_change = mapped_column(Integer, nullable=False, comment='Positive for earned, negative for spent')
+    created_at = mapped_column(DateTime, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
+    reason = mapped_column(String(50), comment='e.g., PURCHASE, REDEEM_REWARD, MANUAL_ADJUST')
+    order_id = mapped_column(Integer)
     appointment_id = mapped_column(Integer)
-    created_at = mapped_column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
-    updated_at = mapped_column(DateTime, server_default=text('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'))
 
-    # Relationships
-    cart_item: Mapped[Optional['CartItem']] = relationship('CartItem', back_populates='images')
-    appointment: Mapped[Optional['Appointment']] = relationship('Appointment', back_populates='images')
+    appointment: Mapped[Optional['Appointment']] = relationship('Appointment', back_populates='loyalty_transaction')
+    loyalty_account: Mapped['LoyaltyAccount'] = relationship('LoyaltyAccount', back_populates='loyalty_transaction')
+    order: Mapped[Optional['Order']] = relationship('Order', back_populates='loyalty_transaction')

@@ -3,7 +3,8 @@ from flask import Blueprint, jsonify, request
 from app.extensions import db
 from app.models import PayMethod, Customers
 from datetime import datetime
-
+from sqlalchemy import select
+from sqlalchemy import update
 payments_bp = Blueprint("payments", __name__, url_prefix="/api/payments")
 
 
@@ -24,24 +25,26 @@ def get_customer_payment_methods(customer_id):
         → Return a 404 error.
     """
 
-    # Check if customer exists
+    # Check if customer exists (db.session.get is 2.0 compatible)
     customer = db.session.get(Customers, customer_id)
 
     if not customer:
         return jsonify({"error": "Customer not found"}), 404
 
-    # Query for all payment methods for this customer, ordered by is_default (desc) then created_at (desc)
-    payment_methods = db.session.query(PayMethod).filter(
-        PayMethod.user_id == customer_id
-    ).order_by(PayMethod.is_default.desc(), PayMethod.created_at.desc()).all()
+    stmt = (
+        select(PayMethod)
+        .where(PayMethod.user_id == customer_id)
+        .order_by(PayMethod.is_default.desc(), PayMethod.created_at.desc())
+    )
+    
+    payment_methods = db.session.scalars(stmt).all()
 
-    # Serialize the payment methods
     results = [
         {
             "id": method.id,
             "brand": method.brand,
             "last4": method.last4,
-            "expiration": method.expiration.isoformat() if method.expiration else None,
+            "expiration": method.Expiration.isoformat() if method.Expiration else None,
             "is_default": bool(method.is_default),
             "created_at": method.created_at.isoformat() if method.created_at else None,
             "updated_at": method.updated_at.isoformat() if method.updated_at else None
@@ -120,25 +123,36 @@ def create_payment_method(customer_id):
             ).all()
             for method in existing_defaults:
                 method.is_default = False
+            
+    
+            stmt = (
+                update(PayMethod)
+                .where(
+                    PayMethod.user_id == customer_id,
+                    PayMethod.is_default == True
+                )
+                .values(is_default=False)
+            )
+            db.session.execute(stmt)
 
-        # Create new payment method
+
+      
         new_method = PayMethod(
             user_id=customer_id,
             brand=brand,
             last4=last4,
-            expiration=expiration_date,
+            Expiration=expiration_date,
             is_default=is_default
         )
 
         db.session.add(new_method)
         db.session.commit()
 
-        # Return the created payment method
         created = {
             "id": new_method.id,
             "brand": new_method.brand,
             "last4": new_method.last4,
-            "expiration": new_method.expiration.isoformat() if new_method.expiration else None,
+            "expiration": new_method.Expiration.isoformat() if new_method.Expiration else None,
             "is_default": bool(new_method.is_default),
             "created_at": new_method.created_at.isoformat() if new_method.created_at else None,
             "updated_at": new_method.updated_at.isoformat() if new_method.updated_at else None
@@ -149,7 +163,6 @@ def create_payment_method(customer_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": "Database error", "details": str(e)}), 500
-
 
 @payments_bp.route("/<int:customer_id>/methods/<int:method_id>/set-default", methods=["PUT"])
 def set_default_payment_method(customer_id, method_id):
@@ -189,34 +202,88 @@ def set_default_payment_method(customer_id, method_id):
         return jsonify({"error": "Payment method does not belong to this customer"}), 403
 
     try:
-        # Remove is_default from all other payment methods for this customer
+   
         other_methods = db.session.query(PayMethod).filter(
             PayMethod.user_id == customer_id,
             PayMethod.id != method_id,
             PayMethod.is_default == 1
         ).all()
-
+        
         for method in other_methods:
             method.is_default = 0
+        stmt_unset_others = (
+            update(PayMethod)
+            .where(
+                PayMethod.user_id == customer_id,
+                PayMethod.id != method_id,
+                PayMethod.is_default == True
+            )
+            .values(is_default=False)
+        )
+        db.session.execute(stmt_unset_others)
 
-        # Set this method as default
+
         payment_method.is_default = 1
 
-        # Commit changes
         db.session.commit()
 
-        # Return the updated payment method
         updated = {
             "id": payment_method.id,
             "brand": payment_method.brand,
             "last4": payment_method.last4,
-            "expiration": payment_method.expiration.isoformat() if payment_method.expiration else None,
-            "is_default": int(payment_method.is_default),
+            "expiration": payment_method.Expiration.isoformat() if payment_method.Expiration else None,
+            "is_default": bool(payment_method.is_default),
             "created_at": payment_method.created_at.isoformat() if payment_method.created_at else None,
             "updated_at": payment_method.updated_at.isoformat() if payment_method.updated_at else None
         }
 
         return jsonify(updated), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": "Database error", "details": str(e)}), 500
+
+@payments_bp.route("/<int:customer_id>/methods/<int:method_id>", methods=["DELETE"])
+def delete_payment_method(customer_id, method_id):
+    """
+    DELETE /api/payments/<customer_id>/methods/<int:method_id>
+    Purpose: Delete a specific payment method for a customer.
+    Input:
+        - customer_id (integer) from the URL path
+        - method_id (integer) from the URL path
+
+    Behavior:
+    - If customer_id does not exist:
+        → Return a 404 error.
+    - If method_id does not exist:
+        → Return a 404 error.
+    - If the payment method does not belong to the customer:
+        → Return a 403 error (Forbidden).
+    - If successful:
+        → Delete the payment method from the database.
+        → Return a 200 status with a success message.
+    """
+
+    # Check if customer exists
+    customer = db.session.get(Customers, customer_id)
+    if not customer:
+        return jsonify({"error": "Customer not found"}), 404
+
+    # Get the payment method
+    payment_method = db.session.get(PayMethod, method_id)
+    if not payment_method:
+        return jsonify({"error": "Payment method not found"}), 404
+
+    # Verify the payment method belongs to the customer
+    if payment_method.user_id != customer_id:
+        return jsonify({"error": "Payment method does not belong to this customer"}), 403
+
+    try:
+        # Delete the payment method
+        db.session.delete(payment_method)
+        db.session.commit()
+
+        return jsonify({"message": "Payment method deleted successfully"}), 200
 
     except Exception as e:
         db.session.rollback()
