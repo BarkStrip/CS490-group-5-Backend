@@ -31,6 +31,13 @@ from app.api.booking.appointments import appointments_bp
 from app.api.payments.methods import payments_bp
 from app.api.payments.receipts import receipts_bp
 from app.api.loyalty.customer_loyaltyp import loyalty_bp
+from app.routes.admin_analytics import admin_analytics_bp
+from app.routes.admin_demographics import admin_demo_bp
+from app.routes.admin_reports import admin_reports_bp
+from app.routes.admin_system import admin_system_bp
+from app.routes.admin_salon_activity import admin_salon_activity_bp
+
+
 def create_app():
     print("Starting create_app()")
     app = Flask(__name__)
@@ -68,7 +75,14 @@ def create_app():
         app.register_blueprint(payments_bp)
         app.register_blueprint(receipts_bp)
         app.register_blueprint(loyalty_bp)
+        app.register_blueprint(admin_analytics_bp)
+        print("Admin Analytics blueprint registered")
+        app.register_blueprint(admin_demo_bp)
+        app.register_blueprint(admin_system_bp)
+        app.register_blueprint(admin_salon_activity_bp)
+
         print("Adding root route...")
+        app.register_blueprint(admin_reports_bp)
         @app.route('/')
         def home():
             try:
