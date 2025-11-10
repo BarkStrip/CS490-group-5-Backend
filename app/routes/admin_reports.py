@@ -36,3 +36,21 @@ def get_demographics():
         "age_groups": age_groups
     })
 
+@admin_reports_bp.route("/engagement", methods=["GET"])
+def get_engagement():
+    """Summarizes user engagement via appointments and reviews."""
+    total_appointments = db.session.query(func.count(Appointment.id)).scalar() or 0
+    completed_appointments = db.session.query(func.count(Appointment.id)).filter(Appointment.status == "Completed").scalar() or 0
+    avg_rating = db.session.query(func.avg(Review.rating)).scalar() or 0.0
+    total_reviews = db.session.query(func.count(Review.id)).scalar() or 0
+
+    engagement_rate = round((completed_appointments / total_appointments * 100), 2) if total_appointments else 0.0
+
+    return jsonify({
+        "totalAppointments": total_appointments,
+        "completedAppointments": completed_appointments,
+        "averageRating": round(avg_rating, 2),
+        "totalReviews": total_reviews,
+        "engagementRate": engagement_rate
+    })
+
