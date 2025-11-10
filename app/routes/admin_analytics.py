@@ -61,4 +61,18 @@ def get_engagement_trend():
     response = [{"day": str(row.day), "users": row.users} for row in data]
     return jsonify(response)
 
+@admin_analytics_bp.route("/feature-usage", methods=["GET"])
+def get_feature_usage():
+    data = (
+        db.session.query(
+            Salon.type.label("name"),
+            func.count(Salon.id).label("value")
+        )
+        .group_by(Salon.type)
+        .all()
+    )
+
+    response = [{"name": row.name or "Unknown", "value": row.value} for row in data]
+    return jsonify(response)
+
 
