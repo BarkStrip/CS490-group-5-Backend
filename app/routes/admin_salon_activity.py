@@ -68,6 +68,16 @@ def get_appointment_trends():
     response = [{"day": str(row.day)[-5:], "count": row.count} for row in daily_data]
     return jsonify(response)
 
+@admin_salon_activity_bp.route("/metrics", methods=["GET"])
+def get_average_appointment_time():
+    avg_duration = (
+        db.session.query(
+            func.avg(func.timestampdiff(func.MINUTE, Appointment.start_time, Appointment.end_time))
+        ).scalar()
+    )
+
+    formatted = f"{round(avg_duration or 0)} min"
+    return jsonify({"avgTime": formatted})
 
 
 
