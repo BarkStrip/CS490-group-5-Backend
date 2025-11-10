@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from app.extensions import db
-from ..models import Salon, Service
+from ..models import Salon, Service, SalonVerify  
 
 autocomplete_bp = Blueprint("autocomplete", __name__, url_prefix="/api")
 
@@ -28,10 +28,15 @@ def autocomplete_suggestions():
     LIMIT = 10
     suggestions = []
 
-    # --- 1. SALONS (with exact city match if provided) ---
     salon_query = db.session.query(Salon.id, Salon.name)
+    
+    salon_query = salon_query.filter(
+        Salon.salon_verify.any(SalonVerify.status == 'APPROVED')  
+    )
+    
     if city_filter:
         salon_query = salon_query.filter(Salon.city == city_filter)
+    
     salon_query = salon_query.filter(Salon.name.ilike(search_pattern)) \
                              .order_by(Salon.name) \
                              .limit(LIMIT)
@@ -40,15 +45,17 @@ def autocomplete_suggestions():
               for s_id, s_name in salon_query.all()]
     suggestions.extend(salons)
 
-    # --- 2. SERVICES (only from salons in same city if city provided) ---
     needed = LIMIT - len(suggestions)
     if needed > 0:
         service_query = db.session.query(Service.name)
 
+        service_query = service_query.join(Service.salon).filter(
+            Salon.salon_verify.any(SalonVerify.status == 'APPROVED')  
+        )
+
         if city_filter:
-            # Join Salon to ensure service belongs to salon in that exact city
-            service_query = service_query.join(Service.salon) \
-                                         .filter(Salon.city == city_filter)
+            service_query = service_query.filter(Salon.city == city_filter)
+        
         service_query = service_query.filter(Service.name.ilike(search_pattern)) \
                                      .distinct() \
                                      .order_by(Service.name) \

@@ -1,0 +1,1 @@
+#Get user type/role
