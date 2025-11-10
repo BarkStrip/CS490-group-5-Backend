@@ -176,8 +176,6 @@ def register_salon():
         }), 500
 
 
-
-
 @salon_register_bp.route("/add_service", methods=["POST"])
 def add_service():
     try:
@@ -242,10 +240,6 @@ def add_service():
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": "Failed to add service", "details": str(e)}), 500
-
-
-
-
 
 @salon_register_bp.route("/add_product", methods=["POST"])
 def add_product():
