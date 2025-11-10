@@ -43,3 +43,22 @@ def get_summary():
     })
 
 
+@admin_analytics_bp.route("/engagement-trend", methods=["GET"])
+def get_engagement_trend():
+    seven_days_ago = datetime.now() - timedelta(days=7)
+
+    data = (
+        db.session.query(
+            func.date(Appointment.created_at).label("day"),
+            func.count(Appointment.id).label("users")
+        )
+        .filter(Appointment.created_at >= seven_days_ago)
+        .group_by(func.date(Appointment.created_at))
+        .order_by(func.date(Appointment.created_at))
+        .all()
+    )
+
+    response = [{"day": str(row.day), "users": row.users} for row in data]
+    return jsonify(response)
+
+
