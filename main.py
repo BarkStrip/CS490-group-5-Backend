@@ -32,6 +32,7 @@ from app.api.payments.methods import payments_bp
 from app.api.payments.receipts import receipts_bp
 from app.api.loyalty.customer_loyaltyp import loyalty_bp
 from app.routes.admin_analytics import admin_analytics_bp
+from app.routes.admin_demographics import admin_demo_bp
 
 
 def create_app():
@@ -73,6 +74,7 @@ def create_app():
         app.register_blueprint(loyalty_bp)
         app.register_blueprint(admin_analytics_bp)
         print("Admin Analytics blueprint registered")
+        app.register_blueprint(admin_demo_bp)
 
         print("Adding root route...")
         @app.route('/')
