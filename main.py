@@ -31,8 +31,8 @@ from app.api.booking.appointments import appointments_bp
 from app.api.payments.methods import payments_bp
 from app.api.payments.receipts import receipts_bp
 from app.api.loyalty.customer_loyaltyp import loyalty_bp
-
 from app.api.employee.employee import employees_bp
+from app.api.employee.employee_app import employeesapp_bp
 def create_app():
     print("Starting create_app()")
     app = Flask(__name__)
@@ -71,6 +71,7 @@ def create_app():
         app.register_blueprint(receipts_bp)
         app.register_blueprint(loyalty_bp)
         app.register_blueprint(employees_bp)
+        app.register_blueprint(employeesapp_bp)
         print("Adding root route...")
         @app.route('/')
         def home():
