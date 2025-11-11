@@ -3,6 +3,8 @@ from flask import Blueprint, jsonify, request
 from app.extensions import db  
 from ...models import Salon, Employees, SalonHours, EmpAvail, Appointment,Customers, TimeBlock, Service
 from datetime import datetime, timedelta
+import datetime
+
 from sqlalchemy import and_, or_, select
 
 appointments_bp = Blueprint("appointments", __name__, url_prefix="/api/appointments")
