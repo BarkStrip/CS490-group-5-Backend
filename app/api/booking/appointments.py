@@ -514,7 +514,7 @@ def add_appointment():
         status = data.get('status', 'Booked')
 
         try:
-            start_at = datetime.fromisoformat(start_at_str)
+            start_at = datetime.datetime.fromisoformat(start_at_str)
             #start_at = datetime.strptime(start_at_str, "%Y-%m-%dT%H:%M:%S")
         except ValueError:
             return jsonify({'error': 'Invalid datetime format for start_at. Use ISO 8601 (e.g. 2025-11-20T11:30:00)'}), 400
