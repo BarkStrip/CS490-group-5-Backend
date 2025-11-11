@@ -26,7 +26,7 @@ from app.routes.auth import auth_bp
 from app.routes.cart import cart_bp
 from app.routes.salon_register import salon_register_bp
 from app.routes.upload_image_salon import salon_images_bp
-from app.routes.reviews import reviews_bp
+from app.api.salons.reviews import reviews_bp
 from app.api.booking.appointments import appointments_bp
 from app.api.payments.methods import payments_bp
 from app.api.payments.receipts import receipts_bp
@@ -72,6 +72,25 @@ def create_app():
         app.register_blueprint(loyalty_bp)
         app.register_blueprint(employees_bp)
         app.register_blueprint(employeesapp_bp)
+        blueprints = [
+                    salons_bp,
+                    autocomplete_bp,
+                    auth_bp,
+                    cart_bp,
+                    salon_register_bp,
+                    salon_images_bp,
+                    reviews_bp,
+                    appointments_bp,
+                    loyalty_bp,
+                    employees_bp,
+                    employeesapp_bp
+                ]
+
+        for bp in blueprints:
+            app.register_blueprint(bp)
+            print(f"  ✓ {bp.name} registered")
+
+        print("All blueprints registered successfully")
         print("Adding root route...")
         @app.route('/')
         def home():
