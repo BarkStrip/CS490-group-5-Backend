@@ -64,6 +64,8 @@ def create_app():
                     salon_images_bp,
                     reviews_bp,
                     appointments_bp,
+                    payments_bp,
+                    receipts_bp,
                     loyalty_bp,
                     employees_bp,
                     employeesapp_bp
