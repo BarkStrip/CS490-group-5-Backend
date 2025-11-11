@@ -222,7 +222,7 @@ class Salon(Base):
     about = mapped_column(Text)
 
     salon_owner: Mapped['SalonOwners'] = relationship('SalonOwners', back_populates='salon')
-    type: Mapped['Types'] = relationship('Types', secondary='salon_type_assignments', back_populates='salon')
+    type: Mapped[List['Types']] = relationship('Types', secondary='salon_type_assignments', back_populates='salon')
     _order: Mapped[List['Order']] = relationship('Order', uselist=True, back_populates='salon')
     cancel_policy: Mapped[List['CancelPolicy']] = relationship('CancelPolicy', uselist=True, back_populates='salon')
     employees: Mapped[List['Employees']] = relationship('Employees', uselist=True, back_populates='salon')
@@ -484,9 +484,10 @@ t_salon_type_assignments = Table(
     'salon_type_assignments', metadata,
     Column('salon_id', Integer, primary_key=True, nullable=False),
     Column('type_id', Integer, primary_key=True, nullable=False),
-    ForeignKeyConstraint(['salon_id'], ['salon.id'], ondelete='CASCADE', name='salon_type_assignments_ibfk_1'),
-    ForeignKeyConstraint(['type_id'], ['types.id'], ondelete='CASCADE', name='salon_type_assignments_ibfk_2'),
-    Index('type_id', 'type_id')
+    ForeignKeyConstraint(['salon_id'], ['salon.id'], ondelete='CASCADE', onupdate='CASCADE', name='fk_salon_type_assignments_salon'),
+    ForeignKeyConstraint(['type_id'], ['types.id'], ondelete='CASCADE', onupdate='CASCADE', name='fk_salon_type_assignments_type'),
+    Index('idx_salon_id', 'salon_id'),
+    Index('idx_type_id', 'type_id')
 )
 
 
