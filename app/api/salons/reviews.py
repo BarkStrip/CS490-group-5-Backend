@@ -100,6 +100,15 @@ def reply_to_review(review_id):
                 "message": "replier_id is required"
             }), 400
 
+        # Convert replier_id to integer
+        try:
+            replier_id = int(replier_id)
+        except (ValueError, TypeError):
+            return jsonify({
+                "error": "Invalid value",
+                "message": "replier_id must be an integer"
+            }), 400
+
         if not text_body or not text_body.strip():
             return jsonify({
                 "error": "Missing required field",
@@ -124,10 +133,16 @@ def reply_to_review(review_id):
 
         # Verify replier owns the salon
         salon_owner = db.session.get(SalonOwners, salon.salon_owner_id)
-        if not salon_owner or salon_owner.user_id != replier_id:
+        if not salon_owner:
             return jsonify({
                 "error": "Unauthorized",
-                "message": "Replier does not own this salon"
+                "message": "Salon owner profile not found"
+            }), 403
+
+        if salon_owner.user_id != replier_id:
+            return jsonify({
+                "error": "Unauthorized",
+                "message": f"Replier ID {replier_id} does not match salon owner user ID {salon_owner.user_id}"
             }), 403
 
         # Check if reply already exists for this review
@@ -206,6 +221,15 @@ def update_review_reply(review_id):
             return jsonify({
                 "error": "Missing required field",
                 "message": "replier_id is required"
+            }), 400
+
+        # Convert replier_id to integer
+        try:
+            replier_id = int(replier_id)
+        except (ValueError, TypeError):
+            return jsonify({
+                "error": "Invalid value",
+                "message": "replier_id must be an integer"
             }), 400
 
         if not text_body or not text_body.strip():
