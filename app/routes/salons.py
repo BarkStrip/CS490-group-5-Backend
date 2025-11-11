@@ -334,7 +334,6 @@ def search_salons():
 # -----------------------------------------------------------------------------
 # SALON DETAILS ENDPOINTS
 # -----------------------------------------------------------------------------
-
 @salons_bp.route("/details/<int:salon_id>", methods=["GET"])
 def get_salon_details(salon_id):
     """
@@ -602,5 +601,4 @@ def get_salon_products(salon_id):
             "error": "Database error",
             "details": str(e)
         }), 500
-
 
