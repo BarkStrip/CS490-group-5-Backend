@@ -53,24 +53,23 @@ def create_app():
         print("Database initialized")
            
         print("Registering blueprints...")
-        print(f"Salons blueprint: {salons_bp}")
-        app.register_blueprint(salons_bp)
-        print("Salons blueprint registered")
-        
-        print(f"Autocomplete blueprint: {autocomplete_bp}")
-        app.register_blueprint(autocomplete_bp)
-        print("Autocomplete blueprint registered")
-        print("Blueprints registered")
-        app.register_blueprint(auth_bp)
-        app.register_blueprint(cart_bp)
-        app.register_blueprint(salon_register_bp)
-        app.register_blueprint(salon_images_bp)
-        app.register_blueprint(reviews_bp)
-        app.register_blueprint(appointments_bp)
-        app.register_blueprint(payments_bp)
-        app.register_blueprint(receipts_bp)
-        app.register_blueprint(loyalty_bp)
-        app.register_blueprint(employees_bp)
+        blueprints = [
+                    salons_bp,
+                    autocomplete_bp,
+                    auth_bp,
+                    cart_bp,
+                    salon_register_bp,
+                    salon_images_bp,
+                    reviews_bp,
+                    appointments_bp,
+                    loyalty_bp
+                ]
+
+        for bp in blueprints:
+            app.register_blueprint(bp)
+            print(f"  ✓ {bp.name} registered")
+
+        print("All blueprints registered successfully")
         print("Adding root route...")
         @app.route('/')
         def home():
