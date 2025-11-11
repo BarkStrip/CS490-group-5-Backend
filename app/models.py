@@ -526,7 +526,7 @@ class Service(Base):
     is_active = mapped_column(TINYINT(1), nullable=False, server_default=text("'1'"))
     created_at = mapped_column(DateTime, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
     updated_at = mapped_column(DateTime, nullable=False, server_default=text('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'))
-    #icon_url = mapped_column(Text)
+    icon_url = mapped_column(Text)
 
     salon: Mapped['Salon'] = relationship('Salon', back_populates='service')
     appointment: Mapped[List['Appointment']] = relationship('Appointment', uselist=True, back_populates='service')
