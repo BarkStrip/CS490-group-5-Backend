@@ -1,11 +1,11 @@
 #Book, edit, cancel appointments and set availability
 from flask import Blueprint, jsonify, request
 from app.extensions import db  
-from ...models import Salon, Employees, SalonHours, EmpAvail, Appointment,Customers, TimeBlock 
-import datetime
-from sqlalchemy import and_, or_
-appointments_bp = Blueprint("appointments", __name__, url_prefix="/api/appointments")
+from ...models import Salon, Employees, SalonHours, EmpAvail, Appointment,Customers, TimeBlock, Service
+from datetime import datetime, timedelta
+from sqlalchemy import and_, or_, select
 
+appointments_bp = Blueprint("appointments", __name__, url_prefix="/api/appointments")
 
 
 @appointments_bp.route("/<int:salon_id>/hours", methods=["GET"])
@@ -44,7 +44,6 @@ def get_salon_hours(salon_id):
     ]
     
     return jsonify(results)
-
 
 
 @appointments_bp.route("/<int:salon_id>/employees", methods=["GET"])
@@ -88,7 +87,6 @@ def get_salon_employees(salon_id):
     ]
     
     return jsonify(results)
-
 
 
 @appointments_bp.route("/<int:employee_id>/availability", methods=["GET"])
@@ -468,3 +466,91 @@ def edit_appointment(customer_id, appointment_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": "Database error", "details": str(e)}), 500
+
+
+@appointments_bp.route("/add", methods=["POST"])
+def add_appointment(): 
+    """
+    Add a new appointment booking
+    ---
+    summary: Create a new appointment record in the database
+    description: receives booking details from the frontend (bookAppt)
+        and stores them in the appointments table. It validates all required fields,
+        calculates the appointment end time based on the service duration, 
+        and saves the appointment in the database.
+    tags:
+      - Appointments
+    parameters:
+      - in: body
+        name: body
+        required: true
+        description: JSON payload containing appointment details
+    responses:
+      201:
+        description: Appointment successfully created
+      400:
+        description: Missing or invalid parameters
+      404:
+        description: Service not found in database
+      500:
+        description: Internal server error
+    """
+    try: 
+        data = request.get_json()
+
+        required_fields = ['customer_id', 'salon_id', 'service_id', 'start_at']
+        missing = [f for f in required_fields if f not in data]
+        if missing: 
+            return jsonify({'error': f'Missing required fields: {", ".join(missing)}'}), 400
+        
+        customer_id = data['customer_id']
+        salon_id = data['salon_id']
+        service_id = data['service_id']
+        employee_id = data.get('employee_id')  # can be null for "Any employee"
+        start_at_str = data['start_at']
+        notes = data.get('notes')
+        status = data.get('status', 'Booked')
+
+        try:
+            start_at = datetime.fromisoformat(start_at_str)
+        except ValueError:
+            return jsonify({'error': 'Invalid datetime format for start_at. Use ISO 8601 (e.g. 2025-11-20T11:30:00)'}), 400
+
+        service_stmt = select(Service).filter_by(id=service_id)
+        service = db.session.scalar(service_stmt)
+        if not service:
+            return jsonify({'error': 'Service not found'}), 404
+
+        duration = getattr(service, 'duration', None)
+        price = getattr(service, 'price', None)
+        if duration is None:
+            return jsonify({'error': 'Service duration missing in DB'}), 400
+        
+        end_at = start_at + timedelta(minutes=duration)
+
+        appointment = Appointment(
+            salon_id=salon_id,
+            customer_id=customer_id,
+            employee_id=employee_id,
+            service_id=service_id,
+            start_at=start_at,
+            end_at=end_at,
+            status=status,
+            price_at_book=price,
+            notes=notes
+        )
+
+        db.session.add(appointment)
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Appointment created successfully',
+            'appointment_id': appointment.id,
+            'start_at': str(appointment.start_at),
+            'end_at': str(appointment.end_at),
+            'status': appointment.status
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
