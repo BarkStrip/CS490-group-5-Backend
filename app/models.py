@@ -25,6 +25,7 @@ class AuthUser(Base):
     __tablename__ = 'auth_user'
     __table_args__ = (
         Index('email', 'email', unique=True),
+        Index('firebase_uid', 'firebase_uid', unique=True)
     )
 
     id = mapped_column(Integer, primary_key=True)
@@ -33,6 +34,7 @@ class AuthUser(Base):
     role = mapped_column(Enum('OWNER', 'ADMIN', 'CUSTOMER', 'EMPLOYEE'), nullable=False)
     created_at = mapped_column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
     updated_at = mapped_column(DateTime, server_default=text('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'))
+    firebase_uid = mapped_column(String(128))
 
     admins: Mapped[List['Admins']] = relationship('Admins', uselist=True, back_populates='user')
     customers: Mapped[List['Customers']] = relationship('Customers', uselist=True, back_populates='user')
