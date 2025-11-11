@@ -31,11 +31,8 @@ from app.api.booking.appointments import appointments_bp
 from app.api.payments.methods import payments_bp
 from app.api.payments.receipts import receipts_bp
 from app.api.loyalty.customer_loyaltyp import loyalty_bp
-
 from app.api.employee.employee import employees_bp
-from app.api.payments.methods import payments_bp
-from app.api.payments.receipts import receipts_bp
-from app.api.loyalty.customer_loyaltyp import loyalty_bp
+from app.api.employee.employee_app import employeesapp_bp
 def create_app():
     print("Starting create_app()")
     app = Flask(__name__)
@@ -56,6 +53,25 @@ def create_app():
         print("Database initialized")
            
         print("Registering blueprints...")
+        print(f"Salons blueprint: {salons_bp}")
+        app.register_blueprint(salons_bp)
+        print("Salons blueprint registered")
+        
+        print(f"Autocomplete blueprint: {autocomplete_bp}")
+        app.register_blueprint(autocomplete_bp)
+        print("Autocomplete blueprint registered")
+        print("Blueprints registered")
+        app.register_blueprint(auth_bp)
+        app.register_blueprint(cart_bp)
+        app.register_blueprint(salon_register_bp)
+        app.register_blueprint(salon_images_bp)
+        app.register_blueprint(reviews_bp)
+        app.register_blueprint(appointments_bp)
+        app.register_blueprint(payments_bp)
+        app.register_blueprint(receipts_bp)
+        app.register_blueprint(loyalty_bp)
+        app.register_blueprint(employees_bp)
+        app.register_blueprint(employeesapp_bp)
         blueprints = [
                     salons_bp,
                     autocomplete_bp,
@@ -65,7 +81,9 @@ def create_app():
                     salon_images_bp,
                     reviews_bp,
                     appointments_bp,
-                    loyalty_bp
+                    loyalty_bp,
+                    employees_bp,
+                    employeesapp_bp
                 ]
 
         for bp in blueprints:
