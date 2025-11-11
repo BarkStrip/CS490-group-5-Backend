@@ -5,7 +5,7 @@ from sqlalchemy import and_
 from datetime import datetime, timedelta
 from decimal import Decimal
 
-payroll_bp = Blueprint("payroll", __name__, url_prefix="/api/payroll")
+employee_payroll_bp = Blueprint("employee_payroll", __name__, url_prefix="/api/employee_payroll")
 
 NJ_MINIMUM_WAGE = Decimal("15.49")
 
@@ -44,10 +44,10 @@ def get_biweekly_period(target_date=None):
     return period_start, period_end
 
 
-@payroll_bp.route("/<int:employee_id>/current-period", methods=["GET"])
+@employee_payroll_bp.route("/<int:employee_id>/current-period", methods=["GET"])
 def get_current_period_payroll(employee_id):
     """
-    GET /api/payroll/<employee_id>/current-period
+    GET /api/employee_payroll/<employee_id>/current-period
     Purpose: Calculate payroll information for the current biweekly pay period.
     
     Returns:
@@ -114,10 +114,10 @@ def get_current_period_payroll(employee_id):
     return jsonify(result), 200
 
 
-@payroll_bp.route("/<int:employee_id>/history", methods=["GET"])
+@employee_payroll_bp.route("/<int:employee_id>/history", methods=["GET"])
 def get_payroll_history(employee_id):
     """
-    GET /api/payroll/<employee_id>/history
+    GET /api/employee_payroll/<employee_id>/history
     Purpose: Get payroll history for the last 6 biweekly periods.
     
     Returns:
