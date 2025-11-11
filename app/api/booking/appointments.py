@@ -470,6 +470,31 @@ def edit_appointment(customer_id, appointment_id):
 
 @appointments_bp.route("/add", methods=["POST"])
 def add_appointment(): 
+    """
+    Add a new appointment booking
+    ---
+    summary: Create a new appointment record in the database
+    description: receives booking details from the frontend (bookAppt)
+        and stores them in the appointments table. It validates all required fields,
+        calculates the appointment end time based on the service duration, 
+        and saves the appointment in the database.
+    tags:
+      - Appointments
+    parameters:
+      - in: body
+        name: body
+        required: true
+        description: JSON payload containing appointment details
+    responses:
+      201:
+        description: Appointment successfully created
+      400:
+        description: Missing or invalid parameters
+      404:
+        description: Service not found in database
+      500:
+        description: Internal server error
+    """
     try: 
         data = request.get_json()
 
