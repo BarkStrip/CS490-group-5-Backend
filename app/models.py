@@ -315,7 +315,7 @@ class Employees(Base):
         Index('fk_emp_salon', 'salon_id'),
         Index('user_id_unique', 'user_id', unique=True)
     )
-
+#updated modelspy
     id = mapped_column(Integer, primary_key=True)
     user_id = mapped_column(Integer, nullable=False)
     salon_id = mapped_column(Integer, nullable=False)
