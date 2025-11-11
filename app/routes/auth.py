@@ -104,13 +104,12 @@ def signup_user():
                 last_name=last_name,
                 phone_number=phone_number,
                 address=address,
-                employment_status="inactive"  # Pending salon owner approval
+                employment_status="inactive"
             )
         
         db.session.add(profile)
         db.session.commit()
 
-        # Build response
         response_user = {
             "id": auth_user.id, 
             "first_name": first_name,
