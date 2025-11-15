@@ -30,10 +30,23 @@ def get_loyalty_account(customer_id, salon_id):
 @loyalty_bp.route("/customers/<int:customer_id>/dashboard", methods=['GET'])
 def get_loyalty_dashboard(customer_id):
     """
-    --- Endpoint 1: Customer Loyalty Dashboard (Aggregate) ---
-    
-    Powers the top-level summary cards in your UI (e.g., "Lifetime Points", 
-    "Active Programs", "Total Visits").
+    Get customer loyalty dashboard summary
+    ---
+    summary: Returns aggregated loyalty stats for the customer
+    description: Powers the top-level summary cards in your UI (e.g., "Lifetime Points", "Active Programs", "Total Visits").
+    parameters:
+      - name: customer_id
+        in: path
+        type: integer
+        required: true
+        description: The ID of the customer
+    responses:
+      200:
+        description: Returns total points, active programs count, and visit count.
+      404:
+        description: Customer not found
+      500:
+        description: Server error
     """
     try:
         customer = get_customer_from_id(customer_id)
@@ -73,9 +86,23 @@ def get_loyalty_dashboard(customer_id):
 @loyalty_bp.route("/customers/<int:customer_id>/programs", methods=['GET'])
 def get_customer_loyalty_programs(customer_id):
     """
-    --- Endpoint 2: Customer's Loyalty Programs List ---
-    
-    Powers the main list in your UI (e.g., the "Jade Boutique" card).
+    Get all loyalty programs for a customer
+    ---
+    summary: Returns all active loyalty programs for a given customer
+    description: Powers the main list in your UI (e.g., the "Jade Boutique" card).
+    parameters:
+      - name: customer_id
+        in: path
+        type: integer
+        required: true
+        description: The ID of the customer
+    responses:
+      200:
+        description: Returns a list of loyalty programs for the customer
+      404:
+        description: Customer not found
+      500:
+        description: Server error
     """
     try:
         customer = get_customer_from_id(customer_id)
@@ -130,10 +157,28 @@ def get_customer_loyalty_programs(customer_id):
 @loyalty_bp.route("/customers/<int:customer_id>/programs/<int:salon_id>/activity", methods=['GET'])
 def get_loyalty_activity(customer_id, salon_id):
     """
-    --- Endpoint 3: Salon-Specific Recent Activity ---
-    
-    This queries the LoyaltyTransaction table 
-
+    Get recent loyalty activity for a customer at a specific salon
+    ---
+    summary: Returns loyalty transaction history
+    description: Retrieves the most recent 20 loyalty transactions for a customer and salon.
+    parameters:
+      - name: customer_id
+        in: path
+        type: integer
+        required: true
+        description: The ID of the customer
+      - name: salon_id
+        in: path
+        type: integer
+        required: true
+        description: The ID of the salon
+    responses:
+      200:
+        description: List of recent loyalty transactions
+      404:
+        description: Loyalty account not found
+      500:
+        description: Server error
     """
     try:
         account = get_loyalty_account(customer_id, salon_id)
@@ -168,10 +213,26 @@ def get_loyalty_activity(customer_id, salon_id):
 @loyalty_bp.route("/customers/<int:customer_id>/programs/<int:salon_id>/rewards", methods=['GET'])
 def get_available_rewards(customer_id, salon_id):
     """
-    --- Endpoint 4: Get Available Rewards ---
-    
-    Fetches loyalty rewards a customer can redeem with their points
-    for the "Reward" tab.
+    Get available loyalty rewards
+    ---
+    summary: Returns rewards a customer can redeem using points
+    description: Fetches loyalty rewards available for the customer's active salon program.
+    parameters:
+      - name: customer_id
+        in: path
+        type: integer
+        required: true
+      - name: salon_id
+        in: path
+        type: integer
+        required: true
+    responses:
+      200:
+        description: List of redeemable rewards
+      404:
+        description: Loyalty account or program not found
+      500:
+        description: Server error
     """
     try:
         account = get_loyalty_account(customer_id, salon_id)
@@ -211,11 +272,37 @@ def get_available_rewards(customer_id, salon_id):
 @loyalty_bp.route("/customers/<int:customer_id>/programs/<int:salon_id>/redeem", methods=['POST'])
 def redeem_loyalty_reward(customer_id, salon_id):
     """
-    --- Endpoint 5: Redeem Loyalty Reward ---
-    
-    The action of spending points to get a reward.
-    This deducts points, logs the transaction, and creates a
-    one-time promo code.
+    Redeem a loyalty reward
+    ---
+    summary: Spend points to redeem a reward
+    description: Deducts points, logs the transaction, and generates a one-time promo code for the customer.
+    parameters:
+      - name: customer_id
+        in: path
+        type: integer
+        required: true
+      - name: salon_id
+        in: path
+        type: integer
+        required: true
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          properties:
+            reward_id:
+              type: string
+              example: "prog_123_main_reward"
+    responses:
+      201:
+        description: Reward redeemed successfully
+      400:
+        description: Not enough points or invalid data
+      404:
+        description: Loyalty account or program not found
+      500:
+        description: Server error
     """
     try:
         data = request.json

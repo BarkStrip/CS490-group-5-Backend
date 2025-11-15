@@ -15,7 +15,10 @@
 from flask import Flask, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
-load_dotenv()   # only needed locally. 
+from flasgger import Swagger
+
+load_dotenv()
+
 from app.config import Config
 from app.extensions import db
 
@@ -37,21 +40,48 @@ def create_app():
     print("Starting create_app()")
     app = Flask(__name__)
     print(f"Flask app created: {app}")
-    
     try:
         print("Loading config...")
         app.config.from_object(Config)
         print("Config loaded successfully")
         print(f"Config items: {len(app.config)} items loaded")
-           
+
         print("Initializing CORS...")
         CORS(app)
         print("CORS initialized")
-           
+            
         print("Initializing database...")
         db.init_app(app)
         print("Database initialized")
-           
+
+        app.config['SWAGGER'] = {
+            'title': 'Salon API',
+            'uiversion': 3,
+            'specs': [
+                {
+                    'endpoint': 'apispec_1',
+                    'route': '/apispec_1.json',
+                    'rule_filter': lambda rule: True,  
+                    'model_filter': lambda tag: True, 
+                }
+            ],
+            'specs_route': '/apidocs/'
+        }
+
+        swagger_template = {
+            "swagger": "2.0",
+            "info": {
+                "title": "Salon API",
+                "description": "Interactive documentation for all Salon App API endpoints",
+                "version": "1.0.0"
+            },
+            "basePath": "/",  
+            "schemes": ["http", "https"],
+        }
+
+        Swagger(app, template=swagger_template)
+        print("Swagger initialized at /apidocs/")
+
         print("Registering blueprints...")
   
       
@@ -68,7 +98,7 @@ def create_app():
                     receipts_bp,
                     loyalty_bp,
                     employees_bp,
-                    employeesapp_bp
+                    employeesapp_bp,
                 ]
 
         for bp in blueprints:
@@ -135,5 +165,3 @@ if __name__ == '__main__':
 
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug = os.environ.get("FLASK_ENV") != "production")
-
-
