@@ -1,8 +1,9 @@
 from flask import Blueprint, jsonify, request, current_app
 from app.extensions import db
 # Here is where you call the "TABLES" from models. Models is a file that contains all the tables in "Python" format so we can use sqlalchemy
-from ..models import Salon, Service, SalonVerify, Review, Customers, Product, Types, t_salon_type_assignments
+from ..models import Salon, Service, SalonVerify, Review, Customers, Product, Types, t_salon_type_assignments, SalonOwners
 from app.utils.s3_utils import upload_file_to_s3
+from sqlalchemy import select
 import uuid
 import traceback
 
@@ -334,7 +335,6 @@ def search_salons():
 # -----------------------------------------------------------------------------
 # SALON DETAILS ENDPOINTS
 # -----------------------------------------------------------------------------
-
 @salons_bp.route("/details/<int:salon_id>", methods=["GET"])
 def get_salon_details(salon_id):
     """
@@ -604,3 +604,27 @@ def get_salon_products(salon_id):
         }), 500
 
 
+@salons_bp.route("/get_salon/<int:salon_owner_id>", methods=["GET"])
+def get_salon(salon_owner_id):
+    """
+    given salon owner id return salon id
+    """
+    try: 
+        owner_stmt = select(SalonOwners).filter_by(id=salon_owner_id)
+        owner = db.session.scalar(owner_stmt)
+
+        if not owner: 
+            return jsonify({'error': 'Owner not found'}), 404
+        
+        salon_ids = [salon.id for salon in owner.salon]
+
+        if not salon_ids: 
+            return jsonify({'message': 'No salons found for this owner'}), 200 
+        
+        return jsonify({
+            'salon_owner_id': salon_owner_id,
+            'salon_ids': salon_ids
+        }), 200
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
