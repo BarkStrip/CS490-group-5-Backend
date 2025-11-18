@@ -71,6 +71,7 @@ def create_app():
                     loyalty_bp,
                     employees_bp,
                     employeesapp_bp,
+                    employee_payroll_bp,
                     admin_verification_bp
                 ]
 

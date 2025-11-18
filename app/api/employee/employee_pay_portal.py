@@ -1,13 +1,14 @@
 from flask import Blueprint, jsonify
 from app.extensions import db
 from app.models import Employees, Appointment
-from sqlalchemy import and_
+from sqlalchemy import and_, extract
 from datetime import datetime, timedelta
 from decimal import Decimal
 
 employee_payroll_bp = Blueprint("employee_payroll", __name__, url_prefix="/api/employee_payroll")
 
-NJ_MINIMUM_WAGE = Decimal("15.49")
+# Employee gets 70% of service price, salon gets 30%
+EMPLOYEE_COMMISSION_RATE = Decimal("0.70")
 
 
 def get_biweekly_period(target_date=None):
@@ -52,9 +53,9 @@ def get_current_period_payroll(employee_id):
     
     Returns:
     - employee info
-    - hourly wage (NJ minimum wage)
+    - commission rate (70% of service prices)
     - hours worked (from COMPLETED appointments in current period)
-    - projected paycheck amount
+    - projected paycheck amount (70% of total service revenue)
     - pay period dates (start and end)
     """
     
@@ -80,30 +81,43 @@ def get_current_period_payroll(employee_id):
         )
     ).all()
     
-    # Calculate total hours worked
+    # Calculate total hours worked and earnings
     total_hours = Decimal("0.00")
+    total_service_revenue = Decimal("0.00")
     appointment_count = 0
     
     for apt in completed_appointments:
         if apt.start_at and apt.end_at:
+            # Calculate hours
             duration = apt.end_at - apt.start_at
             hours = Decimal(str(duration.total_seconds() / 3600))
             total_hours += hours
+            
+            # Calculate revenue (use price_at_book if available, otherwise service price)
+            price = apt.price_at_book if apt.price_at_book else (apt.service.price if apt.service else Decimal("0"))
+            total_service_revenue += price
+            
             appointment_count += 1
     
     # Round to 2 decimal places
     total_hours = total_hours.quantize(Decimal("0.01"))
+    total_service_revenue = total_service_revenue.quantize(Decimal("0.01"))
     
-    # Calculate projected paycheck
-    projected_paycheck = (total_hours * NJ_MINIMUM_WAGE).quantize(Decimal("0.01"))
+    # Calculate employee earnings (70% of service revenue)
+    employee_earnings = (total_service_revenue * EMPLOYEE_COMMISSION_RATE).quantize(Decimal("0.01"))
+    salon_share = (total_service_revenue * (Decimal("1") - EMPLOYEE_COMMISSION_RATE)).quantize(Decimal("0.01"))
     
     result = {
         "employee_id": employee.id,
         "employee_name": f"{employee.first_name} {employee.last_name}",
-        "hourly_wage": float(NJ_MINIMUM_WAGE),
+        "commission_rate": float(EMPLOYEE_COMMISSION_RATE),
+        "commission_percentage": "70%",
         "hours_worked": float(total_hours),
         "appointments_completed": appointment_count,
-        "projected_paycheck": float(projected_paycheck),
+        "total_service_revenue": float(total_service_revenue),
+        "employee_earnings": float(employee_earnings),
+        "salon_share": float(salon_share),
+        "projected_paycheck": float(employee_earnings),
         "pay_period": {
             "start_date": period_start.isoformat(),
             "end_date": period_end.isoformat(),
@@ -121,7 +135,7 @@ def get_payroll_history(employee_id):
     Purpose: Get payroll history for the last 6 biweekly periods.
     
     Returns:
-    - Array of past pay periods with hours and earnings
+    - Array of past pay periods with hours and earnings (70% commission)
     """
     
     # Check if employee exists
@@ -153,6 +167,7 @@ def get_payroll_history(employee_id):
         
         # Calculate hours and earnings
         total_hours = Decimal("0.00")
+        total_service_revenue = Decimal("0.00")
         appointment_count = 0
         
         for apt in completed_appointments:
@@ -160,10 +175,16 @@ def get_payroll_history(employee_id):
                 duration = apt.end_at - apt.start_at
                 hours = Decimal(str(duration.total_seconds() / 3600))
                 total_hours += hours
+                
+                # Use price_at_book or service price
+                price = apt.price_at_book if apt.price_at_book else (apt.service.price if apt.service else Decimal("0"))
+                total_service_revenue += price
+                
                 appointment_count += 1
         
         total_hours = total_hours.quantize(Decimal("0.01"))
-        earnings = (total_hours * NJ_MINIMUM_WAGE).quantize(Decimal("0.01"))
+        total_service_revenue = total_service_revenue.quantize(Decimal("0.01"))
+        employee_earnings = (total_service_revenue * EMPLOYEE_COMMISSION_RATE).quantize(Decimal("0.01"))
         
         history.append({
             "period_start": period_start.isoformat(),
@@ -171,12 +192,86 @@ def get_payroll_history(employee_id):
             "period_label": f"{period_start.strftime('%b %d')} - {period_end.strftime('%b %d, %Y')}",
             "hours_worked": float(total_hours),
             "appointments_completed": appointment_count,
-            "earnings": float(earnings)
+            "total_service_revenue": float(total_service_revenue),
+            "earnings": float(employee_earnings)
         })
     
     return jsonify({
         "employee_id": employee.id,
         "employee_name": f"{employee.first_name} {employee.last_name}",
-        "hourly_wage": float(NJ_MINIMUM_WAGE),
+        "commission_rate": float(EMPLOYEE_COMMISSION_RATE),
+        "commission_percentage": "70%",
         "history": history
+    }), 200
+
+
+@employee_payroll_bp.route("/<int:employee_id>/monthly-total", methods=["GET"])
+def get_monthly_total(employee_id):
+    """
+    GET /api/employee_payroll/<employee_id>/monthly-total
+    Purpose: Get total earnings for the current month.
+    
+    Returns:
+    - Monthly total earnings (70% commission)
+    - Month start and end dates
+    """
+    
+    # Check if employee exists
+    employee = db.session.get(Employees, employee_id)
+    if not employee:
+        return jsonify({"error": "Employee not found"}), 404
+    
+    # Get current month boundaries
+    now = datetime.now()
+    month_start = datetime(now.year, now.month, 1)
+    
+    # Calculate next month's first day, then subtract 1 second to get end of current month
+    if now.month == 12:
+        month_end = datetime(now.year + 1, 1, 1) - timedelta(seconds=1)
+    else:
+        month_end = datetime(now.year, now.month + 1, 1) - timedelta(seconds=1)
+    
+    # Query all COMPLETED appointments for this month
+    completed_appointments = db.session.query(Appointment).filter(
+        and_(
+            Appointment.employee_id == employee_id,
+            Appointment.status == "COMPLETED",
+            Appointment.start_at >= month_start,
+            Appointment.end_at <= month_end
+        )
+    ).all()
+    
+    # Calculate monthly totals
+    total_hours = Decimal("0.00")
+    total_service_revenue = Decimal("0.00")
+    appointment_count = 0
+    
+    for apt in completed_appointments:
+        if apt.start_at and apt.end_at:
+            duration = apt.end_at - apt.start_at
+            hours = Decimal(str(duration.total_seconds() / 3600))
+            total_hours += hours
+            
+            price = apt.price_at_book if apt.price_at_book else (apt.service.price if apt.service else Decimal("0"))
+            total_service_revenue += price
+            
+            appointment_count += 1
+    
+    total_hours = total_hours.quantize(Decimal("0.01"))
+    total_service_revenue = total_service_revenue.quantize(Decimal("0.01"))
+    employee_earnings = (total_service_revenue * EMPLOYEE_COMMISSION_RATE).quantize(Decimal("0.01"))
+    salon_share = (total_service_revenue * (Decimal("1") - EMPLOYEE_COMMISSION_RATE)).quantize(Decimal("0.01"))
+    
+    return jsonify({
+        "employee_id": employee.id,
+        "employee_name": f"{employee.first_name} {employee.last_name}",
+        "month": now.strftime("%B %Y"),
+        "month_start": month_start.date().isoformat(),
+        "month_end": month_end.date().isoformat(),
+        "hours_worked": float(total_hours),
+        "appointments_completed": appointment_count,
+        "total_service_revenue": float(total_service_revenue),
+        "employee_earnings": float(employee_earnings),
+        "salon_share": float(salon_share),
+        "commission_percentage": "70%"
     }), 200
