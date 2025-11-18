@@ -3,6 +3,7 @@ from flask import Blueprint, jsonify, request
 from app.extensions import db  
 from ...models import Salon, Employees, EmpAvail, Appointment,Customers, TimeBlock, Service
 from datetime import datetime, timedelta
+import datetime
 from sqlalchemy import and_, or_, select
 
 appointments_bp = Blueprint("appointments", __name__, url_prefix="/api/appointments")
@@ -410,7 +411,7 @@ def edit_appointment(customer_id, appointment_id):
         if "start_at" in data:
             start_at_str = data.get("start_at")
             try:
-                appointment.start_at = datetime.datetime.fromisoformat(start_at_str)
+                appointment.start_at = datetime.date.fromisoformat(start_at_str)
             except (ValueError, TypeError):
                 return jsonify({"error": "start_at must be in ISO format (YYYY-MM-DDTHH:MM:SS)"}), 400
 
@@ -512,8 +513,9 @@ def add_appointment():
         status = data.get('status', 'Booked')
 
         try:
-            #start_at = datetime.fromisoformat(start_at_str)
-            start_at = datetime.strptime(start_at_str, "%Y-%m-%dT%H:%M:%S")
+            start_at = datetime.datetime.fromisoformat(start_at_str)
+            
+            #start_at = datetime.strptime(start_at_str, "%Y-%m-%dT%H:%M:%S")
         except ValueError:
             return jsonify({'error': 'Invalid datetime format for start_at. Use ISO 8601 (e.g. 2025-11-20T11:30:00)'}), 400
 
