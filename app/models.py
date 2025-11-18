@@ -194,6 +194,7 @@ class PayMethod(Base):
     updated_at = mapped_column(DateTime, nullable=False, server_default=text('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'))
     brand = mapped_column(String(50))
     last4 = mapped_column(CHAR(4))
+    card_name = mapped_column(String(50))
     Expiration = mapped_column(Date)
 
     user: Mapped['Customers'] = relationship('Customers', back_populates='pay_method')
