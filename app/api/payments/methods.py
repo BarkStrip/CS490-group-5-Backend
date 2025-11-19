@@ -30,6 +30,7 @@ def get_customer_payment_methods(customer_id):
             "brand": method.brand,
             "last4": method.last4,
             "card_name": method.card_name,
+            "card_name": method.card_name,
             "expiration": method.Expiration.isoformat() if method.Expiration else None,
             "is_default": bool(method.is_default),
             "created_at": method.created_at.isoformat() if method.created_at else None,
@@ -47,6 +48,7 @@ def create_payment_method(customer_id):
     POST /api/payments/<customer_id>/methods
     Purpose: Create a new payment method for a specific customer.
     Input: JSON body with fields:
+        - card_name (required): Name printed on the card
         - card_name (required): Name printed on the card
         - brand (required): Card brand (e.g., Visa, Mastercard)
         - last4 (required): Last 4 digits of card
@@ -107,6 +109,7 @@ def create_payment_method(customer_id):
             for method in existing_defaults:
                 method.is_default = False
 
+            
             stmt = (
                 update(PayMethod)
                 .where(PayMethod.user_id == customer_id, PayMethod.is_default is True)
@@ -128,6 +131,7 @@ def create_payment_method(customer_id):
 
         created = {
             "id": new_method.id,
+            "card_name": new_method.card_name,
             "card_name": new_method.card_name,
             "brand": new_method.brand,
             "last4": new_method.last4,
