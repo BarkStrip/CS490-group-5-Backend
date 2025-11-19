@@ -149,7 +149,7 @@ def update_employee_status(employee_id):
             jsonify(
                 {
                     "error": "Invalid employment_status",
-                    "details": f'{"Must be 15 characters or less (e.g., 'ACTIVE')."}',
+                    "details": "Must be 15 characters or less (e.g., 'ACTIVE').",
                 }
             ),
             400,
