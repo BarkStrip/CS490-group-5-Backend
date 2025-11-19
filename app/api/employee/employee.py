@@ -199,7 +199,7 @@ def update_employee_type(employee_id):
             jsonify(
                 {
                     "error": "Invalid employee_type",
-                    "details": f'{"Must be 50 characters or less (e.g., 'PART_TIME')."}',
+                    "details": "Must be 15 characters or less (e.g., 'ACTIVE').",
                 }
             ),
             400,
