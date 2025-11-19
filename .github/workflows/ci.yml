@@ -57,7 +57,7 @@ jobs:
     - name: Run tests with pytest
       env:
         # Pointing to the ephemeral service container
-        MYSQL_PUBLIC_URL: mysql+pymysql://root:test_password@127.0.0.1:3306/salon_app_test
+        MYSQL_PUBLIC_URL: mysql+pymysql://root:root_test_password@127.0.0.1:3306/salon_app_test
         FLASK_ENV: testing
         # Mock secrets to prevent startup errors
         SECRET_KEY: test_secret_key
