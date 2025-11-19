@@ -10,22 +10,7 @@ payments_bp = Blueprint("payments", __name__, url_prefix="/api/payments")
 
 @payments_bp.route("/<int:customer_id>/methods", methods=["GET"])
 def get_customer_payment_methods(customer_id):
-    """
-    GET /api/payments/<customer_id>/methods
-    Purpose: Retrieve all payment methods for a specific customer.
-    Input: customer_id (integer) from the URL path.
-
-    Behavior:
-    - If customer_id is valid:
-        → Return a list of all PayMethod objects for that customer,
-          ordered by is_default (default methods first), then by creation date.
-    - If no payment methods are found:
-        → Return an empty list [].
-    - If customer_id does not exist:
-        → Return a 404 error.
-    """
-
-    # Check if customer exists (db.session.get is 2.0 compatible)
+    
     customer = db.session.get(Customers, customer_id)
 
     if not customer:
@@ -44,6 +29,7 @@ def get_customer_payment_methods(customer_id):
             "id": method.id,
             "brand": method.brand,
             "last4": method.last4,
+            "card_name": method.card_name,
             "expiration": method.Expiration.isoformat() if method.Expiration else None,
             "is_default": bool(method.is_default),
             "created_at": method.created_at.isoformat() if method.created_at else None,
@@ -61,6 +47,7 @@ def create_payment_method(customer_id):
     POST /api/payments/<customer_id>/methods
     Purpose: Create a new payment method for a specific customer.
     Input: JSON body with fields:
+        - card_name (required): Name printed on the card
         - brand (required): Card brand (e.g., Visa, Mastercard)
         - last4 (required): Last 4 digits of card
         - expiration (required): Card expiration date in YYYY-MM-DD format
@@ -76,24 +63,23 @@ def create_payment_method(customer_id):
     - If creation is successful:
         → Return the new payment method object with 201 status.
     """
-
-    # Check if customer exists
     customer = db.session.get(Customers, customer_id)
     if not customer:
         return jsonify({"error": "Customer not found"}), 404
 
     try:
-        # Get JSON body
         data = request.get_json()
         if not data:
             return jsonify({"error": "Request body is required"}), 400
 
+        card_name = data.get("card_name")  
         brand = data.get("brand")
         last4 = data.get("last4")
         expiration_str = data.get("expiration")
         is_default = data.get("is_default", 0)
 
-        # Validate required fields
+        if not card_name or not isinstance(card_name, str) or not card_name.strip(): 
+            return jsonify({"error": "card_name is required"}), 400
         if not brand:
             return jsonify({"error": "brand is required"}), 400
         if not last4:
@@ -101,21 +87,17 @@ def create_payment_method(customer_id):
         if not expiration_str:
             return jsonify({"error": "expiration is required"}), 400
 
-        # Validate last4 format (should be exactly 4 digits)
         if not isinstance(last4, str) or len(last4) != 4 or not last4.isdigit():
             return jsonify({"error": "last4 must be exactly 4 digits"}), 400
 
-        # Parse and validate expiration date
         try:
             expiration_date = datetime.strptime(expiration_str, "%Y-%m-%d").date()
         except ValueError:
             return jsonify({"error": "expiration must be in YYYY-MM-DD format"}), 400
 
-        # Validate is_default as integer (1 or 0)
         if not isinstance(is_default, int) or is_default not in (0, 1):
             return jsonify({"error": "is_default must be 1 or 0"}), 400
 
-        # If setting this method as default, unset all other defaults for this customer
         if is_default:
             existing_defaults = (
                 db.session.query(PayMethod)
@@ -125,6 +107,7 @@ def create_payment_method(customer_id):
             for method in existing_defaults:
                 method.is_default = False
 
+            
             stmt = (
                 update(PayMethod)
                 .where(PayMethod.user_id == customer_id, PayMethod.is_default is True)
@@ -134,6 +117,7 @@ def create_payment_method(customer_id):
 
         new_method = PayMethod(
             user_id=customer_id,
+            card_name=card_name,  
             brand=brand,
             last4=last4,
             Expiration=expiration_date,
@@ -145,6 +129,7 @@ def create_payment_method(customer_id):
 
         created = {
             "id": new_method.id,
+            "card_name": new_method.card_name,
             "brand": new_method.brand,
             "last4": new_method.last4,
             "expiration": (
@@ -170,38 +155,15 @@ def create_payment_method(customer_id):
     "/<int:customer_id>/methods/<int:method_id>/set-default", methods=["PUT"]
 )
 def set_default_payment_method(customer_id, method_id):
-    """
-    PUT /api/payments/<customer_id>/methods/<method_id>/set-default
-    Purpose: Set a specific payment method as the default for a customer.
-             Automatically removes the default flag from any existing default method.
-    Input:
-        - customer_id (integer) from the URL path
-        - method_id (integer) from the URL path
 
-    Behavior:
-    - If customer_id does not exist:
-        → Return a 404 error.
-    - If method_id does not exist:
-        → Return a 404 error.
-    - If the payment method does not belong to the customer:
-        → Return a 403 error (Forbidden).
-    - If successful:
-        → Remove is_default from all other methods for this customer
-        → Set is_default to 1 for the specified method
-        → Return the updated payment method object with 200 status.
-    """
-
-    # Check if customer exists
     customer = db.session.get(Customers, customer_id)
     if not customer:
         return jsonify({"error": "Customer not found"}), 404
 
-    # Get the payment method
     payment_method = db.session.get(PayMethod, method_id)
     if not payment_method:
         return jsonify({"error": "Payment method not found"}), 404
 
-    # Verify the payment method belongs to the customer
     if payment_method.user_id != customer_id:
         return (
             jsonify({"error": "Payment method does not belong to this customer"}),
@@ -234,11 +196,11 @@ def set_default_payment_method(customer_id, method_id):
         db.session.execute(stmt_unset_others)
 
         payment_method.is_default = 1
-
         db.session.commit()
 
         updated = {
             "id": payment_method.id,
+            "card_name": payment_method.card_name,
             "brand": payment_method.brand,
             "last4": payment_method.last4,
             "expiration": (
