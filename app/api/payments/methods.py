@@ -109,7 +109,6 @@ def create_payment_method(customer_id):
             for method in existing_defaults:
                 method.is_default = False
 
-            
             stmt = (
                 update(PayMethod)
                 .where(PayMethod.user_id == customer_id, PayMethod.is_default is True)
