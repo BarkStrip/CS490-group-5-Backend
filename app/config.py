@@ -22,6 +22,7 @@ print(f"DATABASE_URL_LOADED: {'Yes' if url else 'No'}")
 print("----------------------------")
 # --- END ---
 
+
 class Config:
     SQLALCHEMY_DATABASE_URI = url
     SQLALCHEMY_TRACK_MODIFICATIONS = False

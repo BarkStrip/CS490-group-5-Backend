@@ -1,17 +1,25 @@
-from flask import Blueprint, jsonify, request, current_app
+from flask import Blueprint, jsonify, request
 from app.extensions import db
-# Here is where you call the "TABLES" from models. Models is a file that contains all the tables in "Python" format so we can use sqlalchemy
-from ..models import Salon, Service, SalonVerify, Review, Customers, Product, Types, t_salon_type_assignments, SalonOwners
-from app.utils.s3_utils import upload_file_to_s3
-from sqlalchemy import select
-import uuid
-import traceback
 
-#math functions to calculate coordinate distance 
+# Here is where you call the "TABLES" from models. Models is a file that contains all the tables in "Python" format so we can use sqlalchemy
+from ..models import (
+    Salon,
+    Service,
+    SalonVerify,
+    Review,
+    Customers,
+    Types,
+    t_salon_type_assignments,
+    SalonOwners,
+)
+from sqlalchemy import select
+
+# math functions to calculate coordinate distance
 from math import radians, sin, cos, sqrt, atan2
 
-from sqlalchemy import func, desc, or_
-from sqlalchemy.orm import joinedload 
+from sqlalchemy import func, desc
+from sqlalchemy.orm import joinedload
+
 # Create the Blueprint
 salons_bp = Blueprint("salons", __name__, url_prefix="/api/salons")
 
@@ -41,8 +49,11 @@ def test_connection():
     """
     try:
         # Test database connection
-        result = db.session.execute(db.text("SELECT 1"))
-        return jsonify({"status": "success", "message": "Database connection working"}), 200
+        # result = db.session.execute(db.text("SELECT 1"))
+        return (
+            jsonify({"status": "success", "message": "Database connection working"}),
+            200,
+        )
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
@@ -72,13 +83,15 @@ def get_cities():
     """
     try:
         # This query now works because 'SalonVerify' is imported
-        city_query = db.session.query(Salon.city)\
-                               .filter(Salon.salon_verify.any(SalonVerify.status == 'APPROVED'))\
-                               .distinct()\
-                               .order_by(Salon.city)
-        
+        city_query = (
+            db.session.query(Salon.city)
+            .filter(Salon.salon_verify.any(SalonVerify.status == "APPROVED"))
+            .distinct()
+            .order_by(Salon.city)
+        )
+
         cities = [row[0] for row in city_query.all()]
-        
+
         return jsonify({"cities": cities})
 
     except Exception as e:
@@ -116,31 +129,31 @@ def get_categories():
           $ref: '#/definitions/Error'
     """
     try:
-        if hasattr(Service, 'icon_url'):
-            category_query = db.session.query(
-                Service.name, 
-                Service.icon_url
-            ).distinct().order_by(Service.name)
+        if hasattr(Service, "icon_url"):
+            category_query = (
+                db.session.query(Service.name, Service.icon_url)
+                .distinct()
+                .order_by(Service.name)
+            )
 
             categories = [
                 {"name": cat.name, "icon_url": cat.icon_url}
                 for cat in category_query.all()
             ]
         else:
-            category_query = db.session.query(
-                Service.name
-            ).distinct().order_by(Service.name)
-            
+            category_query = (
+                db.session.query(Service.name).distinct().order_by(Service.name)
+            )
+
             categories = [
-                {"name": row[0], "icon_url": None} 
-                for row in category_query.all()
+                {"name": row[0], "icon_url": None} for row in category_query.all()
             ]
-            
+
         return jsonify({"categories": categories})
 
     except Exception as e:
         return jsonify({"error": "Database error", "details": str(e)}), 500
-    
+
 
 @salons_bp.route("/top-rated", methods=["GET"])
 def getTopRated():
@@ -175,27 +188,30 @@ def getTopRated():
         schema:
           $ref: '#/definitions/Error'
     """
-    try: 
-        user_lat = request.args.get("user_lat", type = float)       #request user latitude 
-        user_long = request.args.get("user_long", type = float)     #request user longitude 
+    try:
+        user_lat = request.args.get("user_lat", type=float)  # request user latitude
+        user_long = request.args.get("user_long", type=float)  # request user longitude
 
-        #search through verified salons 
+        # search through verified salons
         salons_query = (
             db.session.query(
                 Salon.id,
-                Salon.name, 
-                func.group_concat(func.distinct(Types.name)).label("salon_types"), 
-                Salon.address, 
+                Salon.name,
+                func.group_concat(func.distinct(Types.name)).label("salon_types"),
+                Salon.address,
                 Salon.city,
-                Salon.latitude, 
+                Salon.latitude,
                 Salon.longitude,
-                Salon.phone, 
+                Salon.phone,
                 func.avg(Review.rating).label("avg_rating"),
-                func.count(func.distinct(Review.id)).label("total_reviews") 
+                func.count(func.distinct(Review.id)).label("total_reviews"),
             )
             .join(SalonVerify, SalonVerify.salon_id == Salon.id)
-            .outerjoin(t_salon_type_assignments, t_salon_type_assignments.c.salon_id == Salon.id)  
-            .outerjoin(Types, Types.id == t_salon_type_assignments.c.type_id)                      
+            .outerjoin(
+                t_salon_type_assignments,
+                t_salon_type_assignments.c.salon_id == Salon.id,
+            )
+            .outerjoin(Types, Types.id == t_salon_type_assignments.c.type_id)
             .outerjoin(Review, Review.salon_id == Salon.id)
             .filter(SalonVerify.status == "APPROVED")
             .group_by(Salon.id)
@@ -205,45 +221,65 @@ def getTopRated():
         salons = salons_query.all()
 
         salon_list = []
-        for salon in salons: 
-            if salon.latitude and salon.longitude and user_lat is not None and user_long is not None: 
+        for salon in salons:
+            if (
+                salon.latitude
+                and salon.longitude
+                and user_lat is not None
+                and user_long is not None
+            ):
                 salon_lat = float(salon.latitude)
                 salon_long = float(salon.longitude)
 
-                #calculate the distances from the user to the salons 
-                R = 3958.8                                          # Earth radius in miles
+                # calculate the distances from the user to the salons
+                R = 3958.8  # Earth radius in miles
                 dlat = radians(salon_lat - user_lat)
                 dlon = radians(salon_long - user_long)
-                a = sin(dlat / 2) ** 2 + cos(radians(user_lat)) * cos(radians(salon_lat)) * sin(dlon / 2) ** 2
+                a = (
+                    sin(dlat / 2) ** 2
+                    + cos(radians(user_lat))
+                    * cos(radians(salon_lat))
+                    * sin(dlon / 2) ** 2
+                )
                 c = 2 * atan2(sqrt(a), sqrt(1 - a))
                 distance = R * c
-            else: 
+            else:
                 distance = None
 
-            #add top-rated salons that fall within distance to user 
-            salon_list.append({
-                "id": salon.id,
-                "name": salon.name,
-                "types": salon.salon_types.split(',') if salon.salon_types else [],  # Convert to array
-                "address": salon.address,
-                "city": salon.city,
-                "latitude": salon.latitude,
-                "longitude": salon.longitude,
-                "phone": salon.phone,
-                "avg_rating": round(float(salon.avg_rating), 2) if salon.avg_rating is not None else None,
-                "total_reviews": salon.total_reviews,
-                "distance_miles": round(distance, 2) if distance is not None else None
-            })
+            # add top-rated salons that fall within distance to user
+            salon_list.append(
+                {
+                    "id": salon.id,
+                    "name": salon.name,
+                    "types": (
+                        salon.salon_types.split(",") if salon.salon_types else []
+                    ),  # Convert to array
+                    "address": salon.address,
+                    "city": salon.city,
+                    "latitude": salon.latitude,
+                    "longitude": salon.longitude,
+                    "phone": salon.phone,
+                    "avg_rating": (
+                        round(float(salon.avg_rating), 2)
+                        if salon.avg_rating is not None
+                        else None
+                    ),
+                    "total_reviews": salon.total_reviews,
+                    "distance_miles": (
+                        round(distance, 2) if distance is not None else None
+                    ),
+                }
+            )
 
-        #sorting by distance 
-        if user_lat is not None and user_long is not None: 
+        # sorting by distance
+        if user_lat is not None and user_long is not None:
             salon_list = [s for s in salon_list if s["distance_miles"] is not None]
             salon_list.sort(key=lambda s: s["distance_miles"])
 
         top_salons = salon_list[:10]
 
         return jsonify({"salons": top_salons})
-    
+
     except Exception as e:
         return jsonify({"error": "database error", "details": str(e)}), 500
 
@@ -270,49 +306,60 @@ def getTopGeneric():
         schema:
           $ref: '#/definitions/Error'
     """
-    try: 
+    try:
         salons_query = (
             db.session.query(
                 Salon.id,
-                Salon.name, 
-                func.group_concat(func.distinct(Types.name)).label("salon_types"), 
-                Salon.address, 
+                Salon.name,
+                func.group_concat(func.distinct(Types.name)).label("salon_types"),
+                Salon.address,
                 Salon.city,
-                Salon.latitude, 
+                Salon.latitude,
                 Salon.longitude,
-                Salon.phone, 
+                Salon.phone,
                 func.avg(Review.rating).label("avg_rating"),
-                func.count(func.distinct(Review.id)).label("total_reviews") 
+                func.count(func.distinct(Review.id)).label("total_reviews"),
             )
             .join(SalonVerify, SalonVerify.salon_id == Salon.id)
-            .outerjoin(t_salon_type_assignments, t_salon_type_assignments.c.salon_id == Salon.id)  
-            .outerjoin(Types, Types.id == t_salon_type_assignments.c.type_id)                      
+            .outerjoin(
+                t_salon_type_assignments,
+                t_salon_type_assignments.c.salon_id == Salon.id,
+            )
+            .outerjoin(Types, Types.id == t_salon_type_assignments.c.type_id)
             .outerjoin(Review, Review.salon_id == Salon.id)
             .filter(SalonVerify.status == "APPROVED")
             .group_by(Salon.id)
             .order_by(desc("avg_rating"), desc("total_reviews"))
-            .limit(10)                                             
+            .limit(10)
         )
 
         salons = salons_query.all()
 
         salons_list = []
-        for salon in salons: 
-            salons_list.append({
-                "id": salon.id,
-                "name": salon.name, 
-                "types": salon.salon_types.split(',') if salon.salon_types else [],  # Changed from "type" to "types" and split the string
-                "address": salon.address,
-                "city": salon.city,
-                "phone": salon.phone,
-                "avg_rating": round(float(salon.avg_rating), 2) if salon.avg_rating is not None else None,
-                "total_reviews": salon.total_reviews
-            })
+        for salon in salons:
+            salons_list.append(
+                {
+                    "id": salon.id,
+                    "name": salon.name,
+                    "types": (
+                        salon.salon_types.split(",") if salon.salon_types else []
+                    ),  # Changed from "type" to "types" and split the string
+                    "address": salon.address,
+                    "city": salon.city,
+                    "phone": salon.phone,
+                    "avg_rating": (
+                        round(float(salon.avg_rating), 2)
+                        if salon.avg_rating is not None
+                        else None
+                    ),
+                    "total_reviews": salon.total_reviews,
+                }
+            )
         return jsonify({"salons": salons_list})
-    
+
     except Exception as e:
         return jsonify({"error": "database error", "details": str(e)}), 500
-    
+
 
 # -----------------------------------------------------------------------------
 # SALON Search ENDPOINT all in one big function
@@ -384,7 +431,9 @@ def search_salons():
         q = request.args.get("q", type=str)
         location = request.args.get("location", type=str)
         service_type = request.args.get("type", type=str)
-        price = request.args.get("price", type=float)  # assume this refers to max price per service
+        price = request.args.get(
+            "price", type=float
+        )  # assume this refers to max price per service
         min_rating = request.args.get("rating", type=float)
         max_distance = request.args.get("distance", type=float)
         user_lat = request.args.get("lat", type=float)
@@ -402,10 +451,15 @@ def search_salons():
                 Salon.longitude,
                 func.avg(Review.rating).label("avg_rating"),
                 func.count(func.distinct(Review.id)).label("total_reviews"),
-                func.avg(Service.price).label("avg_service_price")  # NEW: use avg price from services
+                func.avg(Service.price).label(
+                    "avg_service_price"
+                ),  # NEW: use avg price from services
             )
             .join(SalonVerify, SalonVerify.salon_id == Salon.id)
-            .outerjoin(t_salon_type_assignments, t_salon_type_assignments.c.salon_id == Salon.id)
+            .outerjoin(
+                t_salon_type_assignments,
+                t_salon_type_assignments.c.salon_id == Salon.id,
+            )
             .outerjoin(Types, Types.id == t_salon_type_assignments.c.type_id)
             .outerjoin(Review, Review.salon_id == Salon.id)
             .outerjoin(Service, Service.salon_id == Salon.id)
@@ -414,13 +468,14 @@ def search_salons():
         )
 
         # --- Search keyword (salon name or service) ---
-        
+
         if q:
             query = query.filter(
-                func.lower(Salon.name).like(f"{q.lower()}%") | func.lower(Types.name).like(f"{q.lower()}%") 
+                func.lower(Salon.name).like(f"{q.lower()}%")
+                | func.lower(Types.name).like(f"{q.lower()}%")
             )
 
-        #if q:
+        # if q:
         #    query = query.filter(
         #        or_(
         #            func.lower(Salon.name).like(f"{q.lower()}%"),
@@ -459,7 +514,12 @@ def search_salons():
                 R = 3958.8  # Earth radius in miles
                 dlat = radians(float(s.latitude) - user_lat)
                 dlon = radians(float(s.longitude) - user_lon)
-                a = sin(dlat / 2) ** 2 + cos(radians(user_lat)) * cos(radians(float(s.latitude))) * sin(dlon / 2) ** 2
+                a = (
+                    sin(dlat / 2) ** 2
+                    + cos(radians(user_lat))
+                    * cos(radians(float(s.latitude)))
+                    * sin(dlon / 2) ** 2
+                )
                 c = 2 * atan2(sqrt(a), sqrt(1 - a))
                 distance = R * c
 
@@ -467,23 +527,35 @@ def search_salons():
             if max_distance and distance and distance > max_distance:
                 continue
 
-            salon_list.append({
-                "id": s.id,
-                "name": s.name,
-                "types": s.salon_types.split(',') if s.salon_types else [], 
-                "address": s.address,
-                "city": s.city,
-                "avg_rating": round(float(s.avg_rating), 1) if s.avg_rating else None,
-                "total_reviews": s.total_reviews,
-                "avg_service_price": round(float(s.avg_service_price), 2) if s.avg_service_price else None,
-                "distance_miles": round(distance, 2) if distance else None
-            })
+            salon_list.append(
+                {
+                    "id": s.id,
+                    "name": s.name,
+                    "types": s.salon_types.split(",") if s.salon_types else [],
+                    "address": s.address,
+                    "city": s.city,
+                    "avg_rating": (
+                        round(float(s.avg_rating), 1) if s.avg_rating else None
+                    ),
+                    "total_reviews": s.total_reviews,
+                    "avg_service_price": (
+                        round(float(s.avg_service_price), 2)
+                        if s.avg_service_price
+                        else None
+                    ),
+                    "distance_miles": round(distance, 2) if distance else None,
+                }
+            )
 
         # --- Sort by distance if provided ---
         if user_lat and user_lon:
-            salon_list.sort(key=lambda x: (x["distance_miles"] if x["distance_miles"] else 9999))
+            salon_list.sort(
+                key=lambda x: (x["distance_miles"] if x["distance_miles"] else 9999)
+            )
         else:
-            salon_list.sort(key=lambda x: (x["avg_rating"] if x["avg_rating"] else 0), reverse=True)
+            salon_list.sort(
+                key=lambda x: (x["avg_rating"] if x["avg_rating"] else 0), reverse=True
+            )
 
         return jsonify({"results_found": len(salon_list), "salons": salon_list})
 
@@ -544,20 +616,22 @@ def get_salon_details(salon_id):
             db.session.query(
                 Salon.id,
                 Salon.name,
-                func.group_concat(func.distinct(Types.name)).label("salon_types"), 
+                func.group_concat(func.distinct(Types.name)).label("salon_types"),
                 Salon.address,
                 Salon.city,
                 Salon.latitude,
                 Salon.longitude,
                 Salon.phone,
                 Salon.about,
-
                 func.avg(Review.rating).label("avg_rating"),
-                func.count(Review.id).label("total_reviews")
+                func.count(Review.id).label("total_reviews"),
             )
             .join(SalonVerify, SalonVerify.salon_id == Salon.id)
-            .outerjoin(t_salon_type_assignments, t_salon_type_assignments.c.salon_id == Salon.id)  
-            .outerjoin(Types, Types.id == t_salon_type_assignments.c.type_id)   
+            .outerjoin(
+                t_salon_type_assignments,
+                t_salon_type_assignments.c.salon_id == Salon.id,
+            )
+            .outerjoin(Types, Types.id == t_salon_type_assignments.c.type_id)
             .outerjoin(Review, Review.salon_id == Salon.id)
             .filter(SalonVerify.status == "APPROVED", Salon.id == salon_id)
             .group_by(Salon.id)
@@ -571,15 +645,21 @@ def get_salon_details(salon_id):
         salon_details = {
             "id": salon_data.id,
             "name": salon_data.name,
-            "types": salon_data.salon_types.split(',') if salon_data.salon_types else [],
+            "types": (
+                salon_data.salon_types.split(",") if salon_data.salon_types else []
+            ),
             "address": salon_data.address,
             "city": salon_data.city,
             "latitude": float(salon_data.latitude) if salon_data.latitude else None,
             "longitude": float(salon_data.longitude) if salon_data.longitude else None,
             "phone": salon_data.phone,
-            "avg_rating": round(float(salon_data.avg_rating), 1) if salon_data.avg_rating else None,
+            "avg_rating": (
+                round(float(salon_data.avg_rating), 1)
+                if salon_data.avg_rating
+                else None
+            ),
             "total_reviews": salon_data.total_reviews,
-            "about" : salon_data.about
+            "about": salon_data.about,
         }
 
         return jsonify(salon_details)
@@ -621,46 +701,49 @@ def get_salon_reviews(salon_id):
     """
     try:
         reviews_query = (
-            db.session.query(
-                Review,         
-                Customers.first_name,
-                Customers.last_name  
-            )
-            .join(Customers, Review.customers_id == Customers.id) 
+            db.session.query(Review, Customers.first_name, Customers.last_name)
+            .join(Customers, Review.customers_id == Customers.id)
             .filter(Review.salon_id == salon_id)
-            .options(joinedload(Review.review_image)) 
+            .options(joinedload(Review.review_image))
             .order_by(Review.created_at.desc())
         )
 
-        reviews_with_names = reviews_query.all() 
+        reviews_with_names = reviews_query.all()
 
         if not reviews_with_names:
-            return jsonify({
-                "salon_id": salon_id,
-                "reviews_found": 0,
-                "reviews": []
-            }), 200
+            return (
+                jsonify({"salon_id": salon_id, "reviews_found": 0, "reviews": []}),
+                200,
+            )
 
         review_list = []
         for review_obj, customer_first_name, customer_last_name in reviews_with_names:
-            
+
             image_list = [img.url for img in review_obj.review_image]
 
-            review_list.append({
-                "id": review_obj.id,
-                "rating": float(review_obj.rating) if review_obj.rating else None,
-                "comment": review_obj.comment,
-                "created_at": review_obj.created_at.strftime("%Y-%m-%d %H:%M:%S") if review_obj.created_at else None,
-                "customers_id": review_obj.customers_id,
-                "customer_name": f"{customer_first_name} {customer_last_name}",
-                "images": image_list 
-            })
+            review_list.append(
+                {
+                    "id": review_obj.id,
+                    "rating": float(review_obj.rating) if review_obj.rating else None,
+                    "comment": review_obj.comment,
+                    "created_at": (
+                        review_obj.created_at.strftime("%Y-%m-%d %H:%M:%S")
+                        if review_obj.created_at
+                        else None
+                    ),
+                    "customers_id": review_obj.customers_id,
+                    "customer_name": f"{customer_first_name} {customer_last_name}",
+                    "images": image_list,
+                }
+            )
 
-        return jsonify({
-            "salon_id": salon_id,
-            "reviews_found": len(review_list),
-            "reviews": review_list
-        })
+        return jsonify(
+            {
+                "salon_id": salon_id,
+                "reviews_found": len(review_list),
+                "reviews": review_list,
+            }
+        )
 
     except Exception as e:
         return jsonify({"error": "Database error", "details": str(e)}), 500
@@ -715,11 +798,10 @@ def get_salon_services(salon_id):
         services = service_query.all()
 
         if not services:
-            return jsonify({
-                "salon_id": salon_id,
-                "services_found": 0,
-                "services": []
-            }), 200
+            return (
+                jsonify({"salon_id": salon_id, "services_found": 0, "services": []}),
+                200,
+            )
 
         # --- Build the service list dynamically ---
         service_list = []
@@ -744,11 +826,13 @@ def get_salon_services(salon_id):
 
             service_list.append(service_obj)
 
-        return jsonify({
-            "salon_id": salon_id,
-            "services_found": len(service_list),
-            "services": service_list
-        })
+        return jsonify(
+            {
+                "salon_id": salon_id,
+                "services_found": len(service_list),
+                "services": service_list,
+            }
+        )
 
     except Exception as e:
         return jsonify({"error": "Database error", "details": str(e)}), 500
@@ -808,27 +892,35 @@ def get_salon_gallery(salon_id):
         images = images_query.all()
 
         if not images:
-            return jsonify({
-                "salon_id": salon_id,
-                "media_found": 0,
-                "gallery": []
-            }), 200
+            return jsonify({"salon_id": salon_id, "media_found": 0, "gallery": []}), 200
 
         # --- Build JSON response ---
         gallery_list = []
         for img in images:
-            gallery_list.append({
-                "id": img.id,
-                "url": img.url,
-                "created_at": img.created_at.strftime("%Y-%m-%d %H:%M:%S") if img.created_at else None,
-                "updated_at": img.updated_at.strftime("%Y-%m-%d %H:%M:%S") if img.updated_at else None
-            })
+            gallery_list.append(
+                {
+                    "id": img.id,
+                    "url": img.url,
+                    "created_at": (
+                        img.created_at.strftime("%Y-%m-%d %H:%M:%S")
+                        if img.created_at
+                        else None
+                    ),
+                    "updated_at": (
+                        img.updated_at.strftime("%Y-%m-%d %H:%M:%S")
+                        if img.updated_at
+                        else None
+                    ),
+                }
+            )
 
-        return jsonify({
-            "salon_id": salon_id,
-            "media_found": len(gallery_list),
-            "gallery": gallery_list
-        })
+        return jsonify(
+            {
+                "salon_id": salon_id,
+                "media_found": len(gallery_list),
+                "gallery": gallery_list,
+            }
+        )
 
     except Exception as e:
         return jsonify({"error": "Database error", "details": str(e)}), 500
@@ -878,60 +970,68 @@ def get_salon_products(salon_id):
         )
 
         if not products:
-            return jsonify({
-                "salon_id": salon_id,
-                "products_found": 0,
-                "products": []
-            }), 200
+            return (
+                jsonify({"salon_id": salon_id, "products_found": 0, "products": []}),
+                200,
+            )
 
         # Build list dynamically from actual columns
         product_list = []
         for p in products:
-            product_list.append({
-                "id": p.id,
-                "name": p.name,
-                "description": p.description,
-                "price": float(p.price) if p.price else None,
-                "stock_qty": p.stock_qty,
-                "is_active": bool(p.is_active),
-                "sku": p.sku,
-                "image_url": p.image_url,
-                "created_at": p.created_at.strftime("%Y-%m-%d %H:%M:%S") if p.created_at else None,
-                "updated_at": p.updated_at.strftime("%Y-%m-%d %H:%M:%S") if p.updated_at else None,
-            })
+            product_list.append(
+                {
+                    "id": p.id,
+                    "name": p.name,
+                    "description": p.description,
+                    "price": float(p.price) if p.price else None,
+                    "stock_qty": p.stock_qty,
+                    "is_active": bool(p.is_active),
+                    "sku": p.sku,
+                    "image_url": p.image_url,
+                    "created_at": (
+                        p.created_at.strftime("%Y-%m-%d %H:%M:%S")
+                        if p.created_at
+                        else None
+                    ),
+                    "updated_at": (
+                        p.updated_at.strftime("%Y-%m-%d %H:%M:%S")
+                        if p.updated_at
+                        else None
+                    ),
+                }
+            )
 
-        return jsonify({
-            "salon_id": salon_id,
-            "products_found": len(product_list),
-            "products": product_list
-        }), 200
+        return (
+            jsonify(
+                {
+                    "salon_id": salon_id,
+                    "products_found": len(product_list),
+                    "products": product_list,
+                }
+            ),
+            200,
+        )
 
     except Exception as e:
-        return jsonify({
-            "error": "Database error",
-            "details": str(e)
-        }), 500
+        return jsonify({"error": "Database error", "details": str(e)}), 500
 
 
 @salons_bp.route("/get_salon/<int:salon_owner_id>", methods=["GET"])
 def get_salon(salon_owner_id):
-   
-    try: 
+
+    try:
         owner_stmt = select(SalonOwners).filter_by(id=salon_owner_id)
         owner = db.session.scalar(owner_stmt)
 
-        if not owner: 
-            return jsonify({'error': 'Owner not found'}), 404
-        
+        if not owner:
+            return jsonify({"error": "Owner not found"}), 404
+
         salon_ids = [salon.id for salon in owner.salon]
 
-        if not salon_ids: 
-            return jsonify({'message': 'No salons found for this owner'}), 200 
-        
-        return jsonify({
-            'salon_owner_id': salon_owner_id,
-            'salon_ids': salon_ids
-        }), 200
-    
+        if not salon_ids:
+            return jsonify({"message": "No salons found for this owner"}), 200
+
+        return jsonify({"salon_owner_id": salon_owner_id, "salon_ids": salon_ids}), 200
+
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({"error": str(e)}), 500
