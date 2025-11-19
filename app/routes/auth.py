@@ -12,6 +12,65 @@ auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
 
 @auth_bp.route("/signup", methods=["POST"])
 def signup_user():
+    """
+    Register a new user account
+    ---
+    tags:
+      - Authentication
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - email
+            - password
+            - name
+          properties:
+            email:
+              type: string
+              format: email
+              description: User email address
+            password:
+              type: string
+              format: password
+              description: User password (will be hashed)
+            name:
+              type: string
+              description: User full name
+            phone:
+              type: string
+              description: User phone number
+            gender:
+              type: string
+              enum: [Male, Female, Other]
+            role:
+              type: string
+              enum: [CUSTOMER, OWNER, EMPLOYEE, ADMIN]
+              default: CUSTOMER
+    responses:
+      201:
+        description: User registered successfully
+        schema:
+          type: object
+          properties:
+            status:
+              type: string
+              example: success
+            message:
+              type: string
+            user:
+              $ref: '#/definitions/User'
+      400:
+        description: Missing required fields or email already exists
+        schema:
+          $ref: '#/definitions/Error'
+      500:
+        description: Internal server error
+        schema:
+          $ref: '#/definitions/Error'
+    """
     try:
         data = request.get_json(force=True)
         first_name = data.get("first_name")
@@ -151,6 +210,50 @@ def signup_user():
 
 @auth_bp.route("/login", methods=["POST"])
 def login_user():
+    """
+    Login user and receive JWT token
+    ---
+    tags:
+      - Authentication
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - email
+            - password
+          properties:
+            email:
+              type: string
+              format: email
+            password:
+              type: string
+              format: password
+    responses:
+      200:
+        description: Login successful, JWT token returned
+        schema:
+          type: object
+          properties:
+            status:
+              type: string
+              example: success
+            message:
+              type: string
+            token:
+              type: string
+              description: JWT token valid for 1 hour
+      401:
+        description: Invalid credentials
+        schema:
+          $ref: '#/definitions/Error'
+      500:
+        description: Internal server error
+        schema:
+          $ref: '#/definitions/Error'
+    """
     try:
         data = request.get_json(force=True)
         email = data.get("email")
@@ -204,17 +307,40 @@ def login_user():
 @auth_bp.route("/user-type/<int:user_id>", methods=["GET"])
 def get_user_type(user_id):
     """
-    GET /api/auth/user-type/<user_id>
-    Purpose: Retrieve detailed user information including role, email, names, phone, address, etc.
-    Input: user_id (integer) from the URL path.
-
-    Behavior:
-    - Returns comprehensive user data based on their role
-    - Includes role-specific profile information
-    - For CUSTOMER role: customer profile data
-    - For EMPLOYEE role: employee profile + salon info
-    - For ADMIN role: admin profile data
-    - For OWNER role: owner profile data
+    Get user type/role by ID
+    ---
+    tags:
+      - Authentication
+    parameters:
+      - in: path
+        name: user_id
+        type: integer
+        required: true
+        description: User ID
+    responses:
+      200:
+        description: User type retrieved successfully
+        schema:
+        type: object
+        properties:
+            status:
+            type: string
+            example: success
+            user_id:
+            type: integer
+            email:
+            type: string
+            role:
+            type: string
+            enum: [OWNER, CUSTOMER, EMPLOYEE, ADMIN]
+      404:
+        description: User not found
+        schema:
+        $ref: '#/definitions/Error'
+      500:
+        description: Internal server error
+        schema:
+        $ref: '#/definitions/Error'
     """
     try:
         # Get the auth user
@@ -291,9 +417,7 @@ def get_user_type(user_id):
 
 @auth_bp.route("/check-email", methods=["POST"])
 def check_email_exists():
-    """
-    Checks if an email already exists in the AuthUser table.
-    """
+   
     try:
         data = request.get_json(force=True)
         email = data.get("email")

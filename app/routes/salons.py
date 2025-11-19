@@ -19,7 +19,25 @@ salons_bp = Blueprint("salons", __name__, url_prefix="/api/salons")
 @salons_bp.route("/test", methods=["GET"])
 def test_connection():
     """
-    Simple test endpoint to verify database connection is working.
+    Test database connection
+    ---
+    tags:
+      - Utility
+    responses:
+      200:
+        description: Database connection is working
+        schema:
+          type: object
+          properties:
+            status:
+              type: string
+              example: success
+            message:
+              type: string
+      500:
+        description: Database connection failed
+        schema:
+          $ref: '#/definitions/Error'
     """
     try:
         # Test database connection
@@ -32,7 +50,25 @@ def test_connection():
 @salons_bp.route("/cities", methods=["GET"])
 def get_cities():
     """
-    Fetches a unique list of all cities that have a verified salon.
+    Get all verified cities with salons
+    ---
+    tags:
+      - Salons
+    responses:
+      200:
+        description: List of cities with verified salons
+        schema:
+          type: object
+          properties:
+            cities:
+              type: array
+              items:
+                type: string
+              example: ["Newark", "Jersey City", "Hoboken"]
+      500:
+        description: Database error
+        schema:
+          $ref: '#/definitions/Error'
     """
     try:
         # This query now works because 'SalonVerify' is imported
@@ -52,7 +88,32 @@ def get_cities():
 @salons_bp.route("/categories", methods=["GET"])
 def get_categories():
     """
-    Fetches a list of all distinct services .
+    Get all service categories
+    ---
+    tags:
+      - Salons
+    responses:
+      200:
+        description: List of distinct service categories
+        schema:
+          type: object
+          properties:
+            categories:
+              type: array
+              items:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  icon_url:
+                    type: string
+              example:
+                - name: "Haircut"
+                  icon_url: "https://s3.amazonaws.com/..."
+      500:
+        description: Database error
+        schema:
+          $ref: '#/definitions/Error'
     """
     try:
         if hasattr(Service, 'icon_url'):
@@ -84,8 +145,35 @@ def get_categories():
 @salons_bp.route("/top-rated", methods=["GET"])
 def getTopRated():
     """
-    Fetches top-rated verified salons near the user's location (if provided).
-    Sorted by distance ascending and limited to 10 results.
+    Get top-rated salons near user location
+    ---
+    tags:
+      - Salons
+    parameters:
+      - in: query
+        name: user_lat
+        type: number
+        format: float
+        description: User latitude
+      - in: query
+        name: user_long
+        type: number
+        format: float
+        description: User longitude
+    responses:
+      200:
+        description: Top 10 rated salons sorted by distance
+        schema:
+          type: object
+          properties:
+            salons:
+              type: array
+              items:
+                $ref: '#/definitions/Salon'
+      500:
+        description: Database error
+        schema:
+          $ref: '#/definitions/Error'
     """
     try: 
         user_lat = request.args.get("user_lat", type = float)       #request user latitude 
@@ -163,8 +251,24 @@ def getTopRated():
 @salons_bp.route("/generic", methods=["GET"])
 def getTopGeneric():
     """
-    Fetches top-rated verified salons anywhere (for users who block location).
-    Sorted by avg_rating descending and limited to 10 results.
+    Get top-rated salons (without location filter)
+    ---
+    tags:
+      - Salons
+    responses:
+      200:
+        description: Top 10 rated salons
+        schema:
+          type: object
+          properties:
+            salons:
+              type: array
+              items:
+                $ref: '#/definitions/Salon'
+      500:
+        description: Database error
+        schema:
+          $ref: '#/definitions/Error'
     """
     try: 
         salons_query = (
@@ -216,9 +320,64 @@ def getTopGeneric():
 @salons_bp.route("/search", methods=["GET"])
 def search_salons():
     """
-    Handles user search queries for salons by name, service, or city.
-    Allows filtering by type, rating, and distance.
-    Price filtering is applied via the Service table if price data exists there.
+    Search salons by name, service, city, type, rating, price and distance
+    ---
+    tags:
+      - Salons
+    parameters:
+      - in: query
+        name: q
+        type: string
+        description: Search query (salon name or service type)
+      - in: query
+        name: location
+        type: string
+        description: City name filter
+      - in: query
+        name: type
+        type: string
+        description: Salon type filter (e.g., Hair, Nails)
+      - in: query
+        name: price
+        type: number
+        format: float
+        description: Max price per service
+      - in: query
+        name: rating
+        type: number
+        format: float
+        description: Minimum rating filter
+      - in: query
+        name: distance
+        type: number
+        format: float
+        description: Max distance in miles
+      - in: query
+        name: lat
+        type: number
+        format: float
+        description: User latitude
+      - in: query
+        name: lon
+        type: number
+        format: float
+        description: User longitude
+    responses:
+      200:
+        description: Search results
+        schema:
+          type: object
+          properties:
+            results_found:
+              type: integer
+            salons:
+              type: array
+              items:
+                $ref: '#/definitions/Salon'
+      500:
+        description: Database error
+        schema:
+          $ref: '#/definitions/Error'
     """
     try:
         # --- Query parameters ---
@@ -338,8 +497,47 @@ def search_salons():
 @salons_bp.route("/details/<int:salon_id>", methods=["GET"])
 def get_salon_details(salon_id):
     """
-    Fetch full details for a specific salon.
-    Includes basic info, location, contact, and review stats.
+    Get detailed information about a specific salon
+    ---
+    tags:
+      - Salons
+    parameters:
+      - in: path
+        name: salon_id
+        type: integer
+        required: true
+    responses:
+      200:
+        description: Salon details retrieved successfully
+        schema:
+          type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+            type:
+              type: string
+            address:
+              type: string
+            city:
+              type: string
+            phone:
+              type: string
+            avg_rating:
+              type: number
+            total_reviews:
+              type: integer
+            about:
+              type: string
+      404:
+        description: Salon not found
+        schema:
+          $ref: '#/definitions/Error'
+      500:
+        description: Database error
+        schema:
+          $ref: '#/definitions/Error'
     """
     try:
         salon_data = (
@@ -392,7 +590,35 @@ def get_salon_details(salon_id):
 
 @salons_bp.route("/details/<int:salon_id>/reviews", methods=["GET"])
 def get_salon_reviews(salon_id):
-
+    """
+    Get all reviews for a salon
+    ---
+    tags:
+      - Salons
+    parameters:
+      - in: path
+        name: salon_id
+        type: integer
+        required: true
+    responses:
+      200:
+        description: Reviews retrieved successfully
+        schema:
+          type: object
+          properties:
+            salon_id:
+              type: integer
+            reviews_found:
+              type: integer
+            reviews:
+              type: array
+              items:
+                $ref: '#/definitions/Review'
+      500:
+        description: Database error
+        schema:
+          $ref: '#/definitions/Error'
+    """
     try:
         reviews_query = (
             db.session.query(
@@ -443,8 +669,33 @@ def get_salon_reviews(salon_id):
 @salons_bp.route("/details/<int:salon_id>/services", methods=["GET"])
 def get_salon_services(salon_id):
     """
-    Fetch all services offered by a specific salon.
-    Includes service name, price, duration, and (if available) image/icon.
+    Get all services offered by a salon
+    ---
+    tags:
+      - Salons
+    parameters:
+      - in: path
+        name: salon_id
+        type: integer
+        required: true
+    responses:
+      200:
+        description: Services retrieved successfully
+        schema:
+          type: object
+          properties:
+            salon_id:
+              type: integer
+            services_found:
+              type: integer
+            services:
+              type: array
+              items:
+                $ref: '#/definitions/Service'
+      500:
+        description: Database error
+        schema:
+          $ref: '#/definitions/Error'
     """
     try:
         # Detect existing columns in the Service table
@@ -506,9 +757,42 @@ def get_salon_services(salon_id):
 @salons_bp.route("/details/<int:salon_id>/gallery", methods=["GET"])
 def get_salon_gallery(salon_id):
     """
-    Fetch all gallery images for a specific salon.
-    Uses the SalonImage table.
-    Includes image URL and upload timestamps.
+    Get salon gallery images
+    ---
+    tags:
+      - Salons
+    parameters:
+      - in: path
+        name: salon_id
+        type: integer
+        required: true
+    responses:
+      200:
+        description: Gallery images retrieved successfully
+        schema:
+          type: object
+          properties:
+            salon_id:
+              type: integer
+            media_found:
+              type: integer
+            gallery:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  url:
+                    type: string
+                  created_at:
+                    type: string
+                  updated_at:
+                    type: string
+      500:
+        description: Database error
+        schema:
+          $ref: '#/definitions/Error'
     """
     try:
         # Import the correct model
@@ -553,8 +837,33 @@ def get_salon_gallery(salon_id):
 @salons_bp.route("/details/<int:salon_id>/products", methods=["GET"])
 def get_salon_products(salon_id):
     """
-    Fetch all products for a specific salon.
-    Uses the Product model as defined (no schema or DB changes).
+    Get all products sold by a salon
+    ---
+    tags:
+      - Salons
+    parameters:
+      - in: path
+        name: salon_id
+        type: integer
+        required: true
+    responses:
+      200:
+        description: Products retrieved successfully
+        schema:
+          type: object
+          properties:
+            salon_id:
+              type: integer
+            products_found:
+              type: integer
+            products:
+              type: array
+              items:
+                $ref: '#/definitions/Product'
+      500:
+        description: Database error
+        schema:
+          $ref: '#/definitions/Error'
     """
 
     try:
@@ -606,9 +915,7 @@ def get_salon_products(salon_id):
 
 @salons_bp.route("/get_salon/<int:salon_owner_id>", methods=["GET"])
 def get_salon(salon_owner_id):
-    """
-    given salon owner id return salon id
-    """
+   
     try: 
         owner_stmt = select(SalonOwners).filter_by(id=salon_owner_id)
         owner = db.session.scalar(owner_stmt)

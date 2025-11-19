@@ -1,0 +1,81 @@
+name: CI - Test and Validate
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root_test_password  
+          MYSQL_DATABASE: salon_app_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov flake8 black safety
+
+    # --- QUALITY CHECKS ---
+    
+    - name: Check code formatting (Black)
+      run: black --check app/ main.py
+
+    - name: Run linting (Flake8)
+      run: |
+        # Stop build on syntax errors
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        # Stop build on style violations
+        flake8 . --count --max-complexity=10 --max-line-length=120 --statistics
+
+    # --- TESTING ---
+
+    - name: Run tests with pytest
+      env:
+        # Pointing to the ephemeral service container
+        MYSQL_PUBLIC_URL: mysql+pymysql://root:test_password@127.0.0.1:3306/salon_app_test
+        FLASK_ENV: testing
+        # Mock secrets to prevent startup errors
+        SECRET_KEY: test_secret_key
+        AWS_ACCESS_KEY_ID: test_key
+        AWS_SECRET_ACCESS_KEY: test_secret
+        AWS_REGION: us-east-1
+        S3_BUCKET_NAME: test-bucket
+        S3_BASE_URL: https://test-bucket.s3.amazonaws.com
+      run: |
+        echo "🧪 Running test suite..."
+        # Pytest will now create the DB tables automatically via conftest.py
+        pytest tests/ -v --cov=app --cov-report=xml --cov-report=term
+
+    # --- REPORTING ---
+
+    - name: Archive test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results
+        path: coverage.xml
