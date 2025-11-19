@@ -47,10 +47,10 @@ jobs:
 
     - name: Run linting (Flake8)
       run: |
-        # Stop build on syntax errors
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        # Stop build on style violations
-        flake8 . --count --max-complexity=10 --max-line-length=120 --statistics
+          # Stop build on syntax errors
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          # Stop build on style violations (uses .flake8 config file)
+          flake8 . --count --statistics
 
     # --- TESTING ---
 
