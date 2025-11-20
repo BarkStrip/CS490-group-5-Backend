@@ -138,6 +138,7 @@ def signup_user():
         }), 201
 
     except IntegrityError as e:
+        print("IntegrityError ORIGINAL:", e.orig)
         db.session.rollback()
         return jsonify({
             "status": "error",
