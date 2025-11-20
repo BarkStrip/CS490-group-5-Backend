@@ -39,6 +39,7 @@ def app():
 @pytest.fixture(scope="session")
 def _db(app):
     """Create test database and tables."""
+    db.create_all()
     with app.app_context():
         # Import all models to ensure they're registered with SQLAlchemy
 
@@ -46,7 +47,6 @@ def _db(app):
         db.drop_all()
 
         # Create all tables
-        db.create_all()
 
         # Verify tables were created (optional but helpful for debugging)
         from sqlalchemy import inspect
