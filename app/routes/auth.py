@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify, current_app
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from ..extensions import db
-from ..models import AuthUser, Customers, Admins, SalonOwners, Employees
+from ..models import AuthUser, Customers, Admins, SalonOwners, Employees, Cart
 import bcrypt
 import jwt
 import datetime
@@ -152,6 +152,11 @@ def signup_user():
                 phone_number=phone_number,
                 address=address,
             )
+            db.session.add(profile)
+            db.session.flush()
+            new_cart = Cart(user_id=auth_user.id) 
+            db.session.add(new_cart)
+
         elif role == "ADMIN":
             profile = Admins(
                 user_id=auth_user.id,
@@ -210,6 +215,7 @@ def signup_user():
         )
 
     except IntegrityError as e:
+        print("IntegrityError ORIGINAL:", e.orig)
         db.session.rollback()
         return (
             jsonify(
@@ -471,13 +477,8 @@ def check_email_exists():
         return jsonify({"exists": bool(existing)}), 200
 
     except Exception as e:
-        return (
-            jsonify(
-                {
-                    "status": "error",
-                    "message": "Internal server error",
-                    "details": str(e),
-                }
-            ),
-            500,
-        )
+        return jsonify({
+            "status": "error",
+            "message": "Internal server error",
+            "details": str(e)
+        }), 500

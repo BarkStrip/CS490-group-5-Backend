@@ -168,7 +168,7 @@ class Customers(Base):
     first_name = mapped_column(String(100))
     last_name = mapped_column(String(100))
     phone_number = mapped_column(String(100))
-    address = mapped_column(String(100))
+    address = mapped_column(String(100), nullable=True)
     gender = mapped_column(String(20))
     date_of_birth = mapped_column(Date)
     age = mapped_column(Integer)
