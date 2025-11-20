@@ -10,15 +10,14 @@ admin_verification_bp = Blueprint(
     "admin_verification", __name__, url_prefix="/api/admin/verification"
 )
 
-
 @admin_verification_bp.route("", methods=["GET"])
-def get_unverified_salons():
+def get_salons_verification():
     """
     GET /api/admin/verification - Get all salons awaiting verification
 
     ---
     summary: Retrieve unverified salons for admin review
-    description: Fetches all salons in PENDING, APPROVED, or REJECTED status with filter and sort options
+    description: Fetches all salons with specified verification status
     parameters:
       - name: status
         in: query
@@ -26,12 +25,6 @@ def get_unverified_salons():
         enum: [PENDING, APPROVED, REJECTED]
         required: false
         description: Filter by verification status (default PENDING)
-      - name: sort
-        in: query
-        type: string
-        enum: [newest, oldest, name]
-        required: false
-        description: Sort order - newest/oldest by submission date or name alphabetical (default newest)
     responses:
       200:
         description: Returns array of salons with verification details
@@ -41,7 +34,6 @@ def get_unverified_salons():
     try:
         # Get query parameters
         status_filter = request.args.get("status", "PENDING")  # Default to PENDING
-        sort_by = request.args.get("sort", "newest")
 
         # Build base query - removed Salon.type (it's a relationship, not a column)
         query = (
@@ -79,14 +71,6 @@ def get_unverified_salons():
             SalonVerify.created_at,
             SalonVerify.updated_at,
         )
-
-        # Apply sorting
-        if sort_by == "oldest":
-            query = query.order_by(SalonVerify.created_at.asc())
-        elif sort_by == "name":
-            query = query.order_by(Salon.name.asc())
-        else:  # newest (default)
-            query = query.order_by(SalonVerify.created_at.desc())
 
         # Get all results
         results = query.all()

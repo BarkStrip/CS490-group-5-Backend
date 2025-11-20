@@ -25,6 +25,8 @@ from app.routes.salon_register import salon_register_bp
 from app.routes.cart import cart_bp
 from app.routes.auth import auth_bp
 from app.routes.autocomplete import autocomplete_bp
+from app.api.employee.verification import employee_verification_bp
+
 from app.routes.salons import salons_bp
 from flask import Flask
 from flask_cors import CORS
@@ -66,21 +68,22 @@ def create_app():
         print("Registering blueprints...")
 
         blueprints = [
-            salons_bp,
-            autocomplete_bp,
-            auth_bp,
-            cart_bp,
-            salon_register_bp,
-            salon_images_bp,
-            reviews_bp,
-            appointments_bp,
-            payments_bp,
-            receipts_bp,
-            loyalty_bp,
-            employees_bp,
-            employeesapp_bp,
-            admin_verification_bp,
-        ]
+                    salons_bp,
+                    autocomplete_bp,
+                    auth_bp,
+                    cart_bp,
+                    salon_register_bp,
+                    salon_images_bp,
+                    reviews_bp,
+                    appointments_bp,
+                    payments_bp,
+                    receipts_bp,
+                    loyalty_bp,
+                    employees_bp,
+                    employeesapp_bp,
+                    employee_verification_bp,
+                    admin_verification_bp
+                ]
 
         for bp in blueprints:
             app.register_blueprint(bp)
