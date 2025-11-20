@@ -1,0 +1,8 @@
+[flake8]
+# Match Black's line length
+max-line-length = 88
+# Ignore errors that conflict with Black or are generally annoying
+# E203: Whitespace before ':' (Black does this heavily)
+# E501: Line too long (handled by max-line-length, but sometimes good to soft ignore)
+extend-ignore = E203, E501
+exclude = .git,__pycache__,docs/source/conf.py,old,build,dist,myenv

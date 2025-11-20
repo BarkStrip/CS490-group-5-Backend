@@ -1,22 +1,30 @@
 from flask import Blueprint, jsonify, request, current_app
-from sqlalchemy import distinct, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from app.extensions import db
 from ..models import (
-    Service, Product, AuthUser, Salon, SalonHours, SalonVerify, 
-    SalonOwners, Types
+    Service,
+    Product,
+    AuthUser,
+    Salon,
+    SalonHours,
+    SalonVerify,
+    SalonOwners,
+    Types,
 )
 from app.utils.s3_utils import upload_file_to_s3
-import uuid, os
+import uuid
 import bcrypt
 import traceback
-from datetime import time  
+from datetime import time
 
-salon_register_bp = Blueprint("salon_register", __name__, url_prefix="/api/salon_register")
+salon_register_bp = Blueprint(
+    "salon_register", __name__, url_prefix="/api/salon_register"
+)
+
 
 @salon_register_bp.route("/register", methods=["POST"])
 def register_salon():
-
     """
     Register a new salon with owner account.
     Creates:
@@ -37,36 +45,59 @@ def register_salon():
         terms_agreed = data.get("terms_agreed", False)
         business_confirmed = data.get("business_confirmed", False)
 
-        if not owner_data.get("name") or not owner_data.get("email") or not owner_data.get("password"):
-            return jsonify({"status": "error", "message": "Owner information incomplete"}), 400
+        if (
+            not owner_data.get("name")
+            or not owner_data.get("email")
+            or not owner_data.get("password")
+        ):
+            return (
+                jsonify({"status": "error", "message": "Owner information incomplete"}),
+                400,
+            )
 
         if not salon_data.get("name") or not salon_data.get("type"):
-            return jsonify({"status": "error", "message": "Salon information incomplete"}), 400
+            return (
+                jsonify({"status": "error", "message": "Salon information incomplete"}),
+                400,
+            )
 
         if not terms_agreed or not business_confirmed:
-            return jsonify({"status": "error", "message": "Must agree to terms and confirm business"}), 400
+            return (
+                jsonify(
+                    {
+                        "status": "error",
+                        "message": "Must agree to terms and confirm business",
+                    }
+                ),
+                400,
+            )
 
-        existing = db.session.scalar(select(AuthUser).where(AuthUser.email == owner_data["email"]))
+        existing = db.session.scalar(
+            select(AuthUser).where(AuthUser.email == owner_data["email"])
+        )
         if existing:
-            return jsonify({"status": "error", "message": "Email already registered"}), 409
+            return (
+                jsonify({"status": "error", "message": "Email already registered"}),
+                409,
+            )
 
-        hashed_pw = bcrypt.hashpw(owner_data["password"].encode("utf-8"), bcrypt.gensalt())
+        hashed_pw = bcrypt.hashpw(
+            owner_data["password"].encode("utf-8"), bcrypt.gensalt()
+        )
         auth_user = AuthUser(
-            email=owner_data["email"],
-            password_hash=hashed_pw,
-            role="OWNER"
+            email=owner_data["email"], password_hash=hashed_pw, role="OWNER"
         )
         db.session.add(auth_user)
         db.session.flush()
 
-        name_parts = owner_data["name"].split(' ', 1)
+        name_parts = owner_data["name"].split(" ", 1)
         first_name = name_parts[0]
         last_name = name_parts[1] if len(name_parts) > 1 else ""
         salon_owner = SalonOwners(
             user_id=auth_user.id,
             first_name=first_name,
             last_name=last_name,
-            phone_number=owner_data.get("phone")
+            phone_number=owner_data.get("phone"),
         )
         db.session.add(salon_owner)
         db.session.flush()
@@ -94,17 +125,21 @@ def register_salon():
             phone=salon_data.get("phone", ""),
             about="",
             latitude=salon_data.get("latitude", 0.0),
-            longitude=salon_data.get("longitude", 0.0)
+            longitude=salon_data.get("longitude", 0.0),
         )
-
 
         db.session.add(salon)
         db.session.flush()
         salon.type.append(type_obj)
 
         day_mapping = {
-            "monday": 0, "tuesday": 1, "wednesday": 2, "thursday": 3,
-            "friday": 4, "saturday": 5, "sunday": 6
+            "monday": 0,
+            "tuesday": 1,
+            "wednesday": 2,
+            "thursday": 3,
+            "friday": 4,
+            "saturday": 5,
+            "sunday": 6,
         }
 
         for day_name, day_num in day_mapping.items():
@@ -119,14 +154,22 @@ def register_salon():
                     open_time_obj = time.fromisoformat(day_hours.get("open", "09:00"))
                     close_time_obj = time.fromisoformat(day_hours.get("close", "17:00"))
                 except ValueError:
-                    return jsonify({"status": "error", "message": f"Invalid time format for {day_name}. Use HH:MM"}), 400
+                    return (
+                        jsonify(
+                            {
+                                "status": "error",
+                                "message": f"Invalid time format for {day_name}. Use HH:MM",
+                            }
+                        ),
+                        400,
+                    )
 
             salon_hour = SalonHours(
                 salon_id=salon.id,
                 weekday=day_num,
                 is_open=is_open,
                 open_time=open_time_obj,
-                close_time=close_time_obj
+                close_time=close_time_obj,
             )
             db.session.add(salon_hour)
 
@@ -138,44 +181,56 @@ def register_salon():
                     name=service_data["name"],
                     price=float(service_data["price"]),
                     duration=int(service_data.get("duration", 60)),
-                    is_active=True
+                    is_active=True,
                 )
                 db.session.add(service)
 
         # Create verification entry
-        salon_verify = SalonVerify(
-            salon_id=salon.id,
-            status="PENDING"
-        )
+        salon_verify = SalonVerify(salon_id=salon.id, status="PENDING")
         db.session.add(salon_verify)
 
         # Commit all
         db.session.commit()
 
-        return jsonify({
-            "status": "success",
-            "message": "Salon registration submitted for verification",
-            "salon_id": salon.id,
-            "owner_id": auth_user.id,
-            "type_used": type_obj.name
-        }), 201
+        return (
+            jsonify(
+                {
+                    "status": "success",
+                    "message": "Salon registration submitted for verification",
+                    "salon_id": salon.id,
+                    "owner_id": auth_user.id,
+                    "type_used": type_obj.name,
+                }
+            ),
+            201,
+        )
 
     except IntegrityError as e:
         db.session.rollback()
-        return jsonify({
-            "status": "error",
-            "message": "Database integrity error",
-            "details": str(e.orig)
-        }), 400
+        return (
+            jsonify(
+                {
+                    "status": "error",
+                    "message": "Database integrity error",
+                    "details": str(e.orig),
+                }
+            ),
+            400,
+        )
 
     except Exception as e:
         db.session.rollback()
         traceback.print_exc()
-        return jsonify({
-            "status": "error",
-            "message": "Internal server error",
-            "details": str(e)
-        }), 500
+        return (
+            jsonify(
+                {
+                    "status": "error",
+                    "message": "Internal server error",
+                    "details": str(e),
+                }
+            ),
+            500,
+        )
 
 
 @salon_register_bp.route("/add_service", methods=["POST"])
@@ -185,12 +240,12 @@ def add_service():
         salon_id_str = request.form.get("salon_id")
         price_str = request.form.get("price", 0)
         duration_str = request.form.get("duration", 0)
-        
-        is_active_str = request.form.get("is_active", "true") 
-        is_active = is_active_str.lower() == "true" 
-        
+
+        is_active_str = request.form.get("is_active", "true")
+        is_active = is_active_str.lower() == "true"
+
         icon_file = request.files.get("icon_file")
-        
+
         if not name or not salon_id_str:
             return jsonify({"error": "Service name and salon_id are required"}), 400
 
@@ -199,14 +254,19 @@ def add_service():
             price = float(price_str)
             duration = int(duration_str)
         except ValueError:
-            return jsonify({"error": "salon_id, price, and duration must be valid numbers"}), 400
+            return (
+                jsonify(
+                    {"error": "salon_id, price, and duration must be valid numbers"}
+                ),
+                400,
+            )
 
         existing = db.session.scalar(
             select(Service).where(Service.name == name, Service.salon_id == salon_id)
         )
         if existing:
             return jsonify({"error": "Service already exists"}), 409
-        
+
         icon_url = None
         if icon_file:
             unique_name = f"services/{uuid.uuid4()}_{icon_file.filename}"
@@ -220,28 +280,34 @@ def add_service():
             name=name,
             price=price,
             duration=duration,
-            is_active=is_active,  
-            icon_url=icon_url
+            is_active=is_active,
+            icon_url=icon_url,
         )
 
         db.session.add(new_service)
         db.session.commit()
 
-        return jsonify({
-            "message": "Service added successfully",
-            "service": {
-                "id": new_service.id,
-                "name": name,
-                "price": price,
-                "duration": duration,
-                "is_active": is_active,
-                "icon_url": icon_url
-            }
-        }), 201
+        return (
+            jsonify(
+                {
+                    "message": "Service added successfully",
+                    "service": {
+                        "id": new_service.id,
+                        "name": name,
+                        "price": price,
+                        "duration": duration,
+                        "is_active": is_active,
+                        "icon_url": icon_url,
+                    },
+                }
+            ),
+            201,
+        )
 
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": "Failed to add service", "details": str(e)}), 500
+
 
 @salon_register_bp.route("/add_product", methods=["POST"])
 def add_product():
@@ -254,22 +320,27 @@ def add_product():
         salon_id_str = data.get("salon_id")
         price_str = data.get("price", 0)
         stock_qty_str = data.get("stock_qty", 0)
-        
+
         description = data.get("description", "")
         is_active = 1 if str(data.get("is_active", "true")).lower() == "true" else 0
         sku = data.get("sku") or str(uuid.uuid4())[:8]
-        
-        image_url = None 
-        
+
+        image_url = None
+
         if not name or not salon_id_str:
             return jsonify({"error": "Product name and salon_id are required"}), 400
-        
+
         try:
             salon_id = int(salon_id_str)
             price = float(price_str)
             stock_qty = int(stock_qty_str)
         except ValueError:
-            return jsonify({"error": "salon_id, price, and stock_qty must be valid numbers"}), 400
+            return (
+                jsonify(
+                    {"error": "salon_id, price, and stock_qty must be valid numbers"}
+                ),
+                400,
+            )
 
         if icon_file:
             unique_name = f"product/{uuid.uuid4()}_{icon_file.filename}"
@@ -278,7 +349,7 @@ def add_product():
                 return jsonify({"error": "S3_BUCKET_NAME is not configured"}), 500
             image_url = upload_file_to_s3(icon_file, unique_name, bucket_name)
         elif image_url_from_form:
-            image_url = image_url_from_form 
+            image_url = image_url_from_form
 
         existing = db.session.scalar(
             select(Product).where(Product.name == name, Product.salon_id == salon_id)
@@ -294,32 +365,35 @@ def add_product():
             description=description,
             is_active=is_active,
             sku=sku,
-            image_url=image_url 
+            image_url=image_url,
         )
 
         db.session.add(new_product)
         db.session.commit()
 
-        return jsonify({
-            "message": "Product added successfully",
-            "product": {
-                "id": new_product.id,
-                "salon_id": salon_id,
-                "name": name,
-                "price": price,
-                "stock_qty": stock_qty,
-                "description": description,
-                "is_active": bool(is_active),
-                "sku": sku,
-                "image_url": image_url  
-            }
-        }), 201
+        return (
+            jsonify(
+                {
+                    "message": "Product added successfully",
+                    "product": {
+                        "id": new_product.id,
+                        "salon_id": salon_id,
+                        "name": name,
+                        "price": price,
+                        "stock_qty": stock_qty,
+                        "description": description,
+                        "is_active": bool(is_active),
+                        "sku": sku,
+                        "image_url": image_url,
+                    },
+                }
+            ),
+            201,
+        )
 
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": "Failed to add product", "details": str(e)}), 500
-
-
 
 
 @salon_register_bp.route("/delete_service/<int:service_id>", methods=["DELETE"])
@@ -333,18 +407,11 @@ def delete_service(service_id):
         db.session.delete(service)
         db.session.commit()
 
-        return jsonify({
-            "message": f"Service {service_id} deleted successfully"
-        }), 200
+        return jsonify({"message": f"Service {service_id} deleted successfully"}), 200
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({
-            "error": "Failed to delete service",
-            "details": str(e)
-        }), 500
-
-
+        return jsonify({"error": "Failed to delete service", "details": str(e)}), 500
 
 
 @salon_register_bp.route("/delete_product/<int:product_id>", methods=["DELETE"])
@@ -357,13 +424,8 @@ def delete_product(product_id):
         db.session.delete(product)
         db.session.commit()
 
-        return jsonify({
-            "message": f"Product {product_id} deleted successfully"
-        }), 200
+        return jsonify({"message": f"Product {product_id} deleted successfully"}), 200
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({
-            "error": "Failed to delete product",
-            "details": str(e)
-        }), 500
+        return jsonify({"error": "Failed to delete product", "details": str(e)}), 500
