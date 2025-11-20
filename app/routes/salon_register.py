@@ -26,45 +26,42 @@ def register_salon():
     4. Initial services
     5. Salon verification entry (status: PENDING)
     """
-    
+
     try:
         data = request.get_json(force=True)
-        
+
         owner_data = data.get("owner", {})
         salon_data = data.get("salon", {})
         hours_data = data.get("hours", {})
         services_data = data.get("services", [])
         terms_agreed = data.get("terms_agreed", False)
         business_confirmed = data.get("business_confirmed", False)
-        
+
         if not owner_data.get("name") or not owner_data.get("email") or not owner_data.get("password"):
             return jsonify({"status": "error", "message": "Owner information incomplete"}), 400
-            
+
         if not salon_data.get("name") or not salon_data.get("type"):
             return jsonify({"status": "error", "message": "Salon information incomplete"}), 400
-            
+
         if not terms_agreed or not business_confirmed:
             return jsonify({"status": "error", "message": "Must agree to terms and confirm business"}), 400
-        
+
         existing = db.session.scalar(select(AuthUser).where(AuthUser.email == owner_data["email"]))
         if existing:
             return jsonify({"status": "error", "message": "Email already registered"}), 409
-        
 
         hashed_pw = bcrypt.hashpw(owner_data["password"].encode("utf-8"), bcrypt.gensalt())
-        
         auth_user = AuthUser(
             email=owner_data["email"],
             password_hash=hashed_pw,
             role="OWNER"
         )
         db.session.add(auth_user)
-        db.session.flush() 
+        db.session.flush()
 
         name_parts = owner_data["name"].split(' ', 1)
         first_name = name_parts[0]
         last_name = name_parts[1] if len(name_parts) > 1 else ""
-
         salon_owner = SalonOwners(
             user_id=auth_user.id,
             first_name=first_name,
@@ -73,13 +70,13 @@ def register_salon():
         )
         db.session.add(salon_owner)
         db.session.flush()
-        
-        
-        type_name = salon_data["type"]
+
+        type_name = salon_data["type"].strip().title()
         type_obj = db.session.scalar(select(Types).where(Types.name == type_name))
         if not type_obj:
-         
-            return jsonify({"status": "error", "message": f"Salon type '{type_name}' not found"}), 400
+            type_obj = Types(name=type_name)
+            db.session.add(type_obj)
+            db.session.flush()
 
         full_address = salon_data.get("address", "")
         if salon_data.get("city"):
@@ -88,27 +85,28 @@ def register_salon():
             full_address += f", {salon_data.get('state')}"
         if salon_data.get("zip"):
             full_address += f" {salon_data.get('zip')}"
-        
-        salon = Salon( ## add salon_status="deactive"
-            salon_owner_id=salon_owner.id,  
+
+        salon = Salon(
+            salon_owner_id=salon_owner.id,
             name=salon_data["name"],
             address=full_address.strip(),
             city=salon_data.get("city", ""),
             phone=salon_data.get("phone", ""),
             about="",
-            latitude=salon_data.get("latitude", 0.0),   
-            longitude=salon_data.get("longitude", 0.0) 
+            latitude=salon_data.get("latitude", 0.0),
+            longitude=salon_data.get("longitude", 0.0)
         )
-        
-        
+
+
         db.session.add(salon)
-        db.session.flush()  
-        
+        db.session.flush()
+        salon.type.append(type_obj)
+
         day_mapping = {
             "monday": 0, "tuesday": 1, "wednesday": 2, "thursday": 3,
             "friday": 4, "saturday": 5, "sunday": 6
         }
-        
+
         for day_name, day_num in day_mapping.items():
             is_open = False
             open_time_obj = None
@@ -122,7 +120,7 @@ def register_salon():
                     close_time_obj = time.fromisoformat(day_hours.get("close", "17:00"))
                 except ValueError:
                     return jsonify({"status": "error", "message": f"Invalid time format for {day_name}. Use HH:MM"}), 400
-            
+
             salon_hour = SalonHours(
                 salon_id=salon.id,
                 weekday=day_num,
@@ -131,7 +129,8 @@ def register_salon():
                 close_time=close_time_obj
             )
             db.session.add(salon_hour)
-        
+
+        # Add services
         for service_data in services_data:
             if service_data.get("name") and service_data.get("price"):
                 service = Service(
@@ -139,25 +138,28 @@ def register_salon():
                     name=service_data["name"],
                     price=float(service_data["price"]),
                     duration=int(service_data.get("duration", 60)),
-                    is_active=True  
+                    is_active=True
                 )
                 db.session.add(service)
-        
+
+        # Create verification entry
         salon_verify = SalonVerify(
             salon_id=salon.id,
             status="PENDING"
         )
         db.session.add(salon_verify)
-        
+
+        # Commit all
         db.session.commit()
-        
+
         return jsonify({
             "status": "success",
             "message": "Salon registration submitted for verification",
             "salon_id": salon.id,
-            "owner_id": auth_user.id
+            "owner_id": auth_user.id,
+            "type_used": type_obj.name
         }), 201
-        
+
     except IntegrityError as e:
         db.session.rollback()
         return jsonify({
@@ -165,10 +167,10 @@ def register_salon():
             "message": "Database integrity error",
             "details": str(e.orig)
         }), 400
-        
+
     except Exception as e:
         db.session.rollback()
-        traceback.print_exc() 
+        traceback.print_exc()
         return jsonify({
             "status": "error",
             "message": "Internal server error",

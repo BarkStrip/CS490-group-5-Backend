@@ -1,4 +1,4 @@
-from typing import List, Optional
+﻿from typing import List, Optional
 
 from sqlalchemy import BigInteger, CHAR, Column, DECIMAL, Date, DateTime, Enum, ForeignKeyConstraint, Index, Integer, JSON, String, TIMESTAMP, Table, Text, Time, VARBINARY, text
 from sqlalchemy.dialects.mysql import TINYINT, VARCHAR
@@ -108,6 +108,9 @@ class Customers(Base):
     last_name = mapped_column(String(100))
     phone_number = mapped_column(String(100))
     address = mapped_column(String(100))
+    gender = mapped_column(String(20))
+    date_of_birth = mapped_column(Date)
+    age = mapped_column(Integer)
 
     user: Mapped['AuthUser'] = relationship('AuthUser', back_populates='customers')
     cart: Mapped[List['Cart']] = relationship('Cart', uselist=True, back_populates='user')
@@ -220,7 +223,7 @@ class Salon(Base):
     about = mapped_column(Text)
 
     salon_owner: Mapped['SalonOwners'] = relationship('SalonOwners', back_populates='salon')
-    type: Mapped['Types'] = relationship('Types', secondary='salon_type_assignments', back_populates='salon')
+    type: Mapped[List['Types']] = relationship('Types', secondary='salon_type_assignments', back_populates='salon')
     _order: Mapped[List['Order']] = relationship('Order', uselist=True, back_populates='salon')
     cancel_policy: Mapped[List['CancelPolicy']] = relationship('CancelPolicy', uselist=True, back_populates='salon')
     employees: Mapped[List['Employees']] = relationship('Employees', uselist=True, back_populates='salon')
@@ -265,19 +268,19 @@ class Order(Base):
         Index('salon_id', 'salon_id', 'created_at')
     )
 
-    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id = mapped_column(Integer, primary_key=True)
     created_at = mapped_column(DateTime, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
     updated_at = mapped_column(DateTime, nullable=False, server_default=text('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'))
-    customer_id = mapped_column(Integer, nullable=False)
+    customer_id = mapped_column(Integer)
     salon_id = mapped_column(Integer)
     status = mapped_column(String(9))
     subtotal = mapped_column(DECIMAL(10, 2))
     tip_amnt = mapped_column(DECIMAL(10, 2))
     tax_amnt = mapped_column(DECIMAL(10, 2))
     total_amnt = mapped_column(DECIMAL(10, 2))
-    promo_id = mapped_column(Integer, nullable=True)
-    #submitted_at = mapped_column(DateTime)
-    #refund_reason = mapped_column(Text)
+    promo_id = mapped_column(Integer)
+    submitted_at = mapped_column(DateTime)
+    refund_reason = mapped_column(Text)
 
     customer: Mapped[Optional['Customers']] = relationship('Customers', back_populates='_order')
     promo: Mapped[Optional['Promos']] = relationship('Promos', back_populates='_order')
@@ -308,7 +311,7 @@ class CancelPolicy(Base):
 class Employees(Base):
     __tablename__ = 'employees'
     __table_args__ = (
-        ForeignKeyConstraint(['salon_id'], ['salon.id'], ondelete='SET NULL', name='fk_emp_salon'),
+        ForeignKeyConstraint(['salon_id'], ['salon.id'], name='fk_emp_salon'),
         ForeignKeyConstraint(['user_id'], ['auth_user.id'], ondelete='CASCADE', name='fk_employee_auth_user'),
         Index('fk_emp_salon', 'salon_id'),
         Index('user_id_unique', 'user_id', unique=True)
@@ -316,16 +319,17 @@ class Employees(Base):
 
     id = mapped_column(Integer, primary_key=True)
     user_id = mapped_column(Integer, nullable=False)
-    salon_id = mapped_column(Integer, nullable=True)
+    salon_id = mapped_column(Integer, nullable=False)
     created_at = mapped_column(DateTime, nullable=False, server_default=text('CURRENT_TIMESTAMP'))
     updated_at = mapped_column(DateTime, nullable=False, server_default=text('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'))
     first_name = mapped_column(String(100))
     last_name = mapped_column(String(100))
     phone_number = mapped_column(String(100))
-    address = mapped_column(String(255))
-    employment_status = mapped_column(String(50))
+    address = mapped_column(String(100))
+    employment_status = mapped_column(String(15))
+    employee_type = mapped_column(String(50))
 
-    salon: Mapped[Optional['Salon']] = relationship('Salon', back_populates='employees')
+    salon: Mapped['Salon'] = relationship('Salon', back_populates='employees')
     user: Mapped['AuthUser'] = relationship('AuthUser', back_populates='employees')
     appointment: Mapped[List['Appointment']] = relationship('Appointment', uselist=True, back_populates='employee')
     emp_avail: Mapped[List['EmpAvail']] = relationship('EmpAvail', uselist=True, back_populates='employee')
@@ -481,9 +485,10 @@ t_salon_type_assignments = Table(
     'salon_type_assignments', metadata,
     Column('salon_id', Integer, primary_key=True, nullable=False),
     Column('type_id', Integer, primary_key=True, nullable=False),
-    ForeignKeyConstraint(['salon_id'], ['salon.id'], ondelete='CASCADE', name='salon_type_assignments_ibfk_1'),
-    ForeignKeyConstraint(['type_id'], ['types.id'], ondelete='CASCADE', name='salon_type_assignments_ibfk_2'),
-    Index('type_id', 'type_id')
+    ForeignKeyConstraint(['salon_id'], ['salon.id'], ondelete='CASCADE', onupdate='CASCADE', name='fk_salon_type_assignments_salon'),
+    ForeignKeyConstraint(['type_id'], ['types.id'], ondelete='CASCADE', onupdate='CASCADE', name='fk_salon_type_assignments_type'),
+    Index('idx_salon_id', 'salon_id'),
+    Index('idx_type_id', 'type_id')
 )
 
 
@@ -580,8 +585,8 @@ class CartItem(Base):
     cart_id = mapped_column(Integer, nullable=False)
     qty = mapped_column(Integer, nullable=False, server_default=text("'1'"))
     kind = mapped_column(String(7))
-    product_id = mapped_column(Integer, nullable=True)
-    service_id = mapped_column(Integer, nullable=True)
+    product_id = mapped_column(Integer)
+    service_id = mapped_column(Integer)
     price = mapped_column(DECIMAL(10, 2))
     added_at = mapped_column(TIMESTAMP, server_default=text('CURRENT_TIMESTAMP'))
     updated_at = mapped_column(TIMESTAMP, server_default=text('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'))
