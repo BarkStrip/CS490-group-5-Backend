@@ -4,6 +4,7 @@ from app.extensions import db
 from ...models import Salon, Employees, EmpAvail, Appointment,Customers, TimeBlock, Service
 from datetime import datetime, timedelta
 import datetime
+import datetime
 
 from sqlalchemy import and_, or_, select
 
@@ -412,7 +413,7 @@ def edit_appointment(customer_id, appointment_id):
         if "start_at" in data:
             start_at_str = data.get("start_at")
             try:
-                appointment.start_at = datetime.datetime.fromisoformat(start_at_str)
+                appointment.start_at = datetime.date.fromisoformat(start_at_str)
             except (ValueError, TypeError):
                 return jsonify({"error": "start_at must be in ISO format (YYYY-MM-DDTHH:MM:SS)"}), 400
 
