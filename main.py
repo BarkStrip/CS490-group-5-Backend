@@ -68,22 +68,22 @@ def create_app():
         print("Registering blueprints...")
 
         blueprints = [
-                    salons_bp,
-                    autocomplete_bp,
-                    auth_bp,
-                    cart_bp,
-                    salon_register_bp,
-                    salon_images_bp,
-                    reviews_bp,
-                    appointments_bp,
-                    payments_bp,
-                    receipts_bp,
-                    loyalty_bp,
-                    employees_bp,
-                    employeesapp_bp,
-                    employee_verification_bp,
-                    admin_verification_bp
-                ]
+            salons_bp,
+            autocomplete_bp,
+            auth_bp,
+            cart_bp,
+            salon_register_bp,
+            salon_images_bp,
+            reviews_bp,
+            appointments_bp,
+            payments_bp,
+            receipts_bp,
+            loyalty_bp,
+            employees_bp,
+            employeesapp_bp,
+            employee_verification_bp,
+            admin_verification_bp,
+        ]
 
         for bp in blueprints:
             app.register_blueprint(bp)

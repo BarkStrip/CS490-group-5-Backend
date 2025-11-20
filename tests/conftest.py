@@ -40,9 +40,23 @@ def app():
 def _db(app):
     """Create test database and tables."""
     with app.app_context():
-        # Ensure extensions are bound
+        # Import all models to ensure they're registered with SQLAlchemy
+
+        # Drop all tables first to ensure clean state
+        db.drop_all()
+
+        # Create all tables
         db.create_all()
+
+        # Verify tables were created (optional but helpful for debugging)
+        from sqlalchemy import inspect
+
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        print(f"Created tables: {tables}")
+
         yield db
+
         db.session.remove()
         db.drop_all()
 
@@ -169,7 +183,7 @@ def sample_salon(db_session, sample_owner):
 def test_user_data():
     """Provide a dictionary of user data for signup/login tests."""
     return {
-        "email": "newuser22@example.com",
+        "email": "newuser122@example.com",
         "password": "password123",
         "first_name": "New",
         "last_name": "User",
@@ -183,7 +197,7 @@ def test_user_data():
 def test_gettype():
     """Provide a dictionary of user data for signup/login tests."""
     return {
-        "email": "newuser13@example.com",
+        "email": "newuser23@example.com",
         "password": "password1234",
         "first_name": "New",
         "last_name": "User",

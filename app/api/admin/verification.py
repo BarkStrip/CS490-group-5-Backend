@@ -10,6 +10,7 @@ admin_verification_bp = Blueprint(
     "admin_verification", __name__, url_prefix="/api/admin/verification"
 )
 
+
 @admin_verification_bp.route("", methods=["GET"])
 def get_salons_verification():
     """
