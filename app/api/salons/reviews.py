@@ -2,17 +2,23 @@
 
 from flask import Blueprint, jsonify, request, current_app
 from app.extensions import db
-from ...models import Review, ReviewImage, ReviewReply, AuthUser, SalonOwners, Customers, Salon
+from ...models import (
+    Review,
+    ReviewImage,
+    ReviewReply,
+    SalonOwners,
+    Salon,
+)
 from app.utils.s3_utils import upload_file_to_s3
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
 import uuid
 
 reviews_bp = Blueprint("reviews", __name__, url_prefix="/api/reviews")
 
+
 @reviews_bp.route("/rupload_image", methods=["POST"])
 def upload_review_image():
-    """ 
+    """
     Handles uploading an image for a specific review.
     Expects 'review_id' and 'image_file' in a multipart/form-data request.
     """
@@ -61,8 +67,11 @@ def upload_review_image():
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Failed to upload review image: {e}")
-        return jsonify({"error": "Failed to upload review image", "details": str(e)}), 500
-         
+        return (
+            jsonify({"error": "Failed to upload review image", "details": str(e)}),
+            500,
+        )
+
 
 @reviews_bp.route("/<int:review_id>/reply", methods=["POST"])
 def reply_to_review(review_id):

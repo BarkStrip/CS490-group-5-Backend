@@ -154,7 +154,7 @@ def signup_user():
             )
             db.session.add(profile)
             db.session.flush()
-            new_cart = Cart(user_id=auth_user.id) 
+            new_cart = Cart(user_id=auth_user.id)
             db.session.add(new_cart)
 
         elif role == "ADMIN":
@@ -477,8 +477,13 @@ def check_email_exists():
         return jsonify({"exists": bool(existing)}), 200
 
     except Exception as e:
-        return jsonify({
-            "status": "error",
-            "message": "Internal server error",
-            "details": str(e)
-        }), 500
+        return (
+            jsonify(
+                {
+                    "status": "error",
+                    "message": "Internal server error",
+                    "details": str(e),
+                }
+            ),
+            500,
+        )
