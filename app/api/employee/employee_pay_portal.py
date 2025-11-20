@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify
 from app.extensions import db
-from app.models import Employees, Appointment
+from app.models import Employees, Appointment, Service
 from sqlalchemy import and_, extract
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -94,7 +94,10 @@ def get_current_period_payroll(employee_id):
             total_hours += hours
             
             # Calculate revenue (use price_at_book if available, otherwise service price)
-            price = apt.price_at_book if apt.price_at_book else (apt.service.price if apt.service else Decimal("0"))
+            if apt.price_at_book:
+                price = Decimal(str(apt.price_at_book))
+            else:
+                price = Decimal("0")            
             total_service_revenue += price
             
             appointment_count += 1
@@ -177,7 +180,11 @@ def get_payroll_history(employee_id):
                 total_hours += hours
                 
                 # Use price_at_book or service price
-                price = apt.price_at_book if apt.price_at_book else (apt.service.price if apt.service else Decimal("0"))
+                if apt.price_at_book:
+                    price = Decimal(str(apt.price_at_book))
+                else:
+                    price = Decimal("0")   
+                
                 total_service_revenue += price
                 
                 appointment_count += 1
@@ -252,7 +259,10 @@ def get_monthly_total(employee_id):
             hours = Decimal(str(duration.total_seconds() / 3600))
             total_hours += hours
             
-            price = apt.price_at_book if apt.price_at_book else (apt.service.price if apt.service else Decimal("0"))
+            if apt.price_at_book:
+                price = Decimal(str(apt.price_at_book))
+            else:
+                price = Decimal("0")           
             total_service_revenue += price
             
             appointment_count += 1
