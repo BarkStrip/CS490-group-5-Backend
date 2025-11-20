@@ -148,7 +148,7 @@ class SalonOwners(Base):
 class Cart(Base):
     __tablename__ = 'cart'
     __table_args__ = (
-        ForeignKeyConstraint(['user_id'], ['auth_user.id'], ondelete='CASCADE', name='fk_cart_user'),
+        ForeignKeyConstraint(['user_id'], ['customers.id'], ondelete='CASCADE', name='fk_cart_user'),
         Index('uq_cart_user', 'user_id', unique=True)
     )
 
@@ -157,7 +157,7 @@ class Cart(Base):
     created_at = mapped_column(TIMESTAMP, server_default=text('CURRENT_TIMESTAMP'))
     updated_at = mapped_column(TIMESTAMP, server_default=text('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'))
 
-    user: Mapped['AuthUser'] = relationship('AuthUser')
+    user: Mapped['Customers'] = relationship('Customers', back_populates='cart')
     cart_item: Mapped[List['CartItem']] = relationship('CartItem', uselist=True, back_populates='cart')
 
 
