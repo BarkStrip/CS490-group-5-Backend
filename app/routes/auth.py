@@ -81,6 +81,7 @@ def signup_user():
                 address=address 
             )
             db.session.add(profile)
+            db.session.flush()
             new_cart = Cart(user_id=auth_user.id) 
             db.session.add(new_cart)
 
