@@ -159,7 +159,7 @@ def get_payroll_history(employee_id):
         completed_appointments = db.session.query(Appointment).filter(
             and_(
                 Appointment.employee_id == employee_id,
-                Appointment.status == "COMPLETED",
+                # Appointment.status == "COMPLETED",
                 Appointment.start_at >= period_start_dt,
                 Appointment.end_at <= period_end_dt
             )
@@ -235,7 +235,7 @@ def get_monthly_total(employee_id):
     completed_appointments = db.session.query(Appointment).filter(
         and_(
             Appointment.employee_id == employee_id,
-            Appointment.status == "COMPLETED",
+            # Appointment.status == "COMPLETED",
             Appointment.start_at >= month_start,
             Appointment.end_at <= month_end
         )
