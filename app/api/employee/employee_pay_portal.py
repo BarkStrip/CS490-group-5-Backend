@@ -75,7 +75,7 @@ def get_current_period_payroll(employee_id):
     completed_appointments = db.session.query(Appointment).filter(
         and_(
             Appointment.employee_id == employee_id,
-            Appointment.status == "COMPLETED",
+            # Appointment.status == "COMPLETED",
             Appointment.start_at >= period_start_dt,
             Appointment.end_at <= period_end_dt
         )
