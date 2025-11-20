@@ -80,6 +80,9 @@ def signup_user():
                 phone_number=phone_number,
                 address=address 
             )
+            db.session.add(profile)
+            new_cart = Cart(user_id = auth_user.id)
+            db.session.add(new_cart)
         elif role == "ADMIN":
             profile = Admins(
                 user_id=auth_user.id,
