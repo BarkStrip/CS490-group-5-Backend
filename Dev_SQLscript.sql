@@ -1097,7 +1097,7 @@ DEFAULT CHARSET=utf8mb4
 COLLATE=utf8mb4_0900_ai_ci
 AUTO_INCREMENT=3;
 
--- Barek Stripling 11/6/25 - ADd expieration date to payment methods
+-- Barek Stripling 11/6/25 - Add expieration date to payment methods
 ALTER TABLE t_salon_app.pay_method ADD Expiration DATE NULL;
 
 

@@ -1,22 +1,24 @@
-#Admin verify salons
+# Admin verify salons
 from flask import Blueprint, jsonify, request
 from app.extensions import db
-from app.models import Salon, SalonVerify, Service, Types
+from app.models import Salon, SalonVerify, Service
 from sqlalchemy import func
 import traceback
 
 # Create the Blueprint
-admin_verification_bp = Blueprint("admin_verification", __name__, url_prefix="/api/admin/verification")
+admin_verification_bp = Blueprint(
+    "admin_verification", __name__, url_prefix="/api/admin/verification"
+)
 
 
 @admin_verification_bp.route("", methods=["GET"])
-def get_unverified_salons():
+def get_salons_verification():
     """
     GET /api/admin/verification - Get all salons awaiting verification
 
     ---
     summary: Retrieve unverified salons for admin review
-    description: Fetches all salons in PENDING, APPROVED, or REJECTED status with filter and sort options
+    description: Fetches all salons with specified verification status
     parameters:
       - name: status
         in: query
@@ -24,12 +26,6 @@ def get_unverified_salons():
         enum: [PENDING, APPROVED, REJECTED]
         required: false
         description: Filter by verification status (default PENDING)
-      - name: sort
-        in: query
-        type: string
-        enum: [newest, oldest, name]
-        required: false
-        description: Sort order - newest/oldest by submission date or name alphabetical (default newest)
     responses:
       200:
         description: Returns array of salons with verification details
@@ -39,25 +35,24 @@ def get_unverified_salons():
     try:
         # Get query parameters
         status_filter = request.args.get("status", "PENDING")  # Default to PENDING
-        sort_by = request.args.get("sort", "newest")
 
         # Build base query - removed Salon.type (it's a relationship, not a column)
-        query = db.session.query(
-            Salon.id,
-            Salon.name,
-            Salon.address,
-            Salon.city,
-            Salon.phone,
-            Salon.about,
-            SalonVerify.status.label("verification_status"),
-            SalonVerify.id.label("verification_id"),
-            SalonVerify.created_at.label("created_at"),
-            SalonVerify.updated_at.label("updated_at"),
-            func.count(Service.id).label("service_count")
-        ).join(
-            SalonVerify, Salon.id == SalonVerify.salon_id
-        ).outerjoin(
-            Service, Salon.id == Service.salon_id
+        query = (
+            db.session.query(
+                Salon.id,
+                Salon.name,
+                Salon.address,
+                Salon.city,
+                Salon.phone,
+                Salon.about,
+                SalonVerify.status.label("verification_status"),
+                SalonVerify.id.label("verification_id"),
+                SalonVerify.created_at.label("created_at"),
+                SalonVerify.updated_at.label("updated_at"),
+                func.count(Service.id).label("service_count"),
+            )
+            .join(SalonVerify, Salon.id == SalonVerify.salon_id)
+            .outerjoin(Service, Salon.id == Service.salon_id)
         )
 
         # Apply status filter
@@ -75,16 +70,8 @@ def get_unverified_salons():
             SalonVerify.status,
             SalonVerify.id,
             SalonVerify.created_at,
-            SalonVerify.updated_at
+            SalonVerify.updated_at,
         )
-
-        # Apply sorting
-        if sort_by == "oldest":
-            query = query.order_by(SalonVerify.created_at.asc())
-        elif sort_by == "name":
-            query = query.order_by(Salon.name.asc())
-        else:  # newest (default)
-            query = query.order_by(SalonVerify.created_at.desc())
 
         # Get all results
         results = query.all()
@@ -94,35 +81,45 @@ def get_unverified_salons():
         for row in results:
             # Fetch salon types separately since it's a many-to-many relationship
             salon_obj = db.session.query(Salon).filter(Salon.id == row.id).first()
-            salon_types = [t.name for t in salon_obj.type] if salon_obj and salon_obj.type else []
+            salon_types = (
+                [t.name for t in salon_obj.type] if salon_obj and salon_obj.type else []
+            )
 
-            salons.append({
-                "id": row.id,
-                "name": row.name,
-                "type": salon_types,
-                "address": row.address,
-                "city": row.city,
-                "phone": row.phone,
-                "about": row.about,
-                "verification_status": row.verification_status,
-                "verification_id": row.verification_id,
-                "created_at": row.created_at.isoformat() if row.created_at else None,
-                "updated_at": row.updated_at.isoformat() if row.updated_at else None,
-                "service_count": row.service_count or 0
-            })
+            salons.append(
+                {
+                    "id": row.id,
+                    "name": row.name,
+                    "type": salon_types,
+                    "address": row.address,
+                    "city": row.city,
+                    "phone": row.phone,
+                    "about": row.about,
+                    "verification_status": row.verification_status,
+                    "verification_id": row.verification_id,
+                    "created_at": (
+                        row.created_at.isoformat() if row.created_at else None
+                    ),
+                    "updated_at": (
+                        row.updated_at.isoformat() if row.updated_at else None
+                    ),
+                    "service_count": row.service_count or 0,
+                }
+            )
 
-        return jsonify({
-            "status": "success",
-            "salons": salons
-        }), 200
+        return jsonify({"status": "success", "salons": salons}), 200
 
     except Exception as e:
         traceback.print_exc()
-        return jsonify({
-            "status": "error",
-            "message": "Failed to fetch unverified salons",
-            "details": str(e)
-        }), 500
+        return (
+            jsonify(
+                {
+                    "status": "error",
+                    "message": "Failed to fetch unverified salons",
+                    "details": str(e),
+                }
+            ),
+            500,
+        )
 
 
 @admin_verification_bp.route("/<int:verification_id>", methods=["PUT"])
@@ -169,21 +166,30 @@ def update_verification_status(verification_id):
 
         # Validate status
         if new_status not in ["PENDING", "APPROVED", "REJECTED"]:
-            return jsonify({
-                "status": "error",
-                "message": "Invalid status. Must be PENDING, APPROVED, or REJECTED"
-            }), 400
+            return (
+                jsonify(
+                    {
+                        "status": "error",
+                        "message": "Invalid status. Must be PENDING, APPROVED, or REJECTED",
+                    }
+                ),
+                400,
+            )
 
         # Find verification record
-        verification = db.session.query(SalonVerify).filter(
-            SalonVerify.id == verification_id
-        ).first()
+        verification = (
+            db.session.query(SalonVerify)
+            .filter(SalonVerify.id == verification_id)
+            .first()
+        )
 
         if not verification:
-            return jsonify({
-                "status": "error",
-                "message": "Verification record not found"
-            }), 404
+            return (
+                jsonify(
+                    {"status": "error", "message": "Verification record not found"}
+                ),
+                404,
+            )
 
         # Update verification
         verification.status = new_status
@@ -192,25 +198,37 @@ def update_verification_status(verification_id):
 
         db.session.commit()
 
-        return jsonify({
-            "status": "success",
-            "message": f"Verification status updated to {new_status}",
-            "verification": {
-                "id": verification.id,
-                "salon_id": verification.salon_id,
-                "status": verification.status,
-                "admin_id": verification.admin_id,
-                "updated_at": verification.updated_at.isoformat() if verification.updated_at else None
-            }
-        }), 200
+        return (
+            jsonify(
+                {
+                    "status": "success",
+                    "message": f"Verification status updated to {new_status}",
+                    "verification": {
+                        "id": verification.id,
+                        "salon_id": verification.salon_id,
+                        "status": verification.status,
+                        "admin_id": verification.admin_id,
+                        "updated_at": (
+                            verification.updated_at.isoformat()
+                            if verification.updated_at
+                            else None
+                        ),
+                    },
+                }
+            ),
+            200,
+        )
 
     except Exception as e:
         db.session.rollback()
         traceback.print_exc()
-        return jsonify({
-            "status": "error",
-            "message": "Failed to update verification status",
-            "details": str(e)
-        }), 500
-
-
+        return (
+            jsonify(
+                {
+                    "status": "error",
+                    "message": "Failed to update verification status",
+                    "details": str(e),
+                }
+            ),
+            500,
+        )
