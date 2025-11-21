@@ -53,7 +53,7 @@ def add_service_to_cart():
 
         # --- Ensure service exists and is active ---
         service = db.session.scalar(
-            select(Service).where(Service.id == service_id, Service.is_active is True)
+            select(Service).where(Service.id == service_id, Service.is_active == True)
         )
         if not service:
             return (
