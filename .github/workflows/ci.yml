@@ -68,38 +68,37 @@ jobs:
     # --- DB SCHEMA CREATION ---
     - name: Initialize database schema (db.create_all)
       env:
+        # ADDED THIS LINE TO FIX THE ERROR:
+        MYSQL_PUBLIC_URL: mysql+pymysql://root:${{ secrets.MYSQL_ROOT_PASSWORD }}@127.0.0.1:3306/salon_app_test
+        
         SQLALCHEMY_DATABASE_URI: mysql+pymysql://root:${{ secrets.MYSQL_ROOT_PASSWORD }}@127.0.0.1:3306/salon_app_test
         FLASK_ENV: testing
         TESTING: 'True'
         SECRET_KEY: test_secret_key
+        # Add AWS keys just in case your config checks for them too
+        AWS_ACCESS_KEY_ID: test_key
+        AWS_SECRET_ACCESS_KEY: test_secret
+        AWS_REGION: us-east-1
+        S3_BUCKET_NAME: test-bucket
+        S3_BASE_URL: https://test-bucket.s3.amazonaws.com
       run: |
         echo "📦 Creating all database tables..."
         python - << 'EOF'
         import sys
         import os
         
-        # Add current directory to python path so it finds main.py
         sys.path.append(os.getcwd())
         
         try:
-            # CORRECTION: Importing from 'main', not 'app'
             from main import create_app
-            # CORRECTION: Importing db from extensions based on your previous logs
             from app.extensions import db
-            # Import models to ensure they are registered
-            import app.models
-
+            import app.models # Essential for tables to be registered
+  
             app = create_app()
             with app.app_context():
                 db.create_all()
                 print("✓ Tables created successfully.")
                 print(f"  Tables: {list(db.metadata.tables.keys())}")
-        except ImportError as e:
-            print(f"❌ Import Error: {e}")
-            # Debugging help: print where python is looking
-            print(f"Current Directory: {os.getcwd()}")
-            print(f"Directory Contents: {os.listdir()}")
-            sys.exit(1)
         except Exception as e:
             print(f"❌ Error: {e}")
             sys.exit(1)
