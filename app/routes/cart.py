@@ -291,6 +291,8 @@ def get_cart_details(user_id):
                 "notes": cart_item.notes,
             }
 
+            item_data["stylist_id"] = getattr(cart_item, "stylist_id", None)
+
             if cart_item.service:
                 item_data["service_id"] = cart_item.service.id
                 item_data["service_name"] = cart_item.service.name
