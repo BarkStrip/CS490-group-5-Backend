@@ -163,6 +163,7 @@ def sample_salon(db_session, sample_owner):
         salon_id=salon.id, status="APPROVED"  # Enum: PENDING, APPROVED, REJECTED
     )
     db_session.add(verify)
+    db_session.flush()   
 
     # 3. Add a service
     service = Service(
