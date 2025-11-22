@@ -47,7 +47,7 @@ def _db(app):
         db.drop_all()
 
         # Create all tables
-
+        db.create_all()
         # Verify tables were created (optional but helpful for debugging)
         from sqlalchemy import inspect
 
