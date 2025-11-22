@@ -12,6 +12,65 @@ auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
 
 @auth_bp.route("/signup", methods=["POST"])
 def signup_user():
+    """
+    Register a new user account
+    ---
+    tags:
+      - Authentication
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - email
+            - password
+            - name
+          properties:
+            email:
+              type: string
+              format: email
+              description: User email address
+            password:
+              type: string
+              format: password
+              description: User password (will be hashed)
+            name:
+              type: string
+              description: User full name
+            phone:
+              type: string
+              description: User phone number
+            gender:
+              type: string
+              enum: [Male, Female, Other]
+            role:
+              type: string
+              enum: [CUSTOMER, OWNER, EMPLOYEE, ADMIN]
+              default: CUSTOMER
+    responses:
+      201:
+        description: User registered successfully
+        schema:
+          type: object
+          properties:
+            status:
+              type: string
+              example: success
+            message:
+              type: string
+            user:
+              $ref: '#/definitions/User'
+      400:
+        description: Missing required fields or email already exists
+        schema:
+          $ref: '#/definitions/Error'
+      500:
+        description: Internal server error
+        schema:
+          $ref: '#/definitions/Error'
+    """
     try:
         data = request.get_json(force=True)
         first_name = data.get("first_name")
@@ -69,7 +128,7 @@ def signup_user():
             role=role
         )
         db.session.add(auth_user)
-        db.session.flush()
+        db.session.flush() # Flush to get the auth_user.id needed for foreign key relationships
 
         # Create profile based on role
         if role == "CUSTOMER":
@@ -80,9 +139,11 @@ def signup_user():
                 phone_number=phone_number,
                 address=address 
             )
-            db.session.add(profile)
-            new_cart = Cart(user_id = auth_user.id)
+            db.session.flush() 
+            new_cart = Cart(user_id=profile.id)
             db.session.add(new_cart)
+            
+
 
         elif role == "ADMIN":
             profile = Admins(
@@ -137,6 +198,7 @@ def signup_user():
         }), 201
 
     except IntegrityError as e:
+        print("IntegrityError ORIGINAL:", e.orig)
         db.session.rollback()
         return jsonify({
             "status": "error",

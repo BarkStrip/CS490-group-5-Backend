@@ -107,13 +107,17 @@ class Customers(Base):
     first_name = mapped_column(String(100))
     last_name = mapped_column(String(100))
     phone_number = mapped_column(String(100))
-    address = mapped_column(String(100))
+    address = mapped_column(String(100), nullable=True)
     gender = mapped_column(String(20))
     date_of_birth = mapped_column(Date)
     age = mapped_column(Integer)
 
     user: Mapped['AuthUser'] = relationship('AuthUser', back_populates='customers')
-    cart: Mapped[List['Cart']] = relationship('Cart', uselist=True, back_populates='user')
+
+
+    cart: Mapped['Cart'] = relationship('Cart', uselist=False, back_populates='customer')
+
+
     notify: Mapped[List['Notify']] = relationship('Notify', uselist=True, back_populates='customer')
     pay_method: Mapped[List['PayMethod']] = relationship('PayMethod', uselist=True, back_populates='user')
     user_image: Mapped[List['UserImage']] = relationship('UserImage', uselist=True, back_populates='customers')
@@ -148,7 +152,7 @@ class SalonOwners(Base):
 class Cart(Base):
     __tablename__ = 'cart'
     __table_args__ = (
-        ForeignKeyConstraint(['user_id'], ['customers.id'], ondelete='CASCADE', name='fk_cart_user'),
+        ForeignKeyConstraint(['user_id'], ['customer.id'], ondelete='CASCADE', name='fk_cart_user'),
         Index('uq_cart_user', 'user_id', unique=True)
     )
 
@@ -158,6 +162,7 @@ class Cart(Base):
     updated_at = mapped_column(TIMESTAMP, server_default=text('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'))
 
     user: Mapped['Customers'] = relationship('Customers', back_populates='cart')
+
     cart_item: Mapped[List['CartItem']] = relationship('CartItem', uselist=True, back_populates='cart')
 
 
