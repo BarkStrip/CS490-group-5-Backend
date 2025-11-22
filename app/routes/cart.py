@@ -31,7 +31,7 @@ def add_service_to_cart():
         stylist = data.get("stylist")
         pictures = data.get("pictures", [])
         notes = data.get("notes")
-
+        stylist_id = data.get("stylist_id")
         # --- Validate ---
         if not customer_id or not service_id:
             return (
@@ -53,7 +53,7 @@ def add_service_to_cart():
 
         # --- Ensure service exists and is active ---
         service = db.session.scalar(
-            select(Service).where(Service.id == service_id, Service.is_active == True)
+            select(Service).where(Service.id == service_id, Service.is_active.is_(True))
         )
         if not service:
             return (
@@ -71,8 +71,7 @@ def add_service_to_cart():
         if not cart:
             cart = Cart(user_id=customer.id)
             db.session.add(cart)
-            db.session.flush()  # Get cart.id before using it
-
+            db.session.flush()
         # --- Prepare appointment datetime if provided ---
         start_datetime = None
         end_datetime = None
@@ -107,6 +106,7 @@ def add_service_to_cart():
             start_at=start_datetime,
             end_at=end_datetime,
             notes=notes,
+            stylist_id=stylist_id,
         )
         db.session.add(cart_item)
         db.session.flush()  # Get cart_item.id before using it

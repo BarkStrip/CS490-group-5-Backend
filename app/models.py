@@ -957,7 +957,7 @@ class CartItem(Base):
     start_at = mapped_column(DateTime)
     end_at = mapped_column(DateTime)
     notes = mapped_column(Text)
-
+    stylist_id = mapped_column(Integer)
     cart: Mapped["Cart"] = relationship("Cart", back_populates="cart_item")
     product: Mapped[Optional["Product"]] = relationship(
         "Product", back_populates="cart_item"

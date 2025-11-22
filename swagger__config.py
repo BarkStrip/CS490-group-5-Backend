@@ -118,5 +118,16 @@ SWAGGER_TEMPLATE = {
                 "gender": {"type": "string"},
             },
         },
+
+
+        "UserImage": {
+            "type": "object",
+            "properties": {
+                "id": {"type": "integer"},
+                "customer_id": {"type": "integer"},
+                "url": {"type": "string"},
+                "created_at": {"type": "string", "format": "date-time"},
+            },
+        },
     },
 }
