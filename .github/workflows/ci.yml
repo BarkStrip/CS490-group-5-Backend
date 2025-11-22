@@ -41,7 +41,7 @@ jobs:
         pip install pytest pytest-cov pymysql
 
     # --- CONFIRM MYSQL IS RUNNING ---
-    - name: Wait for MySQL to be ready
+    - name: Wait for MySQL
       run: |
         echo "⏳ Waiting for MySQL..."
         for i in {1..30}; do
@@ -52,14 +52,15 @@ jobs:
           sleep 2
         done
 
-    - name: Verify DB connection
+    - name: Verify database exists
       run: |
         mysql -h127.0.0.1 -uroot -proot -e "SHOW DATABASES;"
 
-    # --- CREATE SCHEMA WITH Base.metadata ---
-    - name: Initialize database schema
+    # --- INITIALIZE DATABASE SCHEMA ---
+    - name: Initialize schema using Base.metadata
       env:
         SQLALCHEMY_DATABASE_URI: mysql+pymysql://root:root@127.0.0.1:3306/salon_app_test
+        MYSQL_PUBLIC_URL: mysql+pymysql://root:root@127.0.0.1:3306/salon_app_test
         TESTING: "1"
       run: |
         echo "📦 Creating tables using Base.metadata..."
@@ -84,29 +85,29 @@ jobs:
     - name: Run tests
       env:
         SQLALCHEMY_DATABASE_URI: mysql+pymysql://root:root@127.0.0.1:3306/salon_app_test
+        MYSQL_PUBLIC_URL: mysql+pymysql://root:root@127.0.0.1:3306/salon_app_test
         TESTING: "1"
       run: |
         echo "🧪 Running pytest..."
         pytest -v --tb=short --cov=app --cov-report=term --cov-report=xml
 
     # --- DEBUG ON FAILURE ---
-    - name: Debug database on failure
+    - name: Debug MySQL tables if failure
       if: failure()
       env:
         SQLALCHEMY_DATABASE_URI: mysql+pymysql://root:root@127.0.0.1:3306/salon_app_test
       run: |
-        echo "⚠️ Test failure — inspecting DB..."
+        echo "⚠️ Tests failed - inspecting DB..."
         python - << 'EOF'
         from sqlalchemy import create_engine, inspect
         import os
-
-        engine = create_engine(os.environ['SQLALCHEMY_DATABASE_URI'])
+        engine = create_engine(os.environ["SQLALCHEMY_DATABASE_URI"])
         inspector = inspect(engine)
-        print("Existing tables:", inspector.get_table_names())
+        print("Tables:", inspector.get_table_names())
         EOF
 
-    # --- COVERAGE ARTIFACT ---
-    - name: Upload test results
+    # --- COVERAGE REPORT ARTIFACT ---
+    - name: Upload coverage
       if: always()
       uses: actions/upload-artifact@v4
       with:
@@ -124,4 +125,6 @@ jobs:
           coverage = float(root.attrib['line-rate']) * 100
           print(f"📊 Coverage: {coverage:.2f}%")
           EOF
+        else
+          echo "No coverage.xml found."
         fi
