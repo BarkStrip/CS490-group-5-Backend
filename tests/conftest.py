@@ -5,11 +5,10 @@ Pytest configuration and shared fixtures for the salon app tests.
 import pytest
 import os
 import bcrypt
-from typing import Generator
-from flask_sqlalchemy import SQLAlchemy
 from main import create_app
 from app.extensions import db as database
 from flask import Flask
+from sqlalchemy.orm import sessionmaker
 
 # UPDATED: Absolute imports matching your actual models.py classes
 from app.models import AuthUser, Customers, SalonOwners, Salon, Service, SalonVerify
@@ -57,14 +56,16 @@ def db(app: Flask):
         Base.metadata.drop_all(bind=database.engine)
 
 
-@pytest.fixture(scope="function")
-def db_session(db: SQLAlchemy, app: Flask) -> Generator:
+@pytest.fixture
+def db_session(app):
     with app.app_context():
-        connection = db.engine.connect()
+        connection = database.engine.connect()
         transaction = connection.begin()
 
-        session = db.create_scoped_session(options={"bind": connection, "binds": {}})
-        db.session = session
+        Session = sessionmaker(bind=connection)
+        session = Session()
+
+        database.session = session
 
         yield session
 
