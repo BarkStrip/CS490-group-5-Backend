@@ -40,38 +40,34 @@ def app():
 
 
 @pytest.fixture(scope="session")
-def db(app: Flask) -> Generator[SQLAlchemy, None, None]:  
-    """Create test database and tables."""
-    with app.app_context():
-        database.drop_all()
-        
-        # Create all tables
-        database.create_all()
-        
-        # Verify tables were created
-        from sqlalchemy import inspect
-        inspector = inspect(database.engine)
-        tables = inspector.get_table_names()
-        print(f"Created tables: {tables}")
-        
-        yield database
-        
-        database.session.remove()
-        database.drop_all()
+def db(app: Flask):
+    """Create test database using Base metadata."""
+    from app.models import Base
 
+    with app.app_context():
+        # Drop existing tables
+        Base.metadata.drop_all(bind=database.engine)
+
+        # Create tables from models.py
+        Base.metadata.create_all(bind=database.engine)
+
+        yield database
+
+        database.session.remove()
+        Base.metadata.drop_all(bind=database.engine)
 
 
 @pytest.fixture(scope="function")
-def db_session(db: SQLAlchemy, app: Flask) -> Generator:  
+def db_session(db: SQLAlchemy, app: Flask) -> Generator:
     with app.app_context():
         connection = db.engine.connect()
         transaction = connection.begin()
-        
+
         session = db.create_scoped_session(options={"bind": connection, "binds": {}})
         db.session = session
-        
+
         yield session
-        
+
         session.close()
         transaction.rollback()
         connection.close()
