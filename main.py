@@ -1,17 +1,3 @@
-# ----------------------------------------------------------------------------
-# Flask Application Factory
-# ----------------------------------------------------------------------------
-# This file contains the application factory function `create_app()`, which
-# is the standard pattern for initializing a scalable Flask application.
-#
-# PURPOSE:
-# 1. Configuration: Loads settings from the `Config` class.
-# 2. Extensions: Initializes external services like CORS and the database (db).
-# 3. Blueprints: Registers the `salons_bp` blueprint to organize routes.
-#
-# The main execution block starts the development server when the script is run
-# directly.
-# ----------------------------------------------------------------------------
 from app.api.admin.verification import admin_verification_bp
 from app.api.employee.employee_app import employeesapp_bp
 from app.api.employee.employee import employees_bp
@@ -25,8 +11,8 @@ from app.routes.salon_register import salon_register_bp
 from app.routes.cart import cart_bp
 from app.routes.auth import auth_bp
 from app.routes.autocomplete import autocomplete_bp
-from app.api.employee.verification import employee_verification_bp
-
+from app.api.employee.employee_pay_portal import employee_payroll_bp
+from app.api.customer.user_gallery import user_gallery_bp
 from app.routes.salons import salons_bp
 from flask import Flask
 from flask_cors import CORS
@@ -39,22 +25,6 @@ load_dotenv()
 from app.config import Config  # noqa: E402
 from app.extensions import db  # noqa: E402
 
-# --- Import Blueprints ---
-from app.routes.salons import salons_bp
-from app.routes.autocomplete import autocomplete_bp
-from app.routes.auth import auth_bp
-from app.routes.cart import cart_bp
-from app.routes.salon_register import salon_register_bp
-from app.routes.upload_image_salon import salon_images_bp
-from app.api.salons.reviews import reviews_bp
-from app.api.booking.appointments import appointments_bp
-from app.api.payments.methods import payments_bp
-from app.api.payments.receipts import receipts_bp
-from app.api.loyalty.customer_loyaltyp import loyalty_bp
-from app.api.employee.employee import employees_bp
-from app.api.employee.employee_pay_portal import employee_payroll_bp
-from app.api.employee.employee_app import employeesapp_bp
-from app.api.admin.verification import admin_verification_bp
 
 def create_app():
     print("Starting create_app()")
@@ -84,22 +54,23 @@ def create_app():
         print("Registering blueprints...")
 
         blueprints = [
-                    salons_bp,
-                    autocomplete_bp,
-                    auth_bp,
-                    cart_bp,
-                    salon_register_bp,
-                    salon_images_bp,
-                    reviews_bp,
-                    appointments_bp,
-                    payments_bp,
-                    receipts_bp,
-                    loyalty_bp,
-                    employees_bp,
-                    employeesapp_bp,
-                    employee_payroll_bp,
-                    admin_verification_bp
-                ]
+            salons_bp,
+            autocomplete_bp,
+            auth_bp,
+            cart_bp,
+            salon_register_bp,
+            salon_images_bp,
+            reviews_bp,
+            appointments_bp,
+            payments_bp,
+            receipts_bp,
+            loyalty_bp,
+            employees_bp,
+            employeesapp_bp,
+            employee_payroll_bp,
+            admin_verification_bp,
+            user_gallery_bp,
+        ]
 
         for bp in blueprints:
             app.register_blueprint(bp)

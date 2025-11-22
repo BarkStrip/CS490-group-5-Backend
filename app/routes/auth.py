@@ -154,7 +154,7 @@ def signup_user():
             )
             db.session.add(profile)
             db.session.flush()
-            #new_cart = Cart(user_id=auth_user.id)
+            # new_cart = Cart(user_id=auth_user.id)
             new_cart = Cart(user_id=profile.id)
             db.session.add(new_cart)
 
