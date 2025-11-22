@@ -107,6 +107,7 @@ def add_service_to_cart():
             start_at=start_datetime,
             end_at=end_datetime,
             notes=notes,
+            employee_id=stylist,
         )
         db.session.add(cart_item)
         db.session.flush()  # Get cart_item.id before using it
