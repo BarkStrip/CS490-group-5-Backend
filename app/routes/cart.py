@@ -142,7 +142,7 @@ def add_service_to_cart():
                         "end_at": end_datetime.isoformat() if end_datetime else None,
                         "notes": notes,
                         "pictures": created_images,
-                        "stylist": stylist,  # Note: Still not stored in database
+                        "stylist_id": stylist_id,  # Note: Still not stored in database
                     },
                 }
             ),
