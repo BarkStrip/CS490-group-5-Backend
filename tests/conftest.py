@@ -5,8 +5,11 @@ Pytest configuration and shared fixtures for the salon app tests.
 import pytest
 import os
 import bcrypt
+from typing import Generator
+from flask_sqlalchemy import SQLAlchemy
 from main import create_app
-from app.extensions import db
+from app.extensions import db as database
+from flask import Flask
 
 # UPDATED: Absolute imports matching your actual models.py classes
 from app.models import AuthUser, Customers, SalonOwners, Salon, Service, SalonVerify
@@ -37,42 +40,38 @@ def app():
 
 
 @pytest.fixture(scope="session")
-def _db(app):
+def db(app: Flask) -> Generator[SQLAlchemy, None, None]:  
     """Create test database and tables."""
-    db.create_all()
     with app.app_context():
-        # Import all models to ensure they're registered with SQLAlchemy
-
-        # Drop all tables first to ensure clean state
-        db.drop_all()
-
+        database.drop_all()
+        
         # Create all tables
-        db.create_all()
-        # Verify tables were created (optional but helpful for debugging)
+        database.create_all()
+        
+        # Verify tables were created
         from sqlalchemy import inspect
-
-        inspector = inspect(db.engine)
+        inspector = inspect(database.engine)
         tables = inspector.get_table_names()
         print(f"Created tables: {tables}")
+        
+        yield database
+        
+        database.session.remove()
+        database.drop_all()
 
-        yield db
-
-        db.session.remove()
-        db.drop_all()
 
 
 @pytest.fixture(scope="function")
-def db_session(_db, app):
-    """Create a new database session for each test."""
+def db_session(db: SQLAlchemy, app: Flask) -> Generator:  
     with app.app_context():
-        connection = _db.engine.connect()
+        connection = db.engine.connect()
         transaction = connection.begin()
-
-        session = _db.create_scoped_session(options={"bind": connection, "binds": {}})
-        _db.session = session
-
+        
+        session = db.create_scoped_session(options={"bind": connection, "binds": {}})
+        db.session = session
+        
         yield session
-
+        
         session.close()
         transaction.rollback()
         connection.close()
