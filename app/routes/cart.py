@@ -28,7 +28,7 @@ def add_service_to_cart():
         quantity = int(data.get("quantity", 1))
         appt_date = data.get("appt_date")
         appt_time = data.get("appt_time")
-        stylist = data.get("stylist")
+        # stylist = data.get("stylist")
         pictures = data.get("pictures", [])
         notes = data.get("notes")
         stylist_id = data.get("stylist_id")
