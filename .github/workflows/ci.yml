@@ -119,12 +119,12 @@ jobs:
       run: |
         if [ -f coverage.xml ]; then
           python - << 'EOF'
-          import xml.etree.ElementTree as ET
-          tree = ET.parse('coverage.xml')
-          root = tree.getroot()
-          coverage = float(root.attrib['line-rate']) * 100
-          print(f"📊 Coverage: {coverage:.2f}%")
-          EOF
+        import xml.etree.ElementTree as ET
+        tree = ET.parse('coverage.xml')
+        root = tree.getroot()
+        coverage = float(root.attrib['line-rate']) * 100
+        print(f"📊 Coverage: {coverage:.2f}%")
+        EOF
         else
           echo "No coverage.xml found."
         fi
