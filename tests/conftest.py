@@ -8,7 +8,6 @@ import bcrypt
 from main import create_app
 from app.extensions import db as database
 from flask import Flask
-from sqlalchemy.orm import sessionmaker
 
 # UPDATED: Absolute imports matching your actual models.py classes
 from app.models import AuthUser, Customers, SalonOwners, Salon, Service, SalonVerify
@@ -57,19 +56,42 @@ def db(app: Flask):
 
 
 @pytest.fixture
-def db_session(app):
+def db_session(app, db):
+    """Create a database session that properly rollbacks after each test."""
+
     with app.app_context():
+        # Begin a transaction
         connection = database.engine.connect()
         transaction = connection.begin()
 
-        Session = sessionmaker(bind=connection)
-        session = Session()
+        # Configure the session
+        database.session.configure(bind=connection)
 
-        database.session = session
+        # Save original remove method
+        original_remove = database.session.remove
 
-        yield session
+        # Create a custom remove that doesn't fail
+        def safe_remove():
+            try:
+                database.session.rollback()
+                database.session.expunge_all()
+            except:
+                pass
 
-        session.close()
+        # Replace remove temporarily
+        database.session.remove = safe_remove
+
+        yield database.session
+
+        # Restore original remove
+        database.session.remove = original_remove
+
+        # Cleanup
+        try:
+            database.session.rollback()
+        except:
+            pass
+
         transaction.rollback()
         connection.close()
 
@@ -164,7 +186,7 @@ def sample_salon(db_session, sample_owner):
         salon_id=salon.id, status="APPROVED"  # Enum: PENDING, APPROVED, REJECTED
     )
     db_session.add(verify)
-    db_session.flush()   
+    db_session.flush()
 
     # 3. Add a service
     service = Service(
