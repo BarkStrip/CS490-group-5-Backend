@@ -35,4 +35,25 @@ def get_pending_verifications():
 
     return jsonify({"pending": data}), 200
 
+# ---------------------------------------------------------
+# 2. TOP SALONS (by appointment count)
+# ---------------------------------------------------------
+@admin_salon_activity_bp.route("/top", methods=["GET"])
+def get_top_salons():
+    rows = (
+        db.session.query(
+            Salon.name.label("name"),
+            func.count(Appointment.id).label("count"),
+        )
+        .join(Appointment, Appointment.salon_id == Salon.id)
+        .group_by(Salon.id)
+        .order_by(func.count(Appointment.id).desc())
+        .limit(5)
+        .all()
+    )
+
+    data = [{"name": r.name, "count": int(r.count)} for r in rows]
+
+    return jsonify({"top_salons": data}), 200
+
 
