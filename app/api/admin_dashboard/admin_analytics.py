@@ -85,4 +85,30 @@ def get_feature_usage():
     ]
     return jsonify(data)
 
+# -------------------------------------------------------------------
+# 4) RETENTION COHORT: appointments grouped by month
+# -------------------------------------------------------------------
+@admin_analytics_bp.route("/retention-cohort", methods=["GET"])
+def get_retention_cohort():
+    """
+    Cohort-style view: total appointments per month.
+    Uses MySQL DATE_FORMAT via func.date_format.
+    """
+
+    rows = (
+        db.session.query(
+            func.date_format(Appointment.created_at, "%b").label("month"),
+            func.count(Appointment.id).label("rate"),
+        )
+        .group_by(func.date_format(Appointment.created_at, "%b"))
+        .order_by(func.min(Appointment.created_at))
+        .all()
+    )
+
+    data = [{"month": r.month, "rate": int(r.rate)} for r in rows]
+    return jsonify(data)
+
+
+
+
 
