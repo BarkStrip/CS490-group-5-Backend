@@ -5,4 +5,3 @@ __pycache__/
 # Mac config file:
 .DS_Store
 .env.test
-.github/workflows/

@@ -6,7 +6,8 @@ import pytest
 import os
 import bcrypt
 from main import create_app
-from app.extensions import db
+from app.extensions import db as database
+from flask import Flask
 
 # UPDATED: Absolute imports matching your actual models.py classes
 from app.models import AuthUser, Customers, SalonOwners, Salon, Service, SalonVerify
@@ -37,43 +38,60 @@ def app():
 
 
 @pytest.fixture(scope="session")
-def _db(app):
-    """Create test database and tables."""
-    db.create_all()
+def db(app: Flask):
+    """Create test database using Base metadata."""
+    from app.models import Base
+
     with app.app_context():
-        # Import all models to ensure they're registered with SQLAlchemy
+        # Drop existing tables
+        Base.metadata.drop_all(bind=database.engine)
 
-        # Drop all tables first to ensure clean state
-        db.drop_all()
+        # Create tables from models.py
+        Base.metadata.create_all(bind=database.engine)
 
-        # Create all tables
+        yield database
 
-        # Verify tables were created (optional but helpful for debugging)
-        from sqlalchemy import inspect
-
-        inspector = inspect(db.engine)
-        tables = inspector.get_table_names()
-        print(f"Created tables: {tables}")
-
-        yield db
-
-        db.session.remove()
-        db.drop_all()
+        database.session.remove()
+        Base.metadata.drop_all(bind=database.engine)
 
 
-@pytest.fixture(scope="function")
-def db_session(_db, app):
-    """Create a new database session for each test."""
+@pytest.fixture
+def db_session(app, db):
+    """Create a database session that properly rollbacks after each test."""
+
     with app.app_context():
-        connection = _db.engine.connect()
+        # Begin a transaction
+        connection = database.engine.connect()
         transaction = connection.begin()
 
-        session = _db.create_scoped_session(options={"bind": connection, "binds": {}})
-        _db.session = session
+        # Configure the session
+        database.session.configure(bind=connection)
 
-        yield session
+        # Save original remove method
+        original_remove = database.session.remove
 
-        session.close()
+        # Create a custom remove that doesn't fail
+        def safe_remove():
+            try:
+                database.session.rollback()
+                database.session.expunge_all()
+            except:
+                pass
+
+        # Replace remove temporarily
+        database.session.remove = safe_remove
+
+        yield database.session
+
+        # Restore original remove
+        database.session.remove = original_remove
+
+        # Cleanup
+        try:
+            database.session.rollback()
+        except:
+            pass
+
         transaction.rollback()
         connection.close()
 
@@ -168,6 +186,7 @@ def sample_salon(db_session, sample_owner):
         salon_id=salon.id, status="APPROVED"  # Enum: PENDING, APPROVED, REJECTED
     )
     db_session.add(verify)
+    db_session.flush()
 
     # 3. Add a service
     service = Service(

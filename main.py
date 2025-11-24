@@ -25,6 +25,7 @@ from app.api.admin_dashboard.admin_salon_activity import admin_salon_activity_bp
 
 
 import os
+from app.models import Base
 
 load_dotenv()
 from app.config import Config  # noqa: E402
@@ -79,6 +80,9 @@ def create_app():
             admin_demographics_bp,
             admin_salon_activity_bp
         ]
+
+        with app.app_context():
+            Base.metadata.create_all(bind=db.engine)
 
         for bp in blueprints:
             app.register_blueprint(bp)
