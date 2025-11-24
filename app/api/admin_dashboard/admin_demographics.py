@@ -53,4 +53,26 @@ def loyalty_segments():
         {"segment": "Guests", "count": int(guest_users)},
     ])
 
+# ---------------------------------------------------------
+# 3) GENDER DISTRIBUTION
+# ---------------------------------------------------------
+@admin_demographics_bp.route("/gender", methods=["GET"])
+def gender_distribution():
+
+    rows = (
+        db.session.query(
+            Customers.gender,
+            func.count(Customers.id)
+        )
+        .filter(Customers.gender.isnot(None))
+        .filter(Customers.gender != "")
+        .group_by(Customers.gender)
+        .all()
+    )
+
+    return jsonify([
+        {"gender": gender or "Unknown", "count": int(count)}
+        for gender, count in rows
+    ])
+
 
