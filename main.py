@@ -1,4 +1,5 @@
 from app.api.admin.verification import admin_verification_bp
+from app.api.admin.details import admin_details_bp
 from app.api.employee.employee_app import employeesapp_bp
 from app.api.employee.employee import employees_bp
 from app.api.employee.details import employee_details_bp
@@ -74,6 +75,7 @@ def create_app():
             employeesapp_bp,
             employee_payroll_bp,
             admin_verification_bp,
+            admin_details_bp,
             user_gallery_bp,
             details_bp,
         ]
