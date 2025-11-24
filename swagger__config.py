@@ -118,8 +118,6 @@ SWAGGER_TEMPLATE = {
                 "gender": {"type": "string"},
             },
         },
-
-
         "UserImage": {
             "type": "object",
             "properties": {

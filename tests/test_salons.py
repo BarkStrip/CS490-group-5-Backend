@@ -92,9 +92,9 @@ class TestSalons:
         assert "results_found" in data
         assert "salons" in data
 
-    def test_get_salon_details_success(self, client):
+    def test_get_salon_details_success(self, client, sample_salon):
         """Test retrieving salon details."""
-        response = client.get("/api/salons/details/1")
+        response = client.get(f"/api/salons/details/{sample_salon.id}")
 
         assert response.status_code == 200
         data = json.loads(response.data)

@@ -20,6 +20,7 @@ from dotenv import load_dotenv
 from flasgger import Swagger
 from swagger__config import SWAGGER_CONFIG, SWAGGER_TEMPLATE
 import os
+from app.models import Base
 
 load_dotenv()
 from app.config import Config  # noqa: E402
@@ -71,6 +72,9 @@ def create_app():
             admin_verification_bp,
             user_gallery_bp,
         ]
+
+        with app.app_context():
+            Base.metadata.create_all(bind=db.engine)
 
         for bp in blueprints:
             app.register_blueprint(bp)

@@ -7,6 +7,7 @@ from app.utils.s3_utils import upload_file_to_s3, delete_file_from_s3
 
 user_gallery_bp = Blueprint("user_gallery", __name__, url_prefix="/api/user_gallery")
 
+
 @user_gallery_bp.route("/upload_image", methods=["POST"])
 def upload_customer_image():
     """
@@ -72,7 +73,9 @@ def upload_customer_image():
         except ValueError:
             return jsonify({"error": "customer_id must be a valid integer"}), 400
 
-        customer = db.session.scalar(select(Customers).where(Customers.id == customer_id))
+        customer = db.session.scalar(
+            select(Customers).where(Customers.id == customer_id)
+        )
         if not customer:
             return jsonify({"error": "Customer not found"}), 404
 
@@ -80,35 +83,38 @@ def upload_customer_image():
         if not bucket_name:
             return jsonify({"error": "S3_BUCKET_NAME is not configured"}), 500
 
-        unique_name = f"customer_gallery/{customer_id}/{uuid.uuid4()}_{image_file.filename}"
+        unique_name = (
+            f"customer_gallery/{customer_id}/{uuid.uuid4()}_{image_file.filename}"
+        )
 
         image_url = upload_file_to_s3(image_file, unique_name, bucket_name)
 
         if not image_url:
             return jsonify({"error": "File upload failed"}), 500
 
-        new_image = UserImage(
-            customers_id=customer_id,
-            url=image_url
-        )
+        new_image = UserImage(customers_id=customer_id, url=image_url)
 
         db.session.add(new_image)
         db.session.commit()
 
-        return jsonify({
-            "message": "Image uploaded successfully",
-            "image": {
-                "id": new_image.id,
-                "customer_id": new_image.customers_id,
-                "url": new_image.url,
-                "created_at": new_image.created_at
-            }
-        }), 201
+        return (
+            jsonify(
+                {
+                    "message": "Image uploaded successfully",
+                    "image": {
+                        "id": new_image.id,
+                        "customer_id": new_image.customers_id,
+                        "url": new_image.url,
+                        "created_at": new_image.created_at,
+                    },
+                }
+            ),
+            201,
+        )
 
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": "Failed to upload image", "details": str(e)}), 500
-
 
 
 @user_gallery_bp.route("/gallery/<int:customer_id>", methods=["GET"])
@@ -158,27 +164,36 @@ def fetch_user_gallery(customer_id):
           $ref: '#/definitions/Error'
     """
     try:
-        customer = db.session.scalar(select(Customers).where(Customers.id == customer_id))
+        customer = db.session.scalar(
+            select(Customers).where(Customers.id == customer_id)
+        )
         if not customer:
             return jsonify({"error": "Customer not found"}), 404
 
-        stmt = select(UserImage).where(UserImage.customers_id == customer_id).order_by(UserImage.created_at.desc())
+        stmt = (
+            select(UserImage)
+            .where(UserImage.customers_id == customer_id)
+            .order_by(UserImage.created_at.desc())
+        )
         images = db.session.scalars(stmt).all()
 
         gallery_data = []
         for img in images:
-            gallery_data.append({
-                "id": img.id,
-                "url": img.url,
-                "created_at": img.created_at
-            })
+            gallery_data.append(
+                {"id": img.id, "url": img.url, "created_at": img.created_at}
+            )
 
-        return jsonify({
-            "status": "success",
-            "customer_id": customer_id,
-            "count": len(gallery_data),
-            "gallery": gallery_data
-        }), 200
+        return (
+            jsonify(
+                {
+                    "status": "success",
+                    "customer_id": customer_id,
+                    "count": len(gallery_data),
+                    "gallery": gallery_data,
+                }
+            ),
+            200,
+        )
 
     except Exception as e:
         return jsonify({"error": "Failed to fetch gallery", "details": str(e)}), 500
@@ -212,25 +227,27 @@ def delete_user_image(image_id):
           $ref: '#/definitions/Error'
     """
     try:
-        image_entry = db.session.scalar(select(UserImage).where(UserImage.id == image_id))
-        
+        image_entry = db.session.scalar(
+            select(UserImage).where(UserImage.id == image_id)
+        )
+
         if not image_entry:
             return jsonify({"error": "Image not found"}), 404
 
         bucket_name = current_app.config.get("S3_BUCKET_NAME")
-        
+
         s3_deleted = delete_file_from_s3(image_entry.url, bucket_name)
-        
+
         if not s3_deleted:
             print(f"Warning: S3 file deletion failed for {image_entry.url}")
 
         db.session.delete(image_entry)
         db.session.commit()
 
-        return jsonify({
-            "status": "success", 
-            "message": "Image deleted successfully"
-        }), 200
+        return (
+            jsonify({"status": "success", "message": "Image deleted successfully"}),
+            200,
+        )
 
     except Exception as e:
         db.session.rollback()

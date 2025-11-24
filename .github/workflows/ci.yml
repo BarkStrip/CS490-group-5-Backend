@@ -1,0 +1,130 @@
+name: CI - Test and Validate
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: salon_app_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -uroot -proot --silent"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=15
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov pymysql
+
+    # --- CONFIRM MYSQL IS RUNNING ---
+    - name: Wait for MySQL
+      run: |
+        echo "⏳ Waiting for MySQL..."
+        for i in {1..30}; do
+          if mysqladmin ping -h127.0.0.1 -uroot -proot --silent; then
+            echo "✓ MySQL is ready!"
+            break
+          fi
+          sleep 2
+        done
+
+    - name: Verify database exists
+      run: |
+        mysql -h127.0.0.1 -uroot -proot -e "SHOW DATABASES;"
+
+    # --- INITIALIZE DATABASE SCHEMA ---
+    - name: Initialize schema using Base.metadata
+      env:
+        SQLALCHEMY_DATABASE_URI: mysql+pymysql://root:root@127.0.0.1:3306/salon_app_test
+        MYSQL_PUBLIC_URL: mysql+pymysql://root:root@127.0.0.1:3306/salon_app_test
+        TESTING: "1"
+      run: |
+        echo "📦 Creating tables using Base.metadata..."
+        python - << 'EOF'
+        import os, sys
+        sys.path.append(os.getcwd())
+
+        from main import create_app
+        from app.extensions import db
+        from app.models import Base
+
+        app = create_app()
+
+        with app.app_context():
+            Base.metadata.drop_all(bind=db.engine)
+            Base.metadata.create_all(bind=db.engine)
+            print("✓ Tables created:")
+            print(list(Base.metadata.tables.keys()))
+        EOF
+
+    # --- RUN TESTS ---
+    - name: Run tests
+      env:
+        SQLALCHEMY_DATABASE_URI: mysql+pymysql://root:root@127.0.0.1:3306/salon_app_test
+        MYSQL_PUBLIC_URL: mysql+pymysql://root:root@127.0.0.1:3306/salon_app_test
+        TESTING: "1"
+      run: |
+        echo "🧪 Running pytest..."
+        pytest -v --tb=short --cov=app --cov-report=term --cov-report=xml
+
+    # --- DEBUG ON FAILURE ---
+    - name: Debug MySQL tables if failure
+      if: failure()
+      env:
+        SQLALCHEMY_DATABASE_URI: mysql+pymysql://root:root@127.0.0.1:3306/salon_app_test
+      run: |
+        echo "⚠️ Tests failed - inspecting DB..."
+        python - << 'EOF'
+        from sqlalchemy import create_engine, inspect
+        import os
+        engine = create_engine(os.environ["SQLALCHEMY_DATABASE_URI"])
+        inspector = inspect(engine)
+        print("Tables:", inspector.get_table_names())
+        EOF
+
+    # --- COVERAGE REPORT ARTIFACT ---
+    - name: Upload coverage
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: coverage.xml
+
+    - name: Coverage summary
+      if: always()
+      run: |
+        if [ -f coverage.xml ]; then
+          python - << 'EOF'
+        import xml.etree.ElementTree as ET
+        tree = ET.parse('coverage.xml')
+        root = tree.getroot()
+        coverage = float(root.attrib['line-rate']) * 100
+        print(f"📊 Coverage: {coverage:.2f}%")
+        EOF
+        else
+          echo "No coverage.xml found."
+        fi
