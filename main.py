@@ -14,6 +14,7 @@ from app.routes.autocomplete import autocomplete_bp
 from app.api.employee.employee_pay_portal import employee_payroll_bp
 from app.api.customer.user_gallery import user_gallery_bp
 from app.routes.salons import salons_bp
+from app.api.communication.messaging import messaging_bp
 from flask import Flask
 from flask_cors import CORS
 from dotenv import load_dotenv
@@ -35,6 +36,9 @@ def create_app():
         app.config.from_object(Config)
         print("Config loaded successfully")
         print(f"Config items: {len(app.config)} items loaded")
+
+        import resend
+        resent.api_key = os.getenv("RESEND_API_KEY")
 
         print("Initializing CORS...")
         CORS(app)
@@ -70,6 +74,7 @@ def create_app():
             employee_payroll_bp,
             admin_verification_bp,
             user_gallery_bp,
+            messaging_bp,
         ]
 
         for bp in blueprints:
