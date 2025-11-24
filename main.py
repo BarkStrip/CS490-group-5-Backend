@@ -19,6 +19,7 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 from flasgger import Swagger
 from swagger__config import SWAGGER_CONFIG, SWAGGER_TEMPLATE
+from app.api.admin_dashboard.admin_analytics import admin_analytics_bp
 import os
 
 load_dotenv()
@@ -70,6 +71,7 @@ def create_app():
             employee_payroll_bp,
             admin_verification_bp,
             user_gallery_bp,
+            admin_analytics_bp,
         ]
 
         for bp in blueprints:
