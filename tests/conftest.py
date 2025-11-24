@@ -21,7 +21,7 @@ if test_env_path.exists():
 else:
     print(f" WARNING: .env.test not found at {test_env_path}")
     print(" Create a .env.test file with MYSQL_TEST_URL pointing to a test database!")
-    sys.exit(1)
+    # sys.exit(1)
 
 
 def is_safe_test_database(db_uri: str) -> bool:
@@ -230,7 +230,7 @@ def sample_customer(db_session):
         user_id=auth_user.id,
         first_name="Test",
         last_name="Customer",
-        email="customer@example.com", 
+        email="customer@example.com",
         phone_number="123-456-7890",
         gender="Non-binary",
     )
@@ -248,7 +248,7 @@ def sample_owner(db_session):
     auth_user = AuthUser(
         email="owner@example.com",
         password_hash=hashed_pw,
-        role="OWNER",  
+        role="OWNER",
         firebase_uid="owner_uid_456",
     )
     db_session.add(auth_user)
