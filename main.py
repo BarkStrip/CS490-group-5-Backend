@@ -26,28 +26,6 @@ from app.config import Config  # noqa: E402
 from app.extensions import db  # noqa: E402
 
 
-<<<<<<< HEAD
-# --- Import Blueprints ---
-from app.routes.salons import salons_bp
-from app.routes.autocomplete import autocomplete_bp
-from app.routes.auth import auth_bp
-from app.routes.cart import cart_bp
-from app.routes.salon_register import salon_register_bp
-from app.routes.upload_image_salon import salon_images_bp
-from app.routes.reviews import reviews_bp
-from app.api.booking.appointments import appointments_bp
-from app.api.payments.methods import payments_bp
-from app.api.payments.receipts import receipts_bp
-from app.api.loyalty.customer_loyaltyp import loyalty_bp
-from app.routes.admin_analytics import admin_analytics_bp
-from app.routes.admin_demographics import admin_demo_bp
-from app.routes.admin_reports import admin_reports_bp
-from app.routes.admin_system import admin_system_bp
-from app.routes.admin_salon_activity import admin_salon_activity_bp
-
-
-=======
->>>>>>> f764de3940dfda6fe1ba408ffa81e83142bbfbf6
 def create_app():
     print("Starting create_app()")
     app = Flask(__name__)
@@ -74,34 +52,6 @@ def create_app():
         Swagger(app, config=SWAGGER_CONFIG, template=swagger_template)
         print("Swagger initialized - Access at /api/docs")
         print("Registering blueprints...")
-<<<<<<< HEAD
-        print(f"Salons blueprint: {salons_bp}")
-        app.register_blueprint(salons_bp)
-        print("Salons blueprint registered")
-        
-        print(f"Autocomplete blueprint: {autocomplete_bp}")
-        app.register_blueprint(autocomplete_bp)
-        print("Autocomplete blueprint registered")
-        print("Blueprints registered")
-        app.register_blueprint(auth_bp)
-        app.register_blueprint(cart_bp)
-        app.register_blueprint(salon_register_bp)
-        app.register_blueprint(salon_images_bp)
-        app.register_blueprint(reviews_bp)
-        app.register_blueprint(appointments_bp)
-        app.register_blueprint(payments_bp)
-        app.register_blueprint(receipts_bp)
-        app.register_blueprint(loyalty_bp)
-        app.register_blueprint(admin_analytics_bp)
-        print("Admin Analytics blueprint registered")
-        app.register_blueprint(admin_demo_bp)
-        app.register_blueprint(admin_system_bp)
-        app.register_blueprint(admin_salon_activity_bp)
-
-        print("Adding root route...")
-        app.register_blueprint(admin_reports_bp)
-        @app.route('/')
-=======
 
         blueprints = [
             salons_bp,
@@ -130,7 +80,6 @@ def create_app():
         print("Adding root route...")
 
         @app.route("/")
->>>>>>> f764de3940dfda6fe1ba408ffa81e83142bbfbf6
         def home():
             """
             Root endpoint - API status
