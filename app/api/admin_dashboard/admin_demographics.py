@@ -75,4 +75,34 @@ def gender_distribution():
         for gender, count in rows
     ])
 
+# ---------------------------------------------------------
+# 4) AGE GROUP DISTRIBUTION
+# ---------------------------------------------------------
+@admin_demographics_bp.route("/age-groups", methods=["GET"])
+def age_groups():
+
+    rows = (
+        db.session.query(
+            case(
+                (Customers.age < 18, "Under 18"),
+                (Customers.age.between(18, 24), "18-24"),
+                (Customers.age.between(25, 34), "25-34"),
+                (Customers.age.between(35, 44), "35-44"),
+                (Customers.age.between(45, 54), "45-54"),
+                else_="55+"
+            ).label("age_group"),
+            func.count(Customers.id)
+        )
+        .filter(Customers.age.isnot(None))
+        .group_by("age_group")
+        .order_by(func.count(Customers.id).desc())
+        .all()
+    )
+
+    return jsonify([
+        {"age_group": group, "count": int(count)}
+        for group, count in rows
+    ])
+
+
 
