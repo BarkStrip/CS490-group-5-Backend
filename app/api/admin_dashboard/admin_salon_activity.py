@@ -57,3 +57,67 @@ def get_top_salons():
     return jsonify({"top_salons": data}), 200
 
 
+# ---------------------------------------------------------
+# 3. APPOINTMENT TRENDS (last 7 days)
+# ---------------------------------------------------------
+@admin_salon_activity_bp.route("/trends", methods=["GET"])
+def get_appointment_trends():
+    today = datetime.utcnow().date()
+    last_7 = today - timedelta(days=6)
+
+    rows = (
+        db.session.query(
+            func.date(Appointment.created_at).label("day"),
+            func.count(Appointment.id).label("count"),
+        )
+        .filter(func.date(Appointment.created_at) >= last_7)
+        .group_by(func.date(Appointment.created_at))
+        .order_by(func.date(Appointment.created_at))
+        .all()
+    )
+
+    data = [
+        {
+            "day": r.day.strftime("%Y-%m-%d"),
+            "count": int(r.count)
+        }
+        for r in rows
+    ]
+
+    return jsonify({"trends": data}), 200
+
+
+@admin_salon_activity_bp.route("/metrics", methods=["GET"])
+def get_appointment_metrics():
+    """
+    Calculate average appointment duration (in minutes)
+    using only valid completed appointments.
+    """
+
+    MINUTES_LIMIT = 300  # ignore anything above 5 hours
+
+    rows = (
+        db.session.query(
+            Appointment.start_at,
+            Appointment.end_at,
+            Appointment.status
+        )
+        .filter(Appointment.start_at.isnot(None))
+        .filter(Appointment.end_at.isnot(None))
+        .filter(Appointment.status == "COMPLETED")
+        .all()
+    )
+
+    durations = []
+
+    for r in rows:
+        if r.start_at and r.end_at:
+            diff = (r.end_at - r.start_at).total_seconds() / 60  # minutes
+            if 0 < diff <= MINUTES_LIMIT:   # clean data only
+                durations.append(diff)
+
+    avg_minutes = round(sum(durations) / len(durations), 1) if durations else 0
+
+    return jsonify({"avg_time": avg_minutes}), 200
+
+
