@@ -60,3 +60,29 @@ def get_engagement_trend():
     return jsonify(data)
 
 
+# -------------------------------------------------------------------
+# 3) FEATURE USAGE: group salons by type (or fallback "Unknown")
+# -------------------------------------------------------------------
+@admin_analytics_bp.route("/feature-usage", methods=["GET"])
+def get_feature_usage():
+    """
+    Approximates 'feature usage' by counting salons per type/category.
+    Uses Salon.type if present in your schema; falls back to 'Unknown'.
+    """
+
+    rows = (
+        db.session.query(
+            Salon.type.label("name"),
+            func.count(Salon.id).label("value"),
+        )
+        .group_by(Salon.type)
+        .all()
+    )
+
+    data = [
+        {"name": (r.name or "Unknown"), "value": int(r.value)}
+        for r in rows
+    ]
+    return jsonify(data)
+
+
