@@ -1,83 +1,38 @@
-from flask import Blueprint, jsonify, request
-from app.extensions import db
-from sqlalchemy import func
+from flask import Blueprint, jsonify
 from datetime import datetime, timedelta
+from sqlalchemy import func
+from app.extensions import db
+from app.models import Appointment, Salon, SalonVerify
 
-admin_salon_activity_bp = Blueprint("admin_salon_activity_bp", __name__, url_prefix="/api/admin/salons")
+admin_salon_activity_bp = Blueprint(
+    "admin_salon_activity_bp", __name__, url_prefix="/api/admin/salon-activity"
+)
 
-
-# Temporary lightweight ORM references (no changes to models.py) 
-class Salon(db.Model):
-    __tablename__ = "salon"
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(255))
-    verified = db.Column(db.Boolean, default=False)
-    rating = db.Column(db.Float, default=0.0)
-    city = db.Column(db.String(100))
-
-
-class Appointment(db.Model):
-    __tablename__ = "appointment"
-    id = db.Column(db.Integer, primary_key=True)
-    salon_id = db.Column(db.Integer, db.ForeignKey("salon.id"))
-    start_time = db.Column(db.DateTime)
-    end_time = db.Column(db.DateTime)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
+# ---------------------------------------------------------
+# 1. PENDING SALON VERIFICATIONS
+# ---------------------------------------------------------
 @admin_salon_activity_bp.route("/pending", methods=["GET"])
 def get_pending_verifications():
-    pending = (
-        db.session.query(Salon.id, Salon.name, Salon.verified)
-        .filter(Salon.verified == False)
-        .all()
-    )
-    response = [{"id": s.id, "name": s.name, "verified": s.verified} for s in pending]
-    return jsonify(response)
-
-@admin_salon_activity_bp.route("/top", methods=["GET"])
-def get_top_salons():
-    top_salons = (
-        db.session.query(Salon.name, func.count(Appointment.id).label("appointments"))
-        .join(Appointment, Appointment.salon_id == Salon.id)
-        .group_by(Salon.name)
-        .order_by(func.count(Appointment.id).desc())
-        .limit(5)
-        .all()
-    )
-    response = [
-        {"name": s.name, "appointments": s.appointments} for s in top_salons
-    ]
-    return jsonify(response)
-
-@admin_salon_activity_bp.route("/trends", methods=["GET"])
-def get_appointment_trends():
-    today = datetime.utcnow().date()
-    week_ago = today - timedelta(days=6)
-
-    daily_data = (
+    rows = (
         db.session.query(
-            func.date(Appointment.created_at).label("day"),
-            func.count(Appointment.id).label("count")
+            SalonVerify.id.label("verification_id"),
+            Salon.id.label("salon_id"),
+            Salon.name.label("name"),
         )
-        .filter(Appointment.created_at >= week_ago)
-        .group_by(func.date(Appointment.created_at))
-        .order_by(func.date(Appointment.created_at))
+        .join(Salon, SalonVerify.salon_id == Salon.id)
+        .filter(SalonVerify.status == "PENDING")
         .all()
     )
 
-    response = [{"day": str(row.day)[-5:], "count": row.count} for row in daily_data]
-    return jsonify(response)
+    data = [
+        {
+            "verification_id": r.verification_id,
+            "salon_id": r.salon_id,
+            "name": r.name,
+        }
+        for r in rows
+    ]
 
-@admin_salon_activity_bp.route("/metrics", methods=["GET"])
-def get_average_appointment_time():
-    avg_duration = (
-        db.session.query(
-            func.avg(func.timestampdiff(func.MINUTE, Appointment.start_time, Appointment.end_time))
-        ).scalar()
-    )
-
-    formatted = f"{round(avg_duration or 0)} min"
-    return jsonify({"avgTime": formatted})
-
+    return jsonify({"pending": data}), 200
 
 
