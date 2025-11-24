@@ -93,7 +93,7 @@ def get_employee_details(employee_id):
 @employee_details_bp.route("/<int:employee_id>", methods=["PUT"])
 def edit_employee_details(employee_id):
     """
-    Edit employee details (first_name, last_name, phone_number, address, employment_status, employee_type)
+    Edit employee details (first_name, last_name, phone_number, address, employment_status, employee_type, salon_id)
     ---
     tags:
       - Employee Details
@@ -127,6 +127,9 @@ def edit_employee_details(employee_id):
             employee_type:
               type: string
               description: Employee type (optional)
+            salon_id:
+              type: integer
+              description: Salon ID (optional)
     responses:
       200:
         description: Employee details updated successfully
@@ -218,6 +221,8 @@ def edit_employee_details(employee_id):
             employee.employment_status = data["employment_status"]
         if "employee_type" in data:
             employee.employee_type = data["employee_type"]
+        if "salon_id" in data:
+            employee.salon_id = data["salon_id"]
 
         db.session.commit()
 
