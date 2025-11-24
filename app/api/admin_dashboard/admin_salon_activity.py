@@ -120,4 +120,24 @@ def get_appointment_metrics():
 
     return jsonify({"avg_time": avg_minutes}), 200
 
+@admin_salon_activity_bp.route("/customers-trend", methods=["GET"])
+def customers_trend():
+    from app.models import Customers
+
+    seven_days = datetime.now() - timedelta(days=7)
+
+    rows = (
+        db.session.query(
+            func.date(Customers.created_at).label("day"),
+            func.count(Customers.id).label("count")
+        )
+        .filter(Customers.created_at >= seven_days)
+        .group_by(func.date(Customers.created_at))
+        .order_by(func.date(Customers.created_at))
+        .all()
+    )
+
+    data = [{"day": str(r.day), "count": int(r.count)} for r in rows]
+    return jsonify({"customers": data})
+
 
