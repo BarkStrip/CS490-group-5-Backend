@@ -36,3 +36,27 @@ def get_summary():
     )
 
 
+# -------------------------------------------------------------------
+# 2) ENGAGEMENT TREND: appointments per day (last 7 days)
+# -------------------------------------------------------------------
+@admin_analytics_bp.route("/engagement-trend", methods=["GET"])
+def get_engagement_trend():
+    """Number of appointments created per day over the past 7 days."""
+
+    seven_days_ago = datetime.now() - timedelta(days=7)
+
+    rows = (
+        db.session.query(
+            func.date(Appointment.created_at).label("day"),
+            func.count(Appointment.id).label("users"),
+        )
+        .filter(Appointment.created_at >= seven_days_ago)
+        .group_by(func.date(Appointment.created_at))
+        .order_by(func.date(Appointment.created_at))
+        .all()
+    )
+
+    data = [{"day": str(r.day), "users": int(r.users)} for r in rows]
+    return jsonify(data)
+
+
