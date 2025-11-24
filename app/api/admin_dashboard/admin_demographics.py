@@ -1,44 +1,35 @@
+# app/routes/admin_demographics.py
+
 from flask import Blueprint, jsonify
 from app.extensions import db
-from app.models import Customers 
-from sqlalchemy import func
-from datetime import date
+from sqlalchemy import func, case
+from app.models import Appointment, Salon, Customers, LoyaltyAccount
 
-admin_demo_bp = Blueprint("admin_demo_bp", __name__, url_prefix="/api/admin/users")
+admin_demographics_bp = Blueprint(
+    "admin_demographics_bp",
+    __name__,
+    url_prefix="/api/admin/demographics",
+)
 
-@admin_demo_bp.route("/gender", methods=["GET"])
-def get_gender_distribution():
-    data = (
+
+# ---------------------------------------------------------
+# 1) APPOINTMENTS BY CITY
+# ---------------------------------------------------------
+@admin_demographics_bp.route("/appointments-by-city", methods=["GET"])
+def appointments_by_city():
+    rows = (
         db.session.query(
-            Customers.gender.label("name"),
-            func.count(Customers.id).label("value")
+            Salon.city,
+            func.count(Appointment.id)
         )
-        .group_by(Customers.gender)
+        .join(Salon, Appointment.salon_id == Salon.id)
+        .group_by(Salon.city)
         .all()
     )
-    result = [{"name": r.name or "Unspecified", "value": r.value} for r in data]
-    return jsonify(result)
+
+    return jsonify([
+        {"name": city or "Unknown", "value": int(count)}
+        for city, count in rows
+    ])
 
 
-@admin_demo_bp.route("/age-distribution", methods=["GET"])
-def get_age_distribution():
-    today = date.today()
-    age_groups = {
-        "18–24": (18, 24),
-        "25–34": (25, 34),
-        "35–44": (35, 44),
-        "45+": (45, 200)
-    }
-
-    output = []
-    for label, (min_age, max_age) in age_groups.items():
-        count = (
-            db.session.query(func.count(Customers.id))
-            .filter(
-                func.timestampdiff(func.YEAR, Customers.date_of_birth, today) >= min_age,
-                func.timestampdiff(func.YEAR, Customers.date_of_birth, today) <= max_age
-            )
-            .scalar()
-        )
-        output.append({"age": label, "count": count or 0})
-    return jsonify(output)
