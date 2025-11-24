@@ -14,10 +14,14 @@
 # ----------------------------------------------------------------------------
 from flask import Flask, jsonify
 from flask_cors import CORS
+from flask_apscheduler import APScheduler
 from dotenv import load_dotenv
 load_dotenv()   # only needed locally. 
 from app.config import Config
 from app.extensions import db
+from app.models import Appointment
+from sqlalchemy import update, and_
+import datetime
 
 # --- Import Blueprints ---
 from app.routes.salons import salons_bp
@@ -35,12 +39,10 @@ from app.api.employee.employee import employees_bp
 from app.api.employee.employee_app import employeesapp_bp
 from app.api.employee.verification import employee_verification_bp
 from app.api.admin.verification import admin_verification_bp
+
 def create_app():
-    print("Starting create_app()")
-    app = Flask(__name__)
-    print(f"Flask app created: {app}")
     
-    try:
+    try:        
         print("Loading config...")
         app.config.from_object(Config)
         print("Config loaded successfully")
@@ -53,10 +55,27 @@ def create_app():
         print("Initializing database...")
         db.init_app(app)
         print("Database initialized")
+
+        print("Starting create_app()")
+        app = Flask(__name__)
+        print(f"Flask app created: {app}")
+
+        if os.environ.get('RUN_SCHEDULER') == True:
+            scheduler = APScheduler()
+            scheduler.init_app(app)
+
+            scheduler.add_job(
+                id='update_statuses', 
+                func=update_completed_appointments,
+                trigger='interval',
+                minutes=20, 
+                misfire_grace_time = 300
+            )
+
+            scheduler.start()
+            print("Schedule initialized and started.")
            
         print("Registering blueprints...")
-  
-      
         blueprints = [
                     salons_bp,
                     autocomplete_bp,
@@ -109,10 +128,32 @@ def create_app():
 
     print("create_app() completed successfully")
     print(f"Returning app: {app}")
+
     return app
 
     # --- Register Blueprints ---
   
+def update_completed_appointments():    
+
+    global app 
+
+    with app.app_context():
+        now = datetime.datetime.now()
+
+        update_stmt = update(Appointment).where(
+            and_(
+                Appointment.status == 'Booked', 
+                Appointment.end_at <= now 
+            )
+        ).values(status = 'Completed')
+
+    try: 
+        result = db.session.execute(update_stmt)
+        db.session.commit()
+        print(f"[{now.isoformat()}] SCHEDULER: successfully updated {result.rowcount} appointments to 'Completed'.")
+    except Exception as e: 
+        db.session.rollback()
+        print(f"[{now.isoformat()}] SCHEDULER: failed to update approintment status. {e}")
 
 print("About to call create_app()")
 app = create_app()
@@ -139,5 +180,3 @@ if __name__ == '__main__':
 
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug = os.environ.get("FLASK_ENV") != "production")
-
-
