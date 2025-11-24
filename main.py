@@ -38,7 +38,7 @@ def create_app():
         print(f"Config items: {len(app.config)} items loaded")
 
         import resend
-        resent.api_key = os.getenv("RESEND_API_KEY")
+        resend.api_key = os.getenv("RESEND_API_KEY")
 
         print("Initializing CORS...")
         CORS(app)
