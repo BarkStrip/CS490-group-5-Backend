@@ -22,6 +22,7 @@ from app.extensions import db
 from app.models import Appointment
 from sqlalchemy import update, and_
 import datetime
+import os
 
 # --- Import Blueprints ---
 from app.routes.salons import salons_bp
@@ -30,6 +31,7 @@ from app.routes.auth import auth_bp
 from app.routes.cart import cart_bp
 from app.routes.salon_register import salon_register_bp
 from app.routes.upload_image_salon import salon_images_bp
+from app.routes.salon_pay_portal import salon_payroll_bp
 from app.api.salons.reviews import reviews_bp
 from app.api.booking.appointments import appointments_bp
 from app.api.payments.methods import payments_bp
@@ -41,6 +43,11 @@ from app.api.employee.verification import employee_verification_bp
 from app.api.admin.verification import admin_verification_bp
 
 def create_app():
+
+    print("Starting create_app()")
+    app = Flask(__name__)
+    print(f"Flask app created: {app}")
+
     
     try:        
         print("Loading config...")
@@ -56,9 +63,10 @@ def create_app():
         db.init_app(app)
         print("Database initialized")
 
-        print("Starting create_app()")
-        app = Flask(__name__)
-        print(f"Flask app created: {app}")
+        # 🛑 REMOVED DUPLICATE APP CREATION HERE 🛑
+        # print("Starting create_app()")
+        # app = Flask(__name__)
+        # print(f"Flask app created: {app}")
 
         if os.environ.get('RUN_SCHEDULER') == True:
             scheduler = APScheduler()
@@ -91,7 +99,8 @@ def create_app():
                     employees_bp,
                     employeesapp_bp,
                     employee_verification_bp,
-                    admin_verification_bp
+                    admin_verification_bp, 
+                    salon_payroll_bp
                 ]
 
         for bp in blueprints:
