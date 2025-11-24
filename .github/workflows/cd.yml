@@ -27,10 +27,10 @@ jobs:
 
     - name: Deployment info
       run: |
-        echo "🚀 Starting deployment..."
-        echo "📌 Branch: ${{ github.ref_name }}"
-        echo "🌍 Target Environment: ${{ inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'dev') }}"
-        echo "📝 Commit: ${{ github.sha }}"
+        echo " Starting deployment..."
+        echo " Branch: ${{ github.ref_name }}"
+        echo " Target Environment: ${{ inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'dev') }}"
+        echo " Commit: ${{ github.sha }}"
 
     - name: Install Railway CLI
       run: |
@@ -44,8 +44,8 @@ jobs:
       run: |
         echo "🚂 Deploying to Railway DEV..."
         # UPDATED: --environment=dev
-        railway up --service=${{ secrets.RAILWAY_SERVICE_DEV }} --environment=dev
-        echo "✅ Deployed to DEV environment"
+        railway up --service="${{ secrets.RAILWAY_SERVICE_DEV }}" --environment=dev
+        echo " Deployed to DEV environment"
 
     # --- PRODUCTION DEPLOYMENT ---a
     - name: Deploy to Railway Production
@@ -55,7 +55,7 @@ jobs:
       run: |
         echo "🚂 Deploying to Railway PRODUCTION..."
         railway up --service=${{ secrets.RAILWAY_SERVICE_PROD }} --environment=production
-        echo "✅ Deployed to PRODUCTION environment"
+        echo " Deployed to PRODUCTION environment"
 
     - name: Notification
       if: always()

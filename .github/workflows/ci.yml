@@ -86,6 +86,7 @@ jobs:
       env:
         SQLALCHEMY_DATABASE_URI: mysql+pymysql://root:root@127.0.0.1:3306/salon_app_test
         MYSQL_PUBLIC_URL: mysql+pymysql://root:root@127.0.0.1:3306/salon_app_test
+        MYSQL_TEST_URL: mysql+pymysql://root:root@127.0.0.1:3306/salon_app_test
         TESTING: "1"
       run: |
         echo "🧪 Running pytest..."
@@ -97,7 +98,7 @@ jobs:
       env:
         SQLALCHEMY_DATABASE_URI: mysql+pymysql://root:root@127.0.0.1:3306/salon_app_test
       run: |
-        echo "⚠️ Tests failed - inspecting DB..."
+        echo " Tests failed - inspecting DB..."
         python - << 'EOF'
         from sqlalchemy import create_engine, inspect
         import os

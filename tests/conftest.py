@@ -1,3 +1,5 @@
+from app.models import AuthUser, Customers, SalonOwners, Salon, Service, SalonVerify
+
 """
 Pytest configuration and shared fixtures for the salon app tests.
 """
@@ -8,9 +10,67 @@ import bcrypt
 from main import create_app
 from app.extensions import db as database
 from flask import Flask
+import sys
+from pathlib import Path
+from dotenv import load_dotenv
 
-# UPDATED: Absolute imports matching your actual models.py classes
-from app.models import AuthUser, Customers, SalonOwners, Salon, Service, SalonVerify
+test_env_path = Path(__file__).parent / ".env.test"
+if test_env_path.exists():
+    load_dotenv(test_env_path, override=True)
+    print(f" Loaded test environment from: {test_env_path}")
+else:
+    print(f" WARNING: .env.test not found at {test_env_path}")
+    print(" Create a .env.test file with MYSQL_TEST_URL pointing to a test database!")
+    # sys.exit(1)
+
+
+def is_safe_test_database(db_uri: str) -> bool:
+    """
+    Check if the database URI is safe for testing.
+    Returns False if it appears to be a production database.
+    """
+    if not db_uri:
+        return False
+
+    # Check for production indicators - INCLUDING YOUR PRODUCTION HOST
+    dangerous_patterns = [
+        "nozomi.proxy.rlwy.net",
+        "railway.internal",
+        "amazonaws.com",
+        "azure.com",
+        "googlecloud",
+        "prod",
+        "production",
+        "live",
+        "main",
+        "t_salon_app",
+    ]
+
+    # Check for test indicators
+    safe_patterns = [
+        "salon_app_test",
+        "test",
+        "testing",
+        "localhost",
+        "127.0.0.1",
+        "dev",
+        "development",
+    ]
+
+    db_uri_lower = db_uri.lower()
+
+    # If it contains dangerous patterns, it's not safe
+    for pattern in dangerous_patterns:
+        if pattern in db_uri_lower:
+            print(f" DANGER: Found production pattern '{pattern}' in database URL!")
+            return False
+
+    # Must contain at least one safe pattern
+    for pattern in safe_patterns:
+        if pattern in db_uri_lower:
+            return True
+
+    return False
 
 
 @pytest.fixture(scope="session")
@@ -19,20 +79,42 @@ def app():
     os.environ["FLASK_ENV"] = "testing"
     os.environ["TESTING"] = "True"
 
+    # CRITICAL: Use a separate test database URL
+    # Never use MYSQL_PUBLIC_URL directly as it might be production!
+    test_db_url = os.environ.get("MYSQL_TEST_URL")
+
+    if not test_db_url:
+        print(" MYSQL_TEST_URL not found in environment!")
+        print(" Make sure .env.test is loaded and contains MYSQL_TEST_URL")
+        sys.exit(1)
+
+    # Safety check
+    if not is_safe_test_database(test_db_url):
+        print(f" DANGER: Database URL appears to be production: {test_db_url}")
+        print(" Tests aborted to prevent data loss!")
+        print(" Please set MYSQL_TEST_URL to a test database")
+        sys.exit(1)
+
     app = create_app()
 
-    # Use your local MySQL with the specific test database
+    # Override ANY database configuration from the main app
     app.config.update(
         {
             "TESTING": True,
-            "SQLALCHEMY_DATABASE_URI": os.environ.get(
-                "MYSQL_PUBLIC_URL",
-                "mysql+pymysql://root:test_password@127.0.0.1:3306/salon_app_test",
-            ),
+            "SQLALCHEMY_DATABASE_URI": test_db_url,
             "SECRET_KEY": "test-secret-key-for-testing-only",
             "WTF_CSRF_ENABLED": False,
         }
     )
+
+    # Double-check we're not using production
+    actual_db_uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    if "nozomi.proxy.rlwy.net" in actual_db_uri or "t_salon_app" in actual_db_uri:
+        print(" CRITICAL: App is still configured with production database!")
+        print(" Database URI: {actual_db_uri}")
+        sys.exit(1)
+
+    print(f"✅ Running tests against: {test_db_url}")
 
     yield app
 
@@ -43,10 +125,33 @@ def db(app: Flask):
     from app.models import Base
 
     with app.app_context():
-        # Drop existing tables
+        # Double-check we're in test mode
+        if not app.config.get("TESTING"):
+            print(" DANGER: Not in testing mode!")
+            sys.exit(1)
+
+        db_uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
+
+        # Final safety check before dropping tables
+        if not is_safe_test_database(db_uri):
+            print(
+                f" DANGER: About to drop tables in what appears to be production: {db_uri}"
+            )
+            print(" Tests aborted to prevent data loss!")
+            sys.exit(1)
+
+        # Additional explicit check for your production database
+        if "nozomi.proxy.rlwy.net" in db_uri or "t_salon_app" in db_uri:
+            print(" CRITICAL ERROR: ATTEMPTING TO DROP PRODUCTION TABLES!")
+            print(" Database: {db_uri}")
+            print(" STOPPING IMMEDIATELY!")
+            sys.exit(1)
+
+        # Only drop tables if we're absolutely sure it's a test database
+        print("🧹 Dropping tables in test database...")
         Base.metadata.drop_all(bind=database.engine)
 
-        # Create tables from models.py
+        print("📦 Creating tables in test database...")
         Base.metadata.create_all(bind=database.engine)
 
         yield database
@@ -75,7 +180,7 @@ def db_session(app, db):
             try:
                 database.session.rollback()
                 database.session.expunge_all()
-            except:
+            except Exception:
                 pass
 
         # Replace remove temporarily
@@ -89,7 +194,7 @@ def db_session(app, db):
         # Cleanup
         try:
             database.session.rollback()
-        except:
+        except Exception:
             pass
 
         transaction.rollback()
@@ -125,7 +230,7 @@ def sample_customer(db_session):
         user_id=auth_user.id,
         first_name="Test",
         last_name="Customer",
-        email="customer@example.com",  # Note: Added based on common patterns, remove if not in DB schema
+        email="customer@example.com",
         phone_number="123-456-7890",
         gender="Non-binary",
     )
@@ -143,7 +248,7 @@ def sample_owner(db_session):
     auth_user = AuthUser(
         email="owner@example.com",
         password_hash=hashed_pw,
-        role="OWNER",  # Enum value from models.py
+        role="OWNER",
         firebase_uid="owner_uid_456",
     )
     db_session.add(auth_user)
