@@ -1,11 +1,13 @@
 from app.api.admin.verification import admin_verification_bp
 from app.api.employee.employee_app import employeesapp_bp
 from app.api.employee.employee import employees_bp
+from app.api.employee.details import employee_details_bp
 from app.api.loyalty.customer_loyaltyp import loyalty_bp
 from app.api.payments.receipts import receipts_bp
 from app.api.payments.methods import payments_bp
 from app.api.booking.appointments import appointments_bp
 from app.api.salons.reviews import reviews_bp
+from app.api.salons.details import salon_details_bp
 from app.routes.upload_image_salon import salon_images_bp
 from app.routes.salon_register import salon_register_bp
 from app.routes.cart import cart_bp
@@ -62,11 +64,13 @@ def create_app():
             salon_register_bp,
             salon_images_bp,
             reviews_bp,
+            salon_details_bp,
             appointments_bp,
             payments_bp,
             receipts_bp,
             loyalty_bp,
             employees_bp,
+            employee_details_bp,
             employeesapp_bp,
             employee_payroll_bp,
             admin_verification_bp,
