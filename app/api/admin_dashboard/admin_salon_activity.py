@@ -141,3 +141,28 @@ def customers_trend():
     return jsonify({"customers": data})
 
 
+@admin_salon_activity_bp.route("/salons-trend", methods=["GET"])
+def salons_trend():
+    from app.models import Salon
+
+    # Last 3 months (90 days)
+    ninety_days = datetime.now() - timedelta(days=90)
+
+    rows = (
+        db.session.query(
+            func.date(Salon.created_at).label("day"),
+            func.count(Salon.id).label("count")
+        )
+        .filter(Salon.created_at >= ninety_days)
+        .group_by(func.date(Salon.created_at))
+        .order_by(func.date(Salon.created_at))
+        .all()
+    )
+
+    data = [{"day": str(r.day), "count": int(r.count)} for r in rows]
+
+    return jsonify({"salons": data})
+
+
+
+
