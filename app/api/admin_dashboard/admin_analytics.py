@@ -37,7 +37,7 @@ def get_summary():
 
 
 # -------------------------------------------------------------------
-# 2) ENGAGEMENT TREND: appointments per day (last 7 days)
+# 2) ENGAGEMENT TREND: appointments per day (last 7 days)--> not used
 # -------------------------------------------------------------------
 @admin_analytics_bp.route("/engagement-trend", methods=["GET"])
 def get_engagement_trend():
@@ -61,7 +61,7 @@ def get_engagement_trend():
 
 
 # -------------------------------------------------------------------
-# 3) FEATURE USAGE: group salons by type (or fallback "Unknown")
+# 3) FEATURE USAGE: group salons by type (or fallback "Unknown")--> not used
 # -------------------------------------------------------------------
 @admin_analytics_bp.route("/feature-usage", methods=["GET"])
 def get_feature_usage():
@@ -111,4 +111,42 @@ def get_retention_cohort():
 
 
 
+# -------------------------------------------------------------------
+# RETURNING USERS TREND (Last 30 Days)
+# -------------------------------------------------------------------
+@admin_analytics_bp.route("/returning-users-trend", methods=["GET"])
+def get_returning_users_trend():
+    """Returning users per day in the last 30 days."""
 
+    days_window = 30
+    date_limit = datetime.utcnow() - timedelta(days=days_window)
+
+    # Subquery: customers with more than 1 lifetime appointment
+    returning_customers = (
+        db.session.query(Appointment.customer_id)
+        .group_by(Appointment.customer_id)
+        .having(func.count(Appointment.id) > 1)
+        .subquery()
+    )
+
+    rows = (
+        db.session.query(
+            func.date(Appointment.created_at).label("day"),
+            func.count(Appointment.id).label("returning_users")
+        )
+        .filter(Appointment.customer_id.in_(returning_customers))
+        .filter(Appointment.created_at >= date_limit)
+        .group_by(func.date(Appointment.created_at))
+        .order_by(func.date(Appointment.created_at))
+        .all()
+    )
+
+    data = [
+        {
+            "day": r.day.strftime("%Y-%m-%d"),
+            "returning_users": int(r.returning_users)
+        }
+        for r in rows
+    ]
+
+    return jsonify({"trend": data}), 200
