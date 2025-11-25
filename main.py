@@ -15,6 +15,7 @@ from app.routes.cart import cart_bp
 from app.routes.auth import auth_bp
 from app.routes.autocomplete import autocomplete_bp
 from app.api.employee.employee_pay_portal import employee_payroll_bp
+from app.api.salons.salon_pay_portal import salon_payroll_bp
 from app.api.customer.user_gallery import user_gallery_bp
 from app.api.customer.details import details_bp
 from app.routes.salons import salons_bp
@@ -24,6 +25,7 @@ from dotenv import load_dotenv
 from flasgger import Swagger
 from swagger__config import SWAGGER_CONFIG, SWAGGER_TEMPLATE
 import os
+from app.models import Base
 
 load_dotenv()
 from app.config import Config  # noqa: E402
@@ -78,7 +80,11 @@ def create_app():
             admin_details_bp,
             user_gallery_bp,
             details_bp,
+            salon_payroll_bp,
         ]
+
+        with app.app_context():
+            Base.metadata.create_all(bind=db.engine)
 
         for bp in blueprints:
             app.register_blueprint(bp)
