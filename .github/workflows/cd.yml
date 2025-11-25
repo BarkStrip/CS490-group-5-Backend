@@ -1,64 +1,21 @@
-name: CD - Deploy to Railway
+name: CD Documentation - Railway Native Deployment
 
 on:
   push:
     branches: [ main, dev ]
-  workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Environment to deploy to'
-        required: true
-        default: 'dev'
-        type: choice
-        options:
-          - dev       
-          - production
 
 jobs:
-  deploy:
+  deployment-notice:
     runs-on: ubuntu-latest
-    
-    environment:
-      name: ${{ inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'dev') }}
-    
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Deployment info
+    - name: CD Process Documentation
       run: |
-        echo "🚀 Starting deployment..."
-        echo "📌 Branch: ${{ github.ref_name }}"
-        echo "🌍 Target Environment: ${{ inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'dev') }}"
-        echo "📝 Commit: ${{ github.sha }}"
-
-    - name: Install Railway CLI
-      run: |
-        curl -fsSL https://railway.app/install.sh | sh
-
-    # --- DEV DEPLOYMENT ---
-    - name: Deploy to Railway Dev
-      if: ${{ inputs.environment == 'dev' || (github.event_name == 'push' && github.ref == 'refs/heads/dev') }}
-      env:
-        RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_DEV }}
-      run: |
-        echo "🚂 Deploying to Railway DEV..."
-        # UPDATED: --environment=dev
-        railway up --service=${{ secrets.RAILWAY_SERVICE_DEV }} --environment=dev
-        echo "✅ Deployed to DEV environment"
-
-    # --- PRODUCTION DEPLOYMENT ---a
-    - name: Deploy to Railway Production
-      if: ${{ inputs.environment == 'production' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
-      env:
-        RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_PROD }}
-      run: |
-        echo "🚂 Deploying to Railway PRODUCTION..."
-        railway up --service=${{ secrets.RAILWAY_SERVICE_PROD }} --environment=production
-        echo "✅ Deployed to PRODUCTION environment"
-
-    - name: Notification
-      if: always()
-      run: |
-        echo "Status: ${{ job.status }}"
-        echo "Environment: ${{ inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'dev') }}"
+        echo "🚂 Continuous Deployment Active"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "Platform: Railway (Native Git Integration)"
+        echo "Branch: ${{ github.ref_name }}"
+        echo "Commit: ${{ github.sha }}"
+        echo "Environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'dev' }}"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "✅ Railway automatically deploys this commit"
+        echo "📊 View deployment: https://railway.app"
