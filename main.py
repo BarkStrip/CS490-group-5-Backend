@@ -14,7 +14,7 @@ from app.routes.autocomplete import autocomplete_bp
 from app.api.employee.employee_pay_portal import employee_payroll_bp
 from app.api.customer.user_gallery import user_gallery_bp
 from app.routes.salons import salons_bp
-from app.api.communication.messaging import messaging_bp
+from app.routes.salon_pay_portal import salon_payroll_bp
 from flask import Flask
 from flask_cors import CORS
 from dotenv import load_dotenv
@@ -74,7 +74,7 @@ def create_app():
             employee_payroll_bp,
             admin_verification_bp,
             user_gallery_bp,
-            messaging_bp,
+            salon_payroll_bp,
         ]
 
         for bp in blueprints:
