@@ -400,9 +400,7 @@ def get_previous_appointments(customer_id):
     return jsonify(results)
 
 
-@appointments_bp.route(
-    "/<int:customer_id>/appointments/<int:appointment_id>", methods=["PUT"]
-)
+@appointments_bp.route("/<int:customer_id>/appointments/<int:appointment_id>", methods=["PUT"])
 def edit_appointment(customer_id, appointment_id):
     """
     PUT /api/appointments/<customer_id>/appointments/<appointment_id>

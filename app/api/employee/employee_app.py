@@ -7,6 +7,7 @@ from app.models import (
     Salon,
     Service,
     Message,
+    AppointmentImage
 )
 from sqlalchemy import select
 from datetime import datetime
@@ -115,9 +116,7 @@ def get_previous_appointments(employee_id):
     return jsonify(appointments_list), 200
 
 
-@employeesapp_bp.route(
-    "/<int:employee_id>/appointments/<int:appointment_id>", methods=["PUT"]
-)
+@employeesapp_bp.route("/<int:employee_id>/appointments/<int:appointment_id>", methods=["PUT"])
 def edit_upcoming_appointment(employee_id, appointment_id):
     """
     PUT /api/employeesapp/<employee_id>/appointments/<appointment_id>
@@ -265,9 +264,7 @@ def get_single_appointment(employee_id, appointment_id):
     return jsonify(response), 200
 
 
-@employeesapp_bp.route(
-    "/<int:employee_id>/appointments/<int:appointment_id>/cancel", methods=["PUT"]
-)
+@employeesapp_bp.route("/<int:employee_id>/appointments/<int:appointment_id>/cancel", methods=["PUT"])
 def cancel_upcoming_appointment(employee_id, appointment_id):
     """
     PUT /api/employeesapp/<employee_id>/appointments/<appointment_id>/cancel
@@ -320,9 +317,7 @@ def cancel_upcoming_appointment(employee_id, appointment_id):
         return jsonify({"error": "Database error", "details": str(e)}), 500
 
 
-@employeesapp_bp.route(
-    "/<int:employee_id>/appointments/<int:appointment_id>/message", methods=["POST"]
-)
+@employeesapp_bp.route("/<int:employee_id>/appointments/<int:appointment_id>/message", methods=["POST"])
 def send_message_to_customer(employee_id, appointment_id):
     """
     POST /api/employeesapp/<employee_id>/appointments/<appointment_id>/message
@@ -371,3 +366,23 @@ def send_message_to_customer(employee_id, appointment_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": "Database error", "details": str(e)}), 500
+    
+
+@employeesapp_bp.route("/<int:employee_id>/appointments/<int:appointment_id>/images", methods=["GET"])
+def get_appointment_images(employee_id, appointment_id):
+    appt = db.session.get(Appointment, appointment_id)
+    if not appt:
+        return jsonify({"error": "Appointment not found"}), 404
+    if appt.employee_id != employee_id:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    images = db.session.scalars(
+        select(AppointmentImage).where(AppointmentImage.appointment_id == appointment_id)
+    ).all()
+
+    return jsonify({
+        "appointment_id": appointment_id,
+        "count": len(images),
+        "images": [{"id": img.id, "url": img.url, "created_at": img.created_at} for img in images]
+    }), 200
+
