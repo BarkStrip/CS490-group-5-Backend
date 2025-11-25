@@ -1,15 +1,16 @@
-#Payment processing, tips
+# Payment processing, tips
 from flask import Blueprint, jsonify, request
 from app.extensions import db
 from app.models import PayMethod, Customers, Order, OrderItem, Cart, CartItem
 from datetime import datetime
 from sqlalchemy import select, delete, update
+
 payments_bp = Blueprint("payments", __name__, url_prefix="/api/payments")
 
 
 @payments_bp.route("/<int:customer_id>/methods", methods=["GET"])
 def get_customer_payment_methods(customer_id):
-    
+
     customer = db.session.get(Customers, customer_id)
 
     if not customer:
@@ -20,7 +21,7 @@ def get_customer_payment_methods(customer_id):
         .where(PayMethod.user_id == customer_id)
         .order_by(PayMethod.is_default.desc(), PayMethod.created_at.desc())
     )
-    
+
     payment_methods = db.session.scalars(stmt).all()
 
     results = [
@@ -32,12 +33,13 @@ def get_customer_payment_methods(customer_id):
             "expiration": method.Expiration.isoformat() if method.Expiration else None,
             "is_default": bool(method.is_default),
             "created_at": method.created_at.isoformat() if method.created_at else None,
-            "updated_at": method.updated_at.isoformat() if method.updated_at else None
+            "updated_at": method.updated_at.isoformat() if method.updated_at else None,
         }
         for method in payment_methods
     ]
 
     return jsonify(results)
+
 
 @payments_bp.route("/<int:customer_id>/methods", methods=["POST"])
 def create_payment_method(customer_id):
@@ -45,6 +47,7 @@ def create_payment_method(customer_id):
     POST /api/payments/<customer_id>/methods
     Purpose: Create a new payment method for a specific customer.
     Input: JSON body with fields:
+        - card_name (required): Name printed on the card
         - card_name (required): Name printed on the card
         - brand (required): Card brand (e.g., Visa, Mastercard)
         - last4 (required): Last 4 digits of card
@@ -70,13 +73,13 @@ def create_payment_method(customer_id):
         if not data:
             return jsonify({"error": "Request body is required"}), 400
 
-        card_name = data.get("card_name")  
+        card_name = data.get("card_name")
         brand = data.get("brand")
         last4 = data.get("last4")
         expiration_str = data.get("expiration")
         is_default = data.get("is_default", 0)
 
-        if not card_name or not isinstance(card_name, str) or not card_name.strip(): 
+        if not card_name or not isinstance(card_name, str) or not card_name.strip():
             return jsonify({"error": "card_name is required"}), 400
         if not brand:
             return jsonify({"error": "brand is required"}), 400
@@ -100,24 +103,28 @@ def create_payment_method(customer_id):
             return jsonify({"error": "is_default must be 1 or 0"}), 400
 
         if is_default:
-            
+            existing_defaults = (
+                db.session.query(PayMethod)
+                .filter(PayMethod.user_id == customer_id, PayMethod.is_default is True)
+                .all()
+            )
+            for method in existing_defaults:
+                method.is_default = False
+
             stmt = (
                 update(PayMethod)
-                .where(
-                    PayMethod.user_id == customer_id,
-                    PayMethod.is_default == True
-                )
+                .where(PayMethod.user_id == customer_id, PayMethod.is_default is True)
                 .values(is_default=False)
             )
             db.session.execute(stmt)
 
         new_method = PayMethod(
             user_id=customer_id,
-            card_name=card_name,  
+            card_name=card_name,
             brand=brand,
             last4=last4,
             Expiration=expiration_date,
-            is_default=is_default
+            is_default=is_default,
         )
 
         db.session.add(new_method)
@@ -128,10 +135,16 @@ def create_payment_method(customer_id):
             "card_name": new_method.card_name,
             "brand": new_method.brand,
             "last4": new_method.last4,
-            "expiration": new_method.Expiration.isoformat() if new_method.Expiration else None,
+            "expiration": (
+                new_method.Expiration.isoformat() if new_method.Expiration else None
+            ),
             "is_default": bool(new_method.is_default),
-            "created_at": new_method.created_at.isoformat() if new_method.created_at else None,
-            "updated_at": new_method.updated_at.isoformat() if new_method.updated_at else None
+            "created_at": (
+                new_method.created_at.isoformat() if new_method.created_at else None
+            ),
+            "updated_at": (
+                new_method.updated_at.isoformat() if new_method.updated_at else None
+            ),
         }
 
         return jsonify(created), 201
@@ -140,7 +153,10 @@ def create_payment_method(customer_id):
         db.session.rollback()
         return jsonify({"error": "Database error", "details": str(e)}), 500
 
-@payments_bp.route("/<int:customer_id>/methods/<int:method_id>/set-default", methods=["PUT"])
+
+@payments_bp.route(
+    "/<int:customer_id>/methods/<int:method_id>/set-default", methods=["PUT"]
+)
 def set_default_payment_method(customer_id, method_id):
 
     customer = db.session.get(Customers, customer_id)
@@ -152,14 +168,23 @@ def set_default_payment_method(customer_id, method_id):
         return jsonify({"error": "Payment method not found"}), 404
 
     if payment_method.user_id != customer_id:
-        return jsonify({"error": "Payment method does not belong to this customer"}), 403
+        return (
+            jsonify({"error": "Payment method does not belong to this customer"}),
+            403,
+        )
+
     try:
-        other_methods = db.session.query(PayMethod).filter(
-            PayMethod.user_id == customer_id,
-            PayMethod.id != method_id,
-            PayMethod.is_default == 1
-        ).all()
-        
+
+        other_methods = (
+            db.session.query(PayMethod)
+            .filter(
+                PayMethod.user_id == customer_id,
+                PayMethod.id != method_id,
+                PayMethod.is_default == 1,
+            )
+            .all()
+        )
+
         for method in other_methods:
             method.is_default = 0
         stmt_unset_others = (
@@ -167,12 +192,12 @@ def set_default_payment_method(customer_id, method_id):
             .where(
                 PayMethod.user_id == customer_id,
                 PayMethod.id != method_id,
-                PayMethod.is_default == True
+                PayMethod.is_default is True,
             )
             .values(is_default=False)
         )
-
         db.session.execute(stmt_unset_others)
+
         payment_method.is_default = 1
         db.session.commit()
 
@@ -181,10 +206,22 @@ def set_default_payment_method(customer_id, method_id):
             "card_name": payment_method.card_name,
             "brand": payment_method.brand,
             "last4": payment_method.last4,
-            "expiration": payment_method.Expiration.isoformat() if payment_method.Expiration else None,
+            "expiration": (
+                payment_method.Expiration.isoformat()
+                if payment_method.Expiration
+                else None
+            ),
             "is_default": bool(payment_method.is_default),
-            "created_at": payment_method.created_at.isoformat() if payment_method.created_at else None,
-            "updated_at": payment_method.updated_at.isoformat() if payment_method.updated_at else None
+            "created_at": (
+                payment_method.created_at.isoformat()
+                if payment_method.created_at
+                else None
+            ),
+            "updated_at": (
+                payment_method.updated_at.isoformat()
+                if payment_method.updated_at
+                else None
+            ),
         }
 
         return jsonify(updated), 200
@@ -192,6 +229,7 @@ def set_default_payment_method(customer_id, method_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": "Database error", "details": str(e)}), 500
+
 
 @payments_bp.route("/<int:customer_id>/methods/<int:method_id>", methods=["DELETE"])
 def delete_payment_method(customer_id, method_id):
@@ -226,7 +264,10 @@ def delete_payment_method(customer_id, method_id):
 
     # Verify the payment method belongs to the customer
     if payment_method.user_id != customer_id:
-        return jsonify({"error": "Payment method does not belong to this customer"}), 403
+        return (
+            jsonify({"error": "Payment method does not belong to this customer"}),
+            403,
+        )
 
     try:
         # Delete the payment method
@@ -239,8 +280,9 @@ def delete_payment_method(customer_id, method_id):
         db.session.rollback()
         return jsonify({"error": "Database error", "details": str(e)}), 500
 
+
 @payments_bp.route("/create_order", methods=["POST"])
-def create_order():  
+def create_order():
 
     data = request.get_json(force=True)
     customer_id = data.get("customer_id")
@@ -254,7 +296,7 @@ def create_order():
 
     if not data:
         return jsonify({"error": "No JSON body received"}), 400
-    
+
     required_fields = ["customer_id", "cart_items", "total_amnt"]
     for field in required_fields:
         if field not in data:
@@ -262,17 +304,17 @@ def create_order():
 
     if not customer_id or not cart_items:
         return jsonify({"error": "Missing required fields"}), 400
-        
-    try: 
+
+    try:
         new_order = Order(
             customer_id=customer_id,
             salon_id=salon_id,
-            status="completed", 
+            status="completed",
             subtotal=subtotal,
             tip_amnt=tip_amnt,
             tax_amnt=tax_amnt,
             total_amnt=total_amnt,
-            promo_id=promo_id
+            promo_id=promo_id,
         )
         db.session.add(new_order)
         db.session.flush()
@@ -285,25 +327,27 @@ def create_order():
                 service_id=item.get("service_id"),
                 qty=item.get("qty", 1),
                 unit_price=item.get("unit_price"),
-                line_total=item.get("unit_price") * item.get("qty", 1)
+                line_total=item.get("unit_price") * item.get("qty", 1),
             )
             db.session.add(order_item)
 
         cart_stmt = select(Cart).filter_by(user_id=customer_id)
         customer_cart = db.session.scalar(cart_stmt)
 
-        if customer_cart: 
+        if customer_cart:
             delete_stmt = delete(CartItem).where(CartItem.cart_id == customer_cart.id)
             db.session.execute(delete_stmt)
 
         db.session.commit()
 
-        return jsonify({
-            "message": "Order created successfully",
-            "order_id": new_order.id
-        }), 201
-    
-    except Exception as e: 
+        return (
+            jsonify(
+                {"message": "Order created successfully", "order_id": new_order.id}
+            ),
+            201,
+        )
+
+    except Exception as e:
         db.session.rollback()
         print(f"Error creating order: {e}")
         error_response = {"error": "unexpected error", "details": str(e)}

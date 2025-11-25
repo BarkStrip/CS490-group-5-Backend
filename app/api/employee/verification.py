@@ -5,7 +5,9 @@ from datetime import datetime
 import traceback
 
 # Create the Blueprint
-employee_verification_bp = Blueprint("employee_verification", __name__, url_prefix="/api/employee/verification")
+employee_verification_bp = Blueprint(
+    "employee_verification", __name__, url_prefix="/api/employee/verification"
+)
 
 
 @employee_verification_bp.route("/<int:salon_id>", methods=["GET"])
@@ -43,49 +45,66 @@ def get_employees_verification(salon_id):
         # Check if salon exists
         salon = db.session.query(Salon).filter(Salon.id == salon_id).first()
         if not salon:
-            return jsonify({
-                "status": "error",
-                "message": "Salon not found"
-            }), 404
+            return jsonify({"status": "error", "message": "Salon not found"}), 404
 
         # Get employees for this salon with status filter
-        employees = db.session.query(Employees).filter(
-            Employees.salon_id == salon_id,
-            Employees.employment_status == status_filter
-        ).all()
+        employees = (
+            db.session.query(Employees)
+            .filter(
+                Employees.salon_id == salon_id,
+                Employees.employment_status == status_filter,
+            )
+            .all()
+        )
 
         # Format response
         employee_list = []
         for emp in employees:
-            employee_list.append({
-                "id": emp.id,
-                "user_id": emp.user_id,
-                "salon_id": emp.salon_id,
-                "first_name": emp.first_name,
-                "last_name": emp.last_name,
-                "phone_number": emp.phone_number,
-                "address": emp.address,
-                "employment_status": emp.employment_status,
-                "employee_type": emp.employee_type,
-                "email": emp.user.email if emp.user else None,
-                "created_at": emp.created_at.isoformat() if emp.created_at else None,
-                "updated_at": emp.updated_at.isoformat() if emp.updated_at else None
-            })
+            employee_list.append(
+                {
+                    "id": emp.id,
+                    "user_id": emp.user_id,
+                    "salon_id": emp.salon_id,
+                    "first_name": emp.first_name,
+                    "last_name": emp.last_name,
+                    "phone_number": emp.phone_number,
+                    "address": emp.address,
+                    "employment_status": emp.employment_status,
+                    "employee_type": emp.employee_type,
+                    "email": emp.user.email if emp.user else None,
+                    "created_at": (
+                        emp.created_at.isoformat() if emp.created_at else None
+                    ),
+                    "updated_at": (
+                        emp.updated_at.isoformat() if emp.updated_at else None
+                    ),
+                }
+            )
 
-        return jsonify({
-            "status": "success",
-            "salon_id": salon_id,
-            "salon_name": salon.name,
-            "employees": employee_list
-        }), 200
+        return (
+            jsonify(
+                {
+                    "status": "success",
+                    "salon_id": salon_id,
+                    "salon_name": salon.name,
+                    "employees": employee_list,
+                }
+            ),
+            200,
+        )
 
     except Exception as e:
         traceback.print_exc()
-        return jsonify({
-            "status": "error",
-            "message": "Failed to fetch pending employees",
-            "details": str(e)
-        }), 500
+        return (
+            jsonify(
+                {
+                    "status": "error",
+                    "message": "Failed to fetch pending employees",
+                    "details": str(e),
+                }
+            ),
+            500,
+        )
 
 
 @employee_verification_bp.route("/<int:employee_id>", methods=["PUT"])
@@ -129,21 +148,23 @@ def update_employee_status(employee_id):
 
         # Validate status
         if new_status not in ["PENDING", "APPROVED", "REJECTED"]:
-            return jsonify({
-                "status": "error",
-                "message": "Invalid employment_status. Must be PENDING, APPROVED, or REJECTED"
-            }), 400
+            return (
+                jsonify(
+                    {
+                        "status": "error",
+                        "message": "Invalid employment_status. Must be PENDING, APPROVED, or REJECTED",
+                    }
+                ),
+                400,
+            )
 
         # Find employee
-        employee = db.session.query(Employees).filter(
-            Employees.id == employee_id
-        ).first()
+        employee = (
+            db.session.query(Employees).filter(Employees.id == employee_id).first()
+        )
 
         if not employee:
-            return jsonify({
-                "status": "error",
-                "message": "Employee not found"
-            }), 404
+            return jsonify({"status": "error", "message": "Employee not found"}), 404
 
         # Update employment status
         employee.employment_status = new_status
@@ -151,31 +172,47 @@ def update_employee_status(employee_id):
         db.session.commit()
 
         # Fetch user email
-        user = db.session.query(AuthUser).filter(AuthUser.id == employee.user_id).first()
+        user = (
+            db.session.query(AuthUser).filter(AuthUser.id == employee.user_id).first()
+        )
 
-        return jsonify({
-            "status": "success",
-            "message": f"Employee status updated to {new_status}",
-            "employee": {
-                "id": employee.id,
-                "user_id": employee.user_id,
-                "salon_id": employee.salon_id,
-                "first_name": employee.first_name,
-                "last_name": employee.last_name,
-                "phone_number": employee.phone_number,
-                "address": employee.address,
-                "employment_status": employee.employment_status,
-                "employee_type": employee.employee_type,
-                "email": user.email if user else None,
-                "updated_at": employee.updated_at.isoformat() if employee.updated_at else None
-            }
-        }), 200
+        return (
+            jsonify(
+                {
+                    "status": "success",
+                    "message": f"Employee status updated to {new_status}",
+                    "employee": {
+                        "id": employee.id,
+                        "user_id": employee.user_id,
+                        "salon_id": employee.salon_id,
+                        "first_name": employee.first_name,
+                        "last_name": employee.last_name,
+                        "phone_number": employee.phone_number,
+                        "address": employee.address,
+                        "employment_status": employee.employment_status,
+                        "employee_type": employee.employee_type,
+                        "email": user.email if user else None,
+                        "updated_at": (
+                            employee.updated_at.isoformat()
+                            if employee.updated_at
+                            else None
+                        ),
+                    },
+                }
+            ),
+            200,
+        )
 
     except Exception as e:
         db.session.rollback()
         traceback.print_exc()
-        return jsonify({
-            "status": "error",
-            "message": "Failed to update employee status",
-            "details": str(e)
-        }), 500
+        return (
+            jsonify(
+                {
+                    "status": "error",
+                    "message": "Failed to update employee status",
+                    "details": str(e),
+                }
+            ),
+            500,
+        )

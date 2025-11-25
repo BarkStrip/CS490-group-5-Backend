@@ -1,11 +1,19 @@
 from flask import Blueprint, jsonify, request
 from app.extensions import db
-from app.models import Employees, EmpAvail, Appointment, Customers, Salon, Service, Message
-from sqlalchemy import select, delete, update
-from datetime import time, date, datetime
+from app.models import (
+    Employees,
+    Appointment,
+    Customers,
+    Salon,
+    Service,
+    Message,
+)
+from sqlalchemy import select
+from datetime import datetime
 
 
 employeesapp_bp = Blueprint("employeesapp_bp", __name__, url_prefix="/api/employeesapp")
+
 
 @employeesapp_bp.route("/<int:employee_id>/appointments/upcoming", methods=["GET"])
 def get_upcoming_appointments(employee_id):
@@ -17,7 +25,7 @@ def get_upcoming_appointments(employee_id):
         return jsonify({"error": "Employee not found"}), 404
 
     now = datetime.utcnow()
-    
+
     stmt = (
         select(
             Appointment,
@@ -32,7 +40,7 @@ def get_upcoming_appointments(employee_id):
         .where(
             Appointment.employee_id == employee_id,
             Appointment.start_at >= now,
-            Appointment.status.notin_(['CANCELLED', 'COMPLETED', 'NO_SHOW'])
+            Appointment.status.notin_(["CANCELLED", "COMPLETED", "NO_SHOW"]),
         )
         .order_by(Appointment.start_at.asc())
     )
@@ -66,7 +74,7 @@ def get_previous_appointments(employee_id):
         return jsonify({"error": "Employee not found"}), 404
 
     now = datetime.utcnow()
-    
+
     stmt = (
         select(
             Appointment,
@@ -81,9 +89,9 @@ def get_previous_appointments(employee_id):
         .where(
             Appointment.employee_id == employee_id,
             (
-                (Appointment.start_at < now) |
-                (Appointment.status.in_(['CANCELLED', 'COMPLETED', 'NO_SHOW']))
-            )
+                (Appointment.start_at < now)
+                | (Appointment.status.in_(["CANCELLED", "COMPLETED", "NO_SHOW"]))
+            ),
         )
         .order_by(Appointment.start_at.desc())
     )
@@ -107,7 +115,9 @@ def get_previous_appointments(employee_id):
     return jsonify(appointments_list), 200
 
 
-@employeesapp_bp.route("/<int:employee_id>/appointments/<int:appointment_id>", methods=["PUT"])
+@employeesapp_bp.route(
+    "/<int:employee_id>/appointments/<int:appointment_id>", methods=["PUT"]
+)
 def edit_upcoming_appointment(employee_id, appointment_id):
     """
     PUT /api/employeesapp/<employee_id>/appointments/<appointment_id>
@@ -119,15 +129,20 @@ def edit_upcoming_appointment(employee_id, appointment_id):
         - notes (string)
     """
     appt = db.session.get(Appointment, appointment_id)
-    
+
     if not appt:
         return jsonify({"error": "Appointment not found"}), 404
     if appt.employee_id != employee_id:
         return jsonify({"error": "Forbidden: You cannot edit this appointment"}), 403
     if appt.start_at < datetime.utcnow():
         return jsonify({"error": "Cannot edit a past appointment"}), 400
-    if appt.status in ['CANCELLED', 'COMPLETED', 'NO_SHOW']:
-        return jsonify({"error": f"Cannot edit an appointment with status: {appt.status}"}), 400
+    if appt.status in ["CANCELLED", "COMPLETED", "NO_SHOW"]:
+        return (
+            jsonify(
+                {"error": f"Cannot edit an appointment with status: {appt.status}"}
+            ),
+            400,
+        )
 
     data = request.get_json()
     if not data:
@@ -142,7 +157,7 @@ def edit_upcoming_appointment(employee_id, appointment_id):
             appt.service_id = data["service_id"]
         if "notes" in data:
             appt.notes = data["notes"]
-            
+
         db.session.commit()
         return jsonify({"message": "Appointment updated", "id": appt.id}), 200
 
@@ -202,8 +217,57 @@ def get_single_appointment(employee_id, appointment_id):
     return jsonify(response), 200
 
 
+@employeesapp_bp.route("/<int:employee_id>/appointments/<int:appointment_id>", methods=["GET"])
+def get_single_appointment(employee_id, appointment_id):
+    """
+    GET /api/employeesapp/<employee_id>/appointments/<appointment_id>
+    Purpose: Fetch full details of one appointment for editing/viewing.
+    """
 
-@employeesapp_bp.route("/<int:employee_id>/appointments/<int:appointment_id>/cancel", methods=["PUT"])
+    appt = db.session.get(Appointment, appointment_id)
+    if not appt:
+        return jsonify({"error": "Appointment not found"}), 404
+
+    if appt.employee_id != employee_id:
+        return jsonify({"error": "Forbidden: You cannot view this appointment"}), 403
+
+    # Fetch related models
+    service = db.session.get(Service, appt.service_id) if appt.service_id else None
+    salon = db.session.get(Salon, appt.salon_id) if appt.salon_id else None
+    customer = db.session.get(Customers, appt.customer_id) if appt.customer_id else None
+
+    # If you eventually add an AppointmentPhoto model, load them here
+    photos = []
+    # Example:
+    # photos = [photo.url for photo in appt.photos]  # if relationship exists
+
+    response = {
+        "appointment_id": appt.id,
+        "employee_id": appt.employee_id,
+        "customer_id": appt.customer_id,
+        "customer_name": f"{customer.first_name} {customer.last_name}".strip() if customer else None,
+
+        "service_id": appt.service_id,
+        "service_name": service.name if service else None,
+
+        "salon_id": appt.salon_id,
+        "salon_name": salon.name if salon else None,
+
+        "start_at": appt.start_at.isoformat(),
+        "end_at": appt.end_at.isoformat(),
+
+        "status": appt.status,
+        "notes": appt.notes,
+
+        "photos": photos  # empty array for now
+    }
+
+    return jsonify(response), 200
+
+
+@employeesapp_bp.route(
+    "/<int:employee_id>/appointments/<int:appointment_id>/cancel", methods=["PUT"]
+)
 def cancel_upcoming_appointment(employee_id, appointment_id):
     """
     PUT /api/employeesapp/<employee_id>/appointments/<appointment_id>/cancel
@@ -219,10 +283,15 @@ def cancel_upcoming_appointment(employee_id, appointment_id):
         return jsonify({"error": "Forbidden: You cannot cancel this appointment"}), 403
     if appt.start_at < datetime.utcnow():
         return jsonify({"error": "Cannot cancel a past appointment"}), 400
-    if appt.status == 'CANCELLED':
+    if appt.status == "CANCELLED":
         return jsonify({"error": "Appointment is already cancelled"}), 400
-    if appt.status in ['COMPLETED', 'NO_SHOW']:
-        return jsonify({"error": f"Cannot cancel an appointment with status: {appt.status}"}), 400
+    if appt.status in ["COMPLETED", "NO_SHOW"]:
+        return (
+            jsonify(
+                {"error": f"Cannot cancel an appointment with status: {appt.status}"}
+            ),
+            400,
+        )
 
     data = request.get_json()
     reason = data.get("reason") if data else None
@@ -232,21 +301,28 @@ def cancel_upcoming_appointment(employee_id, appointment_id):
         if reason:
             new_note = f"Cancelled by employee. Reason: {reason}"
             appt.notes = f"{appt.notes}\n{new_note}" if appt.notes else new_note
-        
+
         db.session.commit()
-        
-        return jsonify({
-            "message": "Appointment cancelled",
-            "id": appt.id,
-            "status": appt.status
-        }), 200
+
+        return (
+            jsonify(
+                {
+                    "message": "Appointment cancelled",
+                    "id": appt.id,
+                    "status": appt.status,
+                }
+            ),
+            200,
+        )
 
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": "Database error", "details": str(e)}), 500
 
 
-@employeesapp_bp.route("/<int:employee_id>/appointments/<int:appointment_id>/message", methods=["POST"])
+@employeesapp_bp.route(
+    "/<int:employee_id>/appointments/<int:appointment_id>/message", methods=["POST"]
+)
 def send_message_to_customer(employee_id, appointment_id):
     """
     POST /api/employeesapp/<employee_id>/appointments/<appointment_id>/message
@@ -255,7 +331,7 @@ def send_message_to_customer(employee_id, appointment_id):
         - body (required, string): The message text.
     """
     appt = db.session.get(Appointment, appointment_id)
-    
+
     if not appt:
         return jsonify({"error": "Appointment not found"}), 404
     if appt.employee_id != employee_id:
@@ -272,20 +348,25 @@ def send_message_to_customer(employee_id, appointment_id):
         new_msg = Message(
             customer_id=appt.customer_id,
             employee_id=employee_id,
-            sender_role='EMPLOYEE',  
-            body=body
+            sender_role="EMPLOYEE",
+            body=body,
         )
         db.session.add(new_msg)
         db.session.commit()
-        
-        return jsonify({
-            "message": "Message sent",
-            "message_id": new_msg.id,
-            "customer_id": new_msg.customer_id,
-            "employee_id": new_msg.employee_id,
-            "body": new_msg.body,
-            "created_at": new_msg.created_at.isoformat()
-        }), 201
+
+        return (
+            jsonify(
+                {
+                    "message": "Message sent",
+                    "message_id": new_msg.id,
+                    "customer_id": new_msg.customer_id,
+                    "employee_id": new_msg.employee_id,
+                    "body": new_msg.body,
+                    "created_at": new_msg.created_at.isoformat(),
+                }
+            ),
+            201,
+        )
 
     except Exception as e:
         db.session.rollback()
