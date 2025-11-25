@@ -2,7 +2,7 @@
 
 from flask import Blueprint, jsonify
 from app.extensions import db
-from app.models import Employees, Appointment, Salon, Order, OrderItem
+from app.models import Employees, Appointment, Salon, Order, OrderItem, Product
 from sqlalchemy import and_
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -53,21 +53,22 @@ def get_biweekly_period(target_date=None):
 def get_product_revenue_for_range(salon_id, start_dt, end_dt) -> Decimal:
     """
     Sum product revenue (not services) for a salon in a given datetime range,
-    based on OrderItem + Order.
+    based on OrderItem + Order + Product.
 
     Uses:
       - OrderItem.line_total if present
       - otherwise unit_price * qty
     Filters:
-      - Order.salon_id == salon_id
+      - Product.salon_id == salon_id   <-- key change
       - Order.created_at within [start_dt, end_dt]
       - OrderItem.product_id is not NULL
     """
     product_items = (
         db.session.query(OrderItem)
-        .join(OrderItem.order)
+        .join(OrderItem.order) 
+        .join(OrderItem.product) 
         .filter(
-            Order.salon_id == salon_id,
+            Product.salon_id == salon_id, 
             Order.created_at >= start_dt,
             Order.created_at <= end_dt,
             OrderItem.product_id.isnot(None),
@@ -89,6 +90,7 @@ def get_product_revenue_for_range(salon_id, start_dt, end_dt) -> Decimal:
         total_product_revenue += line_total
 
     return total_product_revenue.quantize(Decimal("0.01"))
+
 
 
 @salon_payroll_bp.route("/<int:salon_id>/current-period", methods=["GET"])
