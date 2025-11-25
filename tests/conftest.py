@@ -243,7 +243,7 @@ def sample_customer(db_session):
 @pytest.fixture
 def sample_owner(db_session):
     """Create a sample salon owner (AuthUser + SalonOwners profile)."""
-    # 1. Create AuthUser
+    # 1. Create AuthUser Test1
     hashed_pw = bcrypt.hashpw(b"ownerpass123", bcrypt.gensalt())
     auth_user = AuthUser(
         email="owner@example.com",
