@@ -12,6 +12,7 @@ from app.routes.cart import cart_bp
 from app.routes.auth import auth_bp
 from app.routes.autocomplete import autocomplete_bp
 from app.api.employee.employee_pay_portal import employee_payroll_bp
+from app.api.salons.salon_pay_portal import salon_payroll_bp
 from app.api.customer.user_gallery import user_gallery_bp
 from app.routes.salons import salons_bp
 from flask import Flask
@@ -71,6 +72,7 @@ def create_app():
             employee_payroll_bp,
             admin_verification_bp,
             user_gallery_bp,
+            salon_payroll_bp,
         ]
 
         with app.app_context():
