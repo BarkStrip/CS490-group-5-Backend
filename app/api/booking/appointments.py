@@ -2,6 +2,7 @@
 from flask import Blueprint, jsonify, request
 from app.extensions import db
 from ...models import (
+    AppointmentImage,
     Salon,
     Employees,
     EmpAvail,
@@ -591,10 +592,10 @@ def add_appointment():
         start_at_str = data["start_at"]
         notes = data.get("notes")
         status = data.get("status", "Booked")
+        pictures = data.get("pictures", [])
 
         try:
             start_at = datetime.datetime.fromisoformat(start_at_str)
-            # start_at = datetime.strptime(start_at_str, "%Y-%m-%dT%H:%M:%S")
         except ValueError:
             return (
                 jsonify(
@@ -630,6 +631,16 @@ def add_appointment():
         )
 
         db.session.add(appointment)
+
+        if pictures and isinstance(pictures, list):
+            for photo_url in pictures:
+                appointment_image = AppointmentImage(
+                    appointment_id=appointment.id,
+                    url=photo_url,
+                    cart_item_id=None
+                )
+                db.session.add(appointment_image)
+
         db.session.commit()
 
         return (
@@ -640,6 +651,7 @@ def add_appointment():
                     "start_at": str(appointment.start_at),
                     "end_at": str(appointment.end_at),
                     "status": appointment.status,
+                    "photos_count": len(pictures)
                 }
             ),
             201,
