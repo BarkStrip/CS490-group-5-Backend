@@ -20,6 +20,7 @@ cart_bp = Blueprint("cart", __name__, url_prefix="/api/cart")
 # Purpose:
 #   Add a salon service (appointment) to the user's cart.
 # -----------------------------------------------------------------------------
+'''
 @cart_bp.route("/add-service", methods=["POST"])
 def add_to_cart():
     """
@@ -88,8 +89,8 @@ def add_to_cart():
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
-
 '''
+
 @cart_bp.route("/add-service", methods=["POST"])
 def add_service_to_cart():
     try:
@@ -226,7 +227,7 @@ def add_service_to_cart():
     except Exception as e:
         db.session.rollback()
         return jsonify({"status": "error", "message": str(e)}), 500
-'''
+
 
 # -----------------------------------------------------------------------------
 # POST /api/cart/add-product
