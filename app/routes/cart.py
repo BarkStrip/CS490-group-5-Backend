@@ -20,7 +20,7 @@ cart_bp = Blueprint("cart", __name__, url_prefix="/api/cart")
 # Purpose:
 #   Add a salon service (appointment) to the user's cart.
 # -----------------------------------------------------------------------------
-@cart_bp.route("/add", methods=["POST"])
+@cart_bp.route("/add-service", methods=["POST"])
 def add_to_cart():
     """
     Add a product or service to the user's cart.
