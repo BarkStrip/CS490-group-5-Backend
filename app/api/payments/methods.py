@@ -1,7 +1,7 @@
 # Payment processing, tips
 from flask import Blueprint, jsonify, request
 from app.extensions import db
-from app.models import PayMethod, Customers, Order, OrderItem, Cart, CartItem
+from app.models import PayMethod, Customers, Order, OrderItem, Cart, CartItem, CartItemImage, AppointmentImage
 from datetime import datetime
 from sqlalchemy import select, delete, update
 
@@ -154,9 +154,7 @@ def create_payment_method(customer_id):
         return jsonify({"error": "Database error", "details": str(e)}), 500
 
 
-@payments_bp.route(
-    "/<int:customer_id>/methods/<int:method_id>/set-default", methods=["PUT"]
-)
+@payments_bp.route("/<int:customer_id>/methods/<int:method_id>/set-default", methods=["PUT"])
 def set_default_payment_method(customer_id, method_id):
 
     customer = db.session.get(Customers, customer_id)
@@ -319,6 +317,12 @@ def create_order():
         db.session.add(new_order)
         db.session.flush()
 
+        cart_stmt = select(Cart).filter_by(user_id=customer_id)
+        customer_cart = db.session.scalar(cart_stmt)
+
+        # Dictionary to map service_id to order_item_id for image transfer
+        service_to_order_item = {}
+
         for item in cart_items:
             order_item = OrderItem(
                 order_id=new_order.id,
@@ -330,13 +334,54 @@ def create_order():
                 line_total=item.get("unit_price") * item.get("qty", 1),
             )
             db.session.add(order_item)
+            db.session.flush()
 
-        cart_stmt = select(Cart).filter_by(user_id=customer_id)
-        customer_cart = db.session.scalar(cart_stmt)
+            if item.get("kind") == "service" and item.get("service_id"):
+                service_to_order_item[item.get("service_id")] = order_item.id
+
+
+        #cart_stmt = select(Cart).filter_by(user_id=customer_id)
+        #customer_cart = db.session.scalar(cart_stmt)
+
+        if customer_cart and service_to_order_item:
+            cart_service_items = db.session.query(CartItem).filter(
+                CartItem.cart_id == customer_cart.id,
+                CartItem.service_id.in_(service_to_order_item.keys())
+            ).all()
+
+            for cart_item in cart_service_items:
+                order_item_id = service_to_order_item.get(cart_item.service_id)
+
+                if order_item_id:
+                    cart_images = db.session.query(CartItemImage).filter(
+                        CartItemImage.cart_item_id == cart_item.id
+                    ).all()
+
+                    for cart_image in cart_images:
+                        appointment_image = AppointmentImage(
+                            appointment_id=order_item_id,
+                            url = cart_image.url,
+                        )
+                        db.session.add(appointment_image)
+                        print(f"Transferred image from cart_item {cart_item.id} to appointment {order_item_id}: {cart_image.url}")
 
         if customer_cart:
-            delete_stmt = delete(CartItem).where(CartItem.cart_id == customer_cart.id)
-            db.session.execute(delete_stmt)
+            # Delete cart item images first
+            cart_item_ids = [item.id for item in db.session.query(CartItem.id).filter(
+                CartItem.cart_id == customer_cart.id
+            ).all()]
+            
+            if cart_item_ids:
+                # Delete cart item images
+                db.session.query(CartItemImage).filter(
+                    CartItemImage.cart_item_id.in_(cart_item_ids)
+                ).delete(synchronize_session=False)
+                
+                # Delete cart items
+                delete_stmt = delete(CartItem).where(CartItem.cart_id == customer_cart.id)
+                db.session.execute(delete_stmt)
+            
+            print(f"Cleared cart for customer {customer_id}")
 
         db.session.commit()
 
