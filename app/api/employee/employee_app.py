@@ -216,54 +216,6 @@ def get_single_appointment(employee_id, appointment_id):
     return jsonify(response), 200
 
 
-@employeesapp_bp.route("/<int:employee_id>/appointments/<int:appointment_id>", methods=["GET"])
-def get_single_appointment(employee_id, appointment_id):
-    """
-    GET /api/employeesapp/<employee_id>/appointments/<appointment_id>
-    Purpose: Fetch full details of one appointment for editing/viewing.
-    """
-
-    appt = db.session.get(Appointment, appointment_id)
-    if not appt:
-        return jsonify({"error": "Appointment not found"}), 404
-
-    if appt.employee_id != employee_id:
-        return jsonify({"error": "Forbidden: You cannot view this appointment"}), 403
-
-    # Fetch related models
-    service = db.session.get(Service, appt.service_id) if appt.service_id else None
-    salon = db.session.get(Salon, appt.salon_id) if appt.salon_id else None
-    customer = db.session.get(Customers, appt.customer_id) if appt.customer_id else None
-
-    # If you eventually add an AppointmentPhoto model, load them here
-    photos = []
-    # Example:
-    # photos = [photo.url for photo in appt.photos]  # if relationship exists
-
-    response = {
-        "appointment_id": appt.id,
-        "employee_id": appt.employee_id,
-        "customer_id": appt.customer_id,
-        "customer_name": f"{customer.first_name} {customer.last_name}".strip() if customer else None,
-
-        "service_id": appt.service_id,
-        "service_name": service.name if service else None,
-
-        "salon_id": appt.salon_id,
-        "salon_name": salon.name if salon else None,
-
-        "start_at": appt.start_at.isoformat(),
-        "end_at": appt.end_at.isoformat(),
-
-        "status": appt.status,
-        "notes": appt.notes,
-
-        "photos": photos  # empty array for now
-    }
-
-    return jsonify(response), 200
-
-
 @employeesapp_bp.route("/<int:employee_id>/appointments/<int:appointment_id>/cancel", methods=["PUT"])
 def cancel_upcoming_appointment(employee_id, appointment_id):
     """
