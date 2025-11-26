@@ -897,7 +897,7 @@ class Appointment(Base):
     loyalty_transaction: Mapped[List["LoyaltyTransaction"]] = relationship(
         "LoyaltyTransaction", uselist=True, back_populates="appointment"
     )
-    cart_item_image = relationship("CartItemImage", back_populates="appointment", cascade="all, delete-orphan")
+    #cart_item_image = relationship("CartItemImage", back_populates="appointment", cascade="all, delete-orphan")
 
 
 
