@@ -21,7 +21,7 @@ from app.api.customer.details import details_bp
 from app.routes.salons import salons_bp
 from flask import Flask
 from flask_cors import CORS
-from flask_apscheduler import APScheduler
+#from flask_apscheduler import APScheduler
 from dotenv import load_dotenv
 from flasgger import Swagger
 from swagger__config import SWAGGER_CONFIG, SWAGGER_TEMPLATE
