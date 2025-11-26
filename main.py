@@ -21,6 +21,7 @@ from app.api.customer.details import details_bp
 from app.routes.salons import salons_bp
 from flask import Flask
 from flask_cors import CORS
+#from flask_apscheduler import APScheduler
 from dotenv import load_dotenv
 from flasgger import Swagger
 from swagger__config import SWAGGER_CONFIG, SWAGGER_TEMPLATE
@@ -38,9 +39,11 @@ from app.extensions import db  # noqa: E402
 
 
 def create_app():
+
     print("Starting create_app()")
     app = Flask(__name__)
     print(f"Flask app created: {app}")
+       
     try:
         print("Loading config...")
         app.config.from_object(Config)
@@ -152,10 +155,10 @@ def create_app():
 
     print("create_app() completed successfully")
     print(f"Returning app: {app}")
+
     return app
 
     # --- Register Blueprints ---
-
 
 print("About to call create_app()")
 app = create_app()

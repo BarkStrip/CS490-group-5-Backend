@@ -51,7 +51,7 @@ def create_payment_method(customer_id):
         - card_name (required): Name printed on the card
         - brand (required): Card brand (e.g., Visa, Mastercard)
         - last4 (required): Last 4 digits of card
-        - expiration (required): Card expiration date in YYYY-MM-DD format
+        - expiration (required): Card expiration date in MM/YY format
         - is_default (optional): 1 (true) or 0 (false - default)
 
     Behavior:
@@ -91,10 +91,13 @@ def create_payment_method(customer_id):
         if not isinstance(last4, str) or len(last4) != 4 or not last4.isdigit():
             return jsonify({"error": "last4 must be exactly 4 digits"}), 400
 
+
         try:
-            expiration_date = datetime.strptime(expiration_str, "%Y-%m-%d").date()
+            expiration_date = datetime.strptime(expiration_str, "%m/%y").date()
         except ValueError:
-            return jsonify({"error": "expiration must be in YYYY-MM-DD format"}), 400
+            return jsonify({"error": "expiration must be in MM/YY format"}), 400
+
+
 
         if not isinstance(is_default, int) or is_default not in (0, 1):
             return jsonify({"error": "is_default must be 1 or 0"}), 400
