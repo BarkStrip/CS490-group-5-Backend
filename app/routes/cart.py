@@ -108,6 +108,7 @@ def add_service_to_cart():
             notes=notes,
             stylist_id=stylist_id,
             #pictures=pictures
+            #pictures=data.get("pictures", [])
         )
 
         db.session.add(cart_item)
