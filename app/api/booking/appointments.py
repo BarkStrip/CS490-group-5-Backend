@@ -597,22 +597,18 @@ def add_appointment():
         try:
             start_at = datetime.datetime.fromisoformat(start_at_str)
         except ValueError:
-            return (
-                jsonify(
-                    {
-                        "error": "Invalid datetime format for start_at. Use ISO 8601 (e.g. 2025-11-20T11:30:00)"
-                    }
-                ),
-                400,
-            )
+            return jsonify({"error": "Invalid datetime format for start_at. Use ISO 8601 (e.g. 2025-11-20T11:30:00)"}), 400
+
 
         service_stmt = select(Service).filter_by(id=service_id)
         service = db.session.scalar(service_stmt)
+
         if not service:
             return jsonify({"error": "Service not found"}), 404
 
         duration = getattr(service, "duration", None)
         price = getattr(service, "price", None)
+
         if duration is None:
             return jsonify({"error": "Service duration missing in DB"}), 400
 
@@ -631,9 +627,14 @@ def add_appointment():
         )
 
         db.session.add(appointment)
+        db.session.flush()
 
-        if pictures and isinstance(pictures, list):
+        if isinstance(pictures, list):
             for photo_url in pictures:
+
+                if not isinstance(photo_url, str):
+                    continue
+                
                 appointment_image = AppointmentImage(
                     appointment_id=appointment.id,
                     url=photo_url,
