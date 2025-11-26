@@ -645,7 +645,8 @@ def delete_cart_item():
 
         if not cart_item:
             return jsonify({"error": "Item not found in cart"}), 404
-
+        
+        db.session.query(CartItemImage).filter_by(cart_item_id=cart_item.id).delete()
         db.session.delete(cart_item)
         db.session.commit()
 
