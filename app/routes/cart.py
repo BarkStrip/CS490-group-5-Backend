@@ -20,76 +20,7 @@ cart_bp = Blueprint("cart", __name__, url_prefix="/api/cart")
 # Purpose:
 #   Add a salon service (appointment) to the user's cart.
 # -----------------------------------------------------------------------------
-@cart_bp.route("/add", methods=["POST"])
-def add_to_cart():
-    """
-    Add a product or service to the user's cart.
-    Saves images to cart_item_image (not appointment_image).
-    """
 
-    data = request.get_json()
-    user_id = data.get("user_id")
-    product_id = data.get("product_id")
-    service_id = data.get("service_id")
-    appointment_time = data.get("appointment_time")
-    images = data.get("images", [])  # array of URLs
-
-    if not user_id:
-        return jsonify({"error": "user_id is required"}), 400
-
-    # 1. Get or create cart
-    cart = db.session.query(Cart).filter_by(user_id=user_id).first()
-    if not cart:
-        cart = Cart(user_id=user_id)
-        db.session.add(cart)
-        db.session.commit()
-
-    try:
-        # 2. Create the CartItem
-        cart_item = CartItem(
-            cart_id=cart.id,
-            product_id=product_id,
-            service_id=service_id,
-            appointment_time=appointment_time,
-        )
-        db.session.add(cart_item)
-        db.session.commit()  # commit first so cart_item has ID
-
-        # 3. Save images inside cart_item_image
-        for url in images:
-            cart_image = CartItemImage(
-                cart_item_id=cart_item.id,
-                url=url
-            )
-            db.session.add(cart_image)
-
-        db.session.commit()
-
-        # 4. Build response payload
-        cart_images = (
-            db.session.query(CartItemImage)
-            .filter_by(cart_item_id=cart_item.id)
-            .all()
-        )
-
-        image_urls = [img.url for img in cart_images]
-
-        response_payload = {
-            "cart_item_id": cart_item.id,
-            "cart_id": cart.id,
-            "product_id": product_id,
-            "service_id": service_id,
-            "appointment_time": appointment_time,
-            "images": image_urls,
-        }
-
-        return jsonify({"message": "Added to cart!", "item": response_payload}), 200
-
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"error": str(e)}), 500
-
-'''
 @cart_bp.route("/add-service", methods=["POST"])
 def add_service_to_cart():
     try:
@@ -177,8 +108,6 @@ def add_service_to_cart():
             end_at=end_datetime,
             notes=notes,
             stylist_id=stylist_id,
-            #pictures=pictures
-            #pictures=data.get("pictures", [])
         )
 
         db.session.add(cart_item)
@@ -226,7 +155,6 @@ def add_service_to_cart():
     except Exception as e:
         db.session.rollback()
         return jsonify({"status": "error", "message": str(e)}), 500
-'''
 
 # -----------------------------------------------------------------------------
 # POST /api/cart/add-product
@@ -381,13 +309,16 @@ def get_cart_details(user_id):
                     cart_item.product.salon.name if cart_item.product.salon else None
                 )
 
-            # Add associated appointment images
+            # FIX: Query CartItemImage table instead of AppointmentImage
             images = db.session.scalars(
-                select(AppointmentImage).where(
-                    AppointmentImage.cart_item_id == cart_item.id
+                select(CartItemImage).where(  # Changed from AppointmentImage to CartItemImage
+                    CartItemImage.cart_item_id == cart_item.id
                 )
             ).all()
             item_data["images"] = [img.url for img in images]
+
+            # Add cart_item_id for easier reference in frontend
+            item_data["cart_item_id"] = cart_item.id
 
             items.append(item_data)
 
@@ -946,3 +877,37 @@ def link_photos_to_appointment(cart_item_id):
             "status": "error",
             "message": f"Error linking photos to appointment: {str(e)}"
         }), 500
+    
+    
+@cart_bp.route("/transfer-images-to-appointment", methods=["POST"])
+def transfer_images_to_appointment():
+    data = request.get_json()
+    cart_item_id = data.get("cart_item_id")
+    appointment_id = data.get("appointment_id")
+    image_urls = data.get("image_urls", [])
+    
+    if not cart_item_id or not appointment_id:
+        return jsonify({"error": "cart_item_id and appointment_id are required"}), 400
+    
+    try:
+        # Transfer each image to appointment_image table
+        for image_url in image_urls:
+            appointment_image = AppointmentImage(
+                appointment_id=appointment_id,
+                url=image_url
+            )
+            db.session.add(appointment_image)
+        
+        # Delete from cart_item_image
+        db.session.query(CartItemImage).filter_by(cart_item_id=cart_item_id).delete()
+        
+        db.session.commit()
+        
+        return jsonify({
+            "message": f"Transferred {len(image_urls)} images to appointment",
+            "transferred_count": len(image_urls)
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
