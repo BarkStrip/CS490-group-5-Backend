@@ -955,31 +955,25 @@ class CartItemImage(Base):
             ondelete="CASCADE",
             name="cart_item_image_cart_item_FK",
         ),
-        ForeignKeyConstraint(
-            ["appointment_id"],
-            ["appointment.id"],
-            ondelete="CASCADE",
-            name="cart_item_image_appointment_FK",
-        ),
         Index("cart_item_image_cart_item_FK", "cart_item_id"),
-        Index("cart_item_image_appointment_FK", "appointment_id"),
     )
 
     id = mapped_column(Integer, primary_key=True)
-    url = mapped_column(VARCHAR(512), nullable=False)
-    cart_item_id = mapped_column(Integer)
-    appointment_id = mapped_column(Integer)
-    created_at = mapped_column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
-    updated_at = mapped_column(DateTime, server_default=text("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP")
+    url = mapped_column(VARCHAR(1024), nullable=False)
+    cart_item_id = mapped_column(Integer, nullable=False)
+
+    created_at = mapped_column(
+        DateTime, server_default=text("CURRENT_TIMESTAMP")
+    )
+    updated_at = mapped_column(
+        DateTime,
+        server_default=text("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP")
     )
 
-    cart_item: Mapped[Optional["CartItem"]] = relationship(
+    cart_item: Mapped["CartItem"] = relationship(
         "CartItem", back_populates="cart_item_image"
     )
 
-    appointment: Mapped[Optional["Appointment"]] = relationship(
-        "Appointment", back_populates="cart_item_image"
-    )
 
 class EmpAvail(Base):
     __tablename__ = "emp_avail"
