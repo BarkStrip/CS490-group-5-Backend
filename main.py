@@ -28,6 +28,7 @@ from swagger__config import SWAGGER_CONFIG, SWAGGER_TEMPLATE
 from app.api.admin_dashboard.admin_analytics import admin_analytics_bp
 from app.api.admin_dashboard.admin_demographics import admin_demographics_bp
 from app.api.admin_dashboard.admin_salon_activity import admin_salon_activity_bp
+from app.api.employee.verification import employee_verification_bp
 
 
 import os
@@ -84,6 +85,7 @@ def create_app():
             employee_details_bp,
             employeesapp_bp,
             employee_payroll_bp,
+            employee_verification_bp,
             admin_verification_bp,
             admin_details_bp,
             user_gallery_bp,
