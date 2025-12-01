@@ -173,37 +173,17 @@ class Customers(Base):
     date_of_birth = mapped_column(Date)
     age = mapped_column(Integer)
 
-    user: Mapped["AuthUser"] = relationship("AuthUser", back_populates="customers")
-    cart: Mapped[List["Cart"]] = relationship(
-        "Cart", uselist=True, back_populates="user"
-    )
-    notify: Mapped[List["Notify"]] = relationship(
-        "Notify", uselist=True, back_populates="customer"
-    )
-    pay_method: Mapped[List["PayMethod"]] = relationship(
-        "PayMethod", uselist=True, back_populates="user"
-    )
-    user_image: Mapped[List["UserImage"]] = relationship(
-        "UserImage", uselist=True, back_populates="customers"
-    )
-    _order: Mapped[List["Order"]] = relationship(
-        "Order", uselist=True, back_populates="customer"
-    )
-    loyalty_account: Mapped[List["LoyaltyAccount"]] = relationship(
-        "LoyaltyAccount", uselist=True, back_populates="user"
-    )
-    review: Mapped[List["Review"]] = relationship(
-        "Review", uselist=True, back_populates="customers"
-    )
-    appointment: Mapped[List["Appointment"]] = relationship(
-        "Appointment", uselist=True, back_populates="customer"
-    )
-    message: Mapped[List["Message"]] = relationship(
-        "Message", uselist=True, back_populates="customer"
-    )
-    review_token: Mapped[List["ReviewToken"]] = relationship(
-        "ReviewToken", uselist=True, back_populates="customer"
-    )
+    user: Mapped['AuthUser'] = relationship('AuthUser', back_populates='customers')
+    cart: Mapped['Cart'] = relationship('Cart', uselist=False, back_populates='customer')
+    notify: Mapped[List['Notify']] = relationship('Notify', uselist=True, back_populates='customer')
+    pay_method: Mapped[List['PayMethod']] = relationship('PayMethod', uselist=True, back_populates='user')
+    user_image: Mapped[List['UserImage']] = relationship('UserImage', uselist=True, back_populates='customers')
+    _order: Mapped[List['Order']] = relationship('Order', uselist=True, back_populates='customer')
+    loyalty_account: Mapped[List['LoyaltyAccount']] = relationship('LoyaltyAccount', uselist=True, back_populates='user')
+    review: Mapped[List['Review']] = relationship('Review', uselist=True, back_populates='customers')
+    appointment: Mapped[List['Appointment']] = relationship('Appointment', uselist=True, back_populates='customer')
+    message: Mapped[List['Message']] = relationship('Message', uselist=True, back_populates='customer')
+    review_token: Mapped[List['ReviewToken']] = relationship('ReviewToken', uselist=True, back_populates='customer')
 
 
 class SalonOwners(Base):
@@ -239,23 +219,16 @@ class SalonOwners(Base):
 class Cart(Base):
     __tablename__ = "cart"
     __table_args__ = (
-        ForeignKeyConstraint(
-            ["user_id"], ["customers.id"], ondelete="CASCADE", name="fk_cart_user"
-        ),
-        Index("uq_cart_user", "user_id", unique=True),
+        ForeignKeyConstraint(['user_id'], ['customers.id'], ondelete='CASCADE', name='fk_cart_user'),
+        Index('uq_cart_user', 'user_id', unique=True)
     )
 
     id = mapped_column(Integer, primary_key=True)
     user_id = mapped_column(Integer, nullable=False)
-    created_at = mapped_column(TIMESTAMP, server_default=text("CURRENT_TIMESTAMP"))
-    updated_at = mapped_column(
-        TIMESTAMP, server_default=text("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP")
-    )
-
-    user: Mapped["Customers"] = relationship("Customers", back_populates="cart")
-    cart_item: Mapped[List["CartItem"]] = relationship(
-        "CartItem", uselist=True, back_populates="cart"
-    )
+    created_at = mapped_column(TIMESTAMP, server_default=text('CURRENT_TIMESTAMP'))
+    updated_at = mapped_column(TIMESTAMP, server_default=text('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'))
+    customer: Mapped['Customers'] = relationship('Customers', back_populates='cart')
+    cart_item: Mapped[List['CartItem']] = relationship('CartItem', uselist=True, back_populates='cart')
 
 
 class Notify(Base):
@@ -924,6 +897,8 @@ class Appointment(Base):
     loyalty_transaction: Mapped[List["LoyaltyTransaction"]] = relationship(
         "LoyaltyTransaction", uselist=True, back_populates="appointment"
     )
+    #cart_item_image = relationship("CartItemImage", back_populates="appointment", cascade="all, delete-orphan")
+
 
 
 class CartItem(Base):
@@ -967,6 +942,36 @@ class CartItem(Base):
     )
     appointment_image: Mapped[List["AppointmentImage"]] = relationship(
         "AppointmentImage", uselist=True, back_populates="cart_item"
+    )
+    cart_item_image = relationship("CartItemImage", back_populates="cart_item", cascade="all, delete-orphan")
+
+
+class CartItemImage(Base):
+    __tablename__ = "cart_item_image"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["cart_item_id"],
+            ["cart_item.id"],
+            ondelete="CASCADE",
+            name="cart_item_image_cart_item_FK",
+        ),
+        Index("cart_item_image_cart_item_FK", "cart_item_id"),
+    )
+
+    id = mapped_column(Integer, primary_key=True)
+    url = mapped_column(VARCHAR(1024), nullable=False)
+    cart_item_id = mapped_column(Integer, nullable=False)
+
+    created_at = mapped_column(
+        DateTime, server_default=text("CURRENT_TIMESTAMP")
+    )
+    updated_at = mapped_column(
+        DateTime,
+        server_default=text("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP")
+    )
+
+    cart_item: Mapped["CartItem"] = relationship(
+        "CartItem", back_populates="cart_item_image"
     )
 
 

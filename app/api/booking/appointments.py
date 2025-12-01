@@ -2,6 +2,7 @@
 from flask import Blueprint, jsonify, request
 from app.extensions import db
 from ...models import (
+    AppointmentImage,
     Salon,
     Employees,
     EmpAvail,
@@ -400,9 +401,7 @@ def get_previous_appointments(customer_id):
     return jsonify(results)
 
 
-@appointments_bp.route(
-    "/<int:customer_id>/appointments/<int:appointment_id>", methods=["PUT"]
-)
+@appointments_bp.route("/<int:customer_id>/appointments/<int:appointment_id>", methods=["PUT"])
 def edit_appointment(customer_id, appointment_id):
     """
     PUT /api/appointments/<customer_id>/appointments/<appointment_id>
@@ -593,27 +592,23 @@ def add_appointment():
         start_at_str = data["start_at"]
         notes = data.get("notes")
         status = data.get("status", "Booked")
+        pictures = data.get("pictures", [])
 
         try:
             start_at = datetime.datetime.fromisoformat(start_at_str)
-            # start_at = datetime.strptime(start_at_str, "%Y-%m-%dT%H:%M:%S")
         except ValueError:
-            return (
-                jsonify(
-                    {
-                        "error": "Invalid datetime format for start_at. Use ISO 8601 (e.g. 2025-11-20T11:30:00)"
-                    }
-                ),
-                400,
-            )
+            return jsonify({"error": "Invalid datetime format for start_at. Use ISO 8601 (e.g. 2025-11-20T11:30:00)"}), 400
+
 
         service_stmt = select(Service).filter_by(id=service_id)
         service = db.session.scalar(service_stmt)
+
         if not service:
             return jsonify({"error": "Service not found"}), 404
 
         duration = getattr(service, "duration", None)
         price = getattr(service, "price", None)
+
         if duration is None:
             return jsonify({"error": "Service duration missing in DB"}), 400
 
@@ -632,6 +627,21 @@ def add_appointment():
         )
 
         db.session.add(appointment)
+        db.session.flush()
+
+        if isinstance(pictures, list):
+            for photo_url in pictures:
+
+                if not isinstance(photo_url, str):
+                    continue
+                
+                appointment_image = AppointmentImage(
+                    appointment_id=appointment.id,
+                    url=photo_url,
+                    cart_item_id=None
+                )
+                db.session.add(appointment_image)
+
         db.session.commit()
 
         return (
@@ -642,6 +652,7 @@ def add_appointment():
                     "start_at": str(appointment.start_at),
                     "end_at": str(appointment.end_at),
                     "status": appointment.status,
+                    "photos_count": len(pictures)
                 }
             ),
             201,

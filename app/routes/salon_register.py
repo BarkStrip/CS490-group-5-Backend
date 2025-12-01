@@ -42,6 +42,7 @@ def register_salon():
         salon_data = data.get("salon", {})
         hours_data = data.get("hours", {})
         services_data = data.get("services", [])
+        salon_tags = data.get("salon", {}).get("tags", [])
         terms_agreed = data.get("terms_agreed", False)
         business_confirmed = data.get("business_confirmed", False)
 
@@ -132,6 +133,15 @@ def register_salon():
         db.session.flush()
         salon.type.append(type_obj)
 
+        for tag_name in salon_tags:
+            tag_obj = db.session.scalar(select(Types).where(Types.name == tag_name))
+            if not tag_obj:
+                tag_obj = Types(name=tag_name)
+                db.session.add(tag_obj)
+                db.session.flush()
+            if tag_obj not in salon.type:
+                salon.type.append(tag_obj)
+
         day_mapping = {
             "monday": 0,
             "tuesday": 1,
@@ -173,7 +183,6 @@ def register_salon():
             )
             db.session.add(salon_hour)
 
-        # Add services
         for service_data in services_data:
             if service_data.get("name") and service_data.get("price"):
                 service = Service(
@@ -185,11 +194,9 @@ def register_salon():
                 )
                 db.session.add(service)
 
-        # Create verification entry
         salon_verify = SalonVerify(salon_id=salon.id, status="PENDING")
         db.session.add(salon_verify)
 
-        # Commit all
         db.session.commit()
 
         return (

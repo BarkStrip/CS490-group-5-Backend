@@ -21,9 +21,16 @@ from app.api.customer.details import details_bp
 from app.routes.salons import salons_bp
 from flask import Flask
 from flask_cors import CORS
+#from flask_apscheduler import APScheduler
 from dotenv import load_dotenv
 from flasgger import Swagger
 from swagger__config import SWAGGER_CONFIG, SWAGGER_TEMPLATE
+from app.api.admin_dashboard.admin_analytics import admin_analytics_bp
+from app.api.admin_dashboard.admin_demographics import admin_demographics_bp
+from app.api.admin_dashboard.admin_salon_activity import admin_salon_activity_bp
+from app.api.employee.verification import employee_verification_bp
+
+
 import os
 from app.models import Base
 
@@ -33,9 +40,11 @@ from app.extensions import db  # noqa: E402
 
 
 def create_app():
+
     print("Starting create_app()")
     app = Flask(__name__)
     print(f"Flask app created: {app}")
+       
     try:
         print("Loading config...")
         app.config.from_object(Config)
@@ -76,9 +85,13 @@ def create_app():
             employee_details_bp,
             employeesapp_bp,
             employee_payroll_bp,
+            employee_verification_bp,
             admin_verification_bp,
             admin_details_bp,
             user_gallery_bp,
+            admin_analytics_bp,
+            admin_demographics_bp,
+            admin_salon_activity_bp,
             details_bp,
             salon_payroll_bp,
         ]
@@ -144,10 +157,10 @@ def create_app():
 
     print("create_app() completed successfully")
     print(f"Returning app: {app}")
+
     return app
 
     # --- Register Blueprints ---
-
 
 print("About to call create_app()")
 app = create_app()

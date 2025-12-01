@@ -8,6 +8,7 @@ from ..models import (
     Product,
     CartItem,
     Customers,
+    CartItemImage,
     AppointmentImage,
 )
 
@@ -19,6 +20,7 @@ cart_bp = Blueprint("cart", __name__, url_prefix="/api/cart")
 # Purpose:
 #   Add a salon service (appointment) to the user's cart.
 # -----------------------------------------------------------------------------
+
 @cart_bp.route("/add-service", methods=["POST"])
 def add_service_to_cart():
     try:
@@ -28,7 +30,6 @@ def add_service_to_cart():
         quantity = int(data.get("quantity", 1))
         appt_date = data.get("appt_date")
         appt_time = data.get("appt_time")
-        # stylist = data.get("stylist")
         pictures = data.get("pictures", [])
         notes = data.get("notes")
         stylist_id = data.get("stylist_id")
@@ -108,46 +109,42 @@ def add_service_to_cart():
             notes=notes,
             stylist_id=stylist_id,
         )
+
         db.session.add(cart_item)
         db.session.flush()  # Get cart_item.id before using it
 
         # --- Insert iamge into AppointmentImage table ---
         created_images = []
-        if pictures:
+        if pictures: 
             for picture_url in pictures:
-                appointment_image = AppointmentImage(
-                    url=picture_url,
-                    cart_item_id=cart_item.id,
-                    appointment_id=None,  # Will be set during checkout
-                )
-                db.session.add(appointment_image)
+                cimg = CartItemImage(
+                    url = picture_url,
+                    cart_item_id = cart_item.id
+                ) 
+                db.session.add(cimg)
                 created_images.append(picture_url)
+
 
         db.session.commit()
 
-        return (
-            jsonify(
-                {
-                    "status": "success",
-                    "message": "Service added to cart successfully",
-                    "cart_item": {
-                        "cart_item_id": cart_item.id,
-                        "customer_id": customer_id,
-                        "service_id": service_id,
-                        "quantity": quantity,
-                        "price": float(service.price),
-                        "start_at": (
-                            start_datetime.isoformat() if start_datetime else None
-                        ),
-                        "end_at": end_datetime.isoformat() if end_datetime else None,
-                        "notes": notes,
-                        "pictures": created_images,
-                        "stylist_id": stylist_id,  # Note: Still not stored in database
-                    },
-                }
-            ),
-            201,
-        )
+        return jsonify({
+            "status": "success",
+            "message": "Service added to cart successfully",
+            "cart_item": {
+                "cart_item_id": cart_item.id,
+                "customer_id": customer_id,
+                "service_id": service_id,
+                "quantity": quantity,
+                "price": float(service.price),
+                "start_at": (
+                    start_datetime.isoformat() if start_datetime else None
+                ),
+                "end_at": end_datetime.isoformat() if end_datetime else None,
+                "notes": notes,
+                "stylist_id": stylist_id,  # Note: Still not stored in database
+                "pictures": created_images,
+            },
+        }), 201
 
     except IntegrityError as e:
         db.session.rollback()
@@ -158,7 +155,6 @@ def add_service_to_cart():
     except Exception as e:
         db.session.rollback()
         return jsonify({"status": "error", "message": str(e)}), 500
-
 
 # -----------------------------------------------------------------------------
 # POST /api/cart/add-product
@@ -313,13 +309,16 @@ def get_cart_details(user_id):
                     cart_item.product.salon.name if cart_item.product.salon else None
                 )
 
-            # Add associated appointment images
+            # FIX: Query CartItemImage table instead of AppointmentImage
             images = db.session.scalars(
-                select(AppointmentImage).where(
-                    AppointmentImage.cart_item_id == cart_item.id
+                select(CartItemImage).where(  # Changed from AppointmentImage to CartItemImage
+                    CartItemImage.cart_item_id == cart_item.id
                 )
             ).all()
             item_data["images"] = [img.url for img in images]
+
+            # Add cart_item_id for easier reference in frontend
+            item_data["cart_item_id"] = cart_item.id
 
             items.append(item_data)
 
@@ -647,7 +646,8 @@ def delete_cart_item():
 
         if not cart_item:
             return jsonify({"error": "Item not found in cart"}), 404
-
+        
+        db.session.query(CartItemImage).filter_by(cart_item_id=cart_item.id).delete()
         db.session.delete(cart_item)
         db.session.commit()
 
@@ -791,3 +791,123 @@ def update_cart_item_quantity():
             ),
             500,
         )
+
+
+# -----------------------------------------------------------------------------
+# GET /api/cart/<int:cart_item_id>/photos
+# Purpose: Get all photos associated with a cart item
+# -----------------------------------------------------------------------------
+@cart_bp.route("/<int:cart_item_id>/photos", methods=["GET"])
+def get_cart_item_photos(cart_item_id):
+    try:
+        stmt = select(CartItemImage).where(CartItemImage.cart_item_id == cart_item_id)
+        images = db.session.scalars(stmt).all()
+        photos = [ {"id": img.id, "url": img.url, "created_at": img.created_at} for img in images]
+        return jsonify({"photos": photos}), 200
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Error fetching photos: {str(e)}"
+        }), 500
+    
+
+# -----------------------------------------------------------------------------
+# PUT /api/cart/<int:cart_item_id>/link-appointment
+# Purpose: Link photos from cart item to actual appointment
+# -----------------------------------------------------------------------------
+@cart_bp.route("/<int:cart_item_id>/link-appointment", methods=["PUT"])
+def link_photos_to_appointment(cart_item_id):
+    """
+    Link photos from a cart_item to an appointment_id.
+    Expects JSON body: { "appointment_id": 123 }
+    Copies rows from cart_item_image -> appointment_image,
+    then deletes the cart_item_image rows. Idempotent.
+    """
+    try:
+        data = request.get_json()
+        appointment_id = data.get("appointment_id")
+        
+        if not appointment_id:
+            return jsonify({
+                "status": "error",
+                "message": "appointment_id is required"
+            }), 400
+        
+        stmt = select(CartItemImage).where(CartItemImage.cart_item_id == cart_item_id)
+        cart_images = db.session.scalars(stmt).all()
+        
+        created = []
+        for cimg in cart_images:
+            exists_stmt = select(AppointmentImage).where(
+                AppointmentImage.appointment_id == appointment_id,
+                AppointmentImage.url == cimg.url
+            )
+            already = db.session.scalar(exists_stmt)
+            if already:
+                continue
+
+            app_img = AppointmentImage(
+                url=cimg.url,
+                appointment_id=appointment_id,
+                cart_item_id=None
+            )
+            db.session.add(app_img)
+            created.append(cimg.url)
+
+        db.session.flush()
+
+        if cart_images:
+            delete_stmt = (
+                CartItemImage.__table__.delete()
+                .where(CartItemImage.cart_item_id == cart_item_id)
+            )
+            db.session.execute(delete_stmt)
+            
+        db.session.commit()
+        
+        return jsonify({
+            "status": "success",
+            "message": created,
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "status": "error",
+            "message": f"Error linking photos to appointment: {str(e)}"
+        }), 500
+    
+    
+@cart_bp.route("/transfer-images-to-appointment", methods=["POST"])
+def transfer_images_to_appointment():
+    data = request.get_json()
+    cart_item_id = data.get("cart_item_id")
+    appointment_id = data.get("appointment_id")
+    image_urls = data.get("image_urls", [])
+    
+    if not cart_item_id or not appointment_id:
+        return jsonify({"error": "cart_item_id and appointment_id are required"}), 400
+    
+    try:
+        # Transfer each image to appointment_image table
+        for image_url in image_urls:
+            appointment_image = AppointmentImage(
+                appointment_id=appointment_id,
+                url=image_url
+            )
+            db.session.add(appointment_image)
+        
+        # Delete from cart_item_image
+        db.session.query(CartItemImage).filter_by(cart_item_id=cart_item_id).delete()
+        
+        db.session.commit()
+        
+        return jsonify({
+            "message": f"Transferred {len(image_urls)} images to appointment",
+            "transferred_count": len(image_urls)
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500

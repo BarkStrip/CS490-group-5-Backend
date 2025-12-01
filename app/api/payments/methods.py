@@ -1,7 +1,7 @@
 # Payment processing, tips
 from flask import Blueprint, jsonify, request
 from app.extensions import db
-from app.models import PayMethod, Customers, Order, OrderItem, Cart, CartItem
+from app.models import PayMethod, Customers, Order, OrderItem, Cart, CartItem, CartItemImage, AppointmentImage
 from datetime import datetime
 from sqlalchemy import select, delete, update
 
@@ -51,7 +51,7 @@ def create_payment_method(customer_id):
         - card_name (required): Name printed on the card
         - brand (required): Card brand (e.g., Visa, Mastercard)
         - last4 (required): Last 4 digits of card
-        - expiration (required): Card expiration date in YYYY-MM-DD format
+        - expiration (required): Card expiration date in MM/YY format
         - is_default (optional): 1 (true) or 0 (false - default)
 
     Behavior:
@@ -91,10 +91,13 @@ def create_payment_method(customer_id):
         if not isinstance(last4, str) or len(last4) != 4 or not last4.isdigit():
             return jsonify({"error": "last4 must be exactly 4 digits"}), 400
 
+
         try:
-            expiration_date = datetime.strptime(expiration_str, "%Y-%m-%d").date()
+            expiration_date = datetime.strptime(expiration_str, "%m/%y").date()
         except ValueError:
-            return jsonify({"error": "expiration must be in YYYY-MM-DD format"}), 400
+            return jsonify({"error": "expiration must be in MM/YY format"}), 400
+
+
 
         if not isinstance(is_default, int) or is_default not in (0, 1):
             return jsonify({"error": "is_default must be 1 or 0"}), 400
@@ -151,9 +154,7 @@ def create_payment_method(customer_id):
         return jsonify({"error": "Database error", "details": str(e)}), 500
 
 
-@payments_bp.route(
-    "/<int:customer_id>/methods/<int:method_id>/set-default", methods=["PUT"]
-)
+@payments_bp.route("/<int:customer_id>/methods/<int:method_id>/set-default", methods=["PUT"])
 def set_default_payment_method(customer_id, method_id):
 
     customer = db.session.get(Customers, customer_id)
@@ -280,7 +281,6 @@ def delete_payment_method(customer_id, method_id):
 
 @payments_bp.route("/create_order", methods=["POST"])
 def create_order():
-
     data = request.get_json(force=True)
     customer_id = data.get("customer_id")
     salon_id = data.get("salon_id")
@@ -303,6 +303,7 @@ def create_order():
         return jsonify({"error": "Missing required fields"}), 400
 
     try:
+        # Create the order
         new_order = Order(
             customer_id=customer_id,
             salon_id=salon_id,
@@ -316,6 +317,7 @@ def create_order():
         db.session.add(new_order)
         db.session.flush()
 
+        # Create order items
         for item in cart_items:
             order_item = OrderItem(
                 order_id=new_order.id,
@@ -328,12 +330,15 @@ def create_order():
             )
             db.session.add(order_item)
 
+        # Clear the cart (images will remain in cart_item_image temporarily)
         cart_stmt = select(Cart).filter_by(user_id=customer_id)
         customer_cart = db.session.scalar(cart_stmt)
 
         if customer_cart:
+            # Only delete cart items, NOT cart item images
             delete_stmt = delete(CartItem).where(CartItem.cart_id == customer_cart.id)
             db.session.execute(delete_stmt)
+            print(f"Cleared cart items for customer {customer_id}, but images remain in cart_item_image")
 
         db.session.commit()
 
