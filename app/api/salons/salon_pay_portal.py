@@ -8,9 +8,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 
 # URL prefix will be: /api/salon_payroll/...
-salon_payroll_bp = Blueprint(
-    "salon_payroll", __name__, url_prefix="/api/salon_payroll"
-)
+salon_payroll_bp = Blueprint("salon_payroll", __name__, url_prefix="/api/salon_payroll")
 
 # Same commission split as employee portal
 EMPLOYEE_COMMISSION_RATE = Decimal("0.70")
@@ -114,8 +112,8 @@ def get_current_period_salon(salon_id):
         "appointments_completed": appointment_count,
         "total_service_revenue": float(total_service_revenue),
         "employee_earnings": float(employee_earnings),  # total paid to staff
-        "salon_share": float(salon_share),              # what the salon keeps
-        "projected_paycheck": float(salon_share),       # for UI consistency
+        "salon_share": float(salon_share),  # what the salon keeps
+        "projected_paycheck": float(salon_share),  # for UI consistency
         "pay_period": {
             "start_date": period_start.isoformat(),
             "end_date": period_end.isoformat(),
