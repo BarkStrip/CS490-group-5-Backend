@@ -63,10 +63,10 @@ def get_product_revenue_for_range(salon_id, start_dt, end_dt) -> Decimal:
     """
     product_items = (
         db.session.query(OrderItem)
-        .join(OrderItem.order) 
-        .join(OrderItem.product) 
+        .join(OrderItem.order)
+        .join(OrderItem.product)
         .filter(
-            Product.salon_id == salon_id, 
+            Product.salon_id == salon_id,
             Order.created_at >= start_dt,
             Order.created_at <= end_dt,
             OrderItem.product_id.isnot(None),
@@ -88,7 +88,6 @@ def get_product_revenue_for_range(salon_id, start_dt, end_dt) -> Decimal:
         total_product_revenue += line_total
 
     return total_product_revenue.quantize(Decimal("0.01"))
-
 
 
 @salon_payroll_bp.route("/<int:salon_id>/current-period", methods=["GET"])
@@ -187,11 +186,15 @@ def get_current_period_salon(salon_id):
         "total_product_revenue": float(total_product_revenue),
         "total_revenue": float(total_revenue),
         # Earnings breakdown
-        "employee_earnings": float(employee_earnings),          # employees (services only)
-        "salon_share_services": float(salon_share_services),    # salon from services (30%)
-        "salon_share_products": float(salon_share_products),    # salon from products (100%)
-        "salon_share": float(salon_share_services),             # kept for clarity / legacy
-        "salon_total_earnings": float(salon_total_earnings),    # services + products
+        "employee_earnings": float(employee_earnings),  # employees (services only)
+        "salon_share_services": float(
+            salon_share_services
+        ),  # salon from services (30%)
+        "salon_share_products": float(
+            salon_share_products
+        ),  # salon from products (100%)
+        "salon_share": float(salon_share_services),  # kept for clarity / legacy
+        "salon_total_earnings": float(salon_total_earnings),  # services + products
         "pay_period": {
             "start_date": period_start.isoformat(),
             "end_date": period_end.isoformat(),
