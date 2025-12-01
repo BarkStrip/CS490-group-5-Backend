@@ -30,10 +30,15 @@ def get_salon_transactions(salon_id):
     try:
         salon = db.session.get(Salon, salon_id)
         if not salon:
-            return jsonify({
-                "status": "error",
-                "message": f"Salon with id {salon_id} not found",
-            }), 404
+            return (
+                jsonify(
+                    {
+                        "status": "error",
+                        "message": f"Salon with id {salon_id} not found",
+                    }
+                ),
+                404,
+            )
 
         # Build transactions from orders + items instead of Payment
         query = (
@@ -54,9 +59,7 @@ def get_salon_transactions(salon_id):
                     joinedload(OrderItem.service),
                     joinedload(OrderItem.product),
                     selectinload(OrderItem.booking).options(
-                        joinedload(Booking.appointment).joinedload(
-                            Appointment.employee
-                        )
+                        joinedload(Booking.appointment).joinedload(Appointment.employee)
                     ),
                 ),
             )
@@ -123,33 +126,45 @@ def get_salon_transactions(salon_id):
             raw_status = order.status or "paid"
             status = raw_status.capitalize()
 
-            transactions_list.append({
-                # No Payment table: use ORDER-based identifiers
-                "transaction_id": f"ORDER-{order.id}",
-                "payment_id": None,
-                "order_id": order.id,
-                "date": date_value.isoformat() if date_value else None,
-                "customer_name": f"{customer.first_name} {customer.last_name}",
-                "customer_email": auth_user.email,
-                "items": items_summary,
-                "stylist": stylist_name or "N/A",
-                "amount": float(total_amount),
-                "payment_method": "N/A",   # No payment record available
-                "status": status,
-                "refund_reason": getattr(order, "refund_reason", None),
-            })
+            transactions_list.append(
+                {
+                    # No Payment table: use ORDER-based identifiers
+                    "transaction_id": f"ORDER-{order.id}",
+                    "payment_id": None,
+                    "order_id": order.id,
+                    "date": date_value.isoformat() if date_value else None,
+                    "customer_name": f"{customer.first_name} {customer.last_name}",
+                    "customer_email": auth_user.email,
+                    "items": items_summary,
+                    "stylist": stylist_name or "N/A",
+                    "amount": float(total_amount),
+                    "payment_method": "N/A",  # No payment record available
+                    "status": status,
+                    "refund_reason": getattr(order, "refund_reason", None),
+                }
+            )
 
-        return jsonify({
-            "status": "success",
-            "salon_id": salon_id,
-            "transaction_count": len(transactions_list),
-            "transactions": transactions_list,
-        }), 200
+        return (
+            jsonify(
+                {
+                    "status": "success",
+                    "salon_id": salon_id,
+                    "transaction_count": len(transactions_list),
+                    "transactions": transactions_list,
+                }
+            ),
+            200,
+        )
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({
-            "status": "error",
-            "message": "Internal server error",
-            "details": str(e),
-        }), 500
+        return (
+            jsonify(
+                {
+                    "status": "error",
+                    "message": "Internal server error",
+                    "details": str(e),
+                }
+            ),
+            500,
+        )

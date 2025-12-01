@@ -141,7 +141,7 @@ def signup_user():
         # Create AuthUser
         auth_user = AuthUser(email=email, password_hash=hashed_pw, role=role)
         db.session.add(auth_user)
-        db.session.flush() # Flush to get the auth_user.id needed for foreign key relationships
+        db.session.flush()  # Flush to get the auth_user.id needed for foreign key relationships
 
         # Create profile based on role
         if role == "CUSTOMER":
@@ -157,8 +157,6 @@ def signup_user():
             # new_cart = Cart(user_id=auth_user.id)
             new_cart = Cart(user_id=profile.id)
             db.session.add(new_cart)
-            
-
 
         elif role == "ADMIN":
             profile = Admins(

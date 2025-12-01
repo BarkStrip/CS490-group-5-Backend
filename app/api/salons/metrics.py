@@ -1,7 +1,7 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify
 from app.extensions import db
 from app.models import Order, OrderItem, Salon
-from sqlalchemy import func, text
+from sqlalchemy import func
 from datetime import datetime, timedelta
 
 metrics_bp = Blueprint("metrics", __name__, url_prefix="/api/metrics")

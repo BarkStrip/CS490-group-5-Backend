@@ -8,6 +8,7 @@ admin_salon_activity_bp = Blueprint(
     "admin_salon_activity_bp", __name__, url_prefix="/api/admin/salon-activity"
 )
 
+
 # ---------------------------------------------------------
 # 1. PENDING SALON VERIFICATIONS
 # ---------------------------------------------------------
@@ -34,6 +35,7 @@ def get_pending_verifications():
     ]
 
     return jsonify({"pending": data}), 200
+
 
 # ---------------------------------------------------------
 # 2. TOP SALONS (by appointment count)
@@ -76,13 +78,7 @@ def get_appointment_trends():
         .all()
     )
 
-    data = [
-        {
-            "day": r.day.strftime("%Y-%m-%d"),
-            "count": int(r.count)
-        }
-        for r in rows
-    ]
+    data = [{"day": r.day.strftime("%Y-%m-%d"), "count": int(r.count)} for r in rows]
 
     return jsonify({"trends": data}), 200
 
@@ -97,11 +93,7 @@ def get_appointment_metrics():
     MINUTES_LIMIT = 300  # ignore anything above 5 hours
 
     rows = (
-        db.session.query(
-            Appointment.start_at,
-            Appointment.end_at,
-            Appointment.status
-        )
+        db.session.query(Appointment.start_at, Appointment.end_at, Appointment.status)
         .filter(Appointment.start_at.isnot(None))
         .filter(Appointment.end_at.isnot(None))
         .filter(Appointment.status == "COMPLETED")
@@ -113,12 +105,13 @@ def get_appointment_metrics():
     for r in rows:
         if r.start_at and r.end_at:
             diff = (r.end_at - r.start_at).total_seconds() / 60  # minutes
-            if 0 < diff <= MINUTES_LIMIT:   # clean data only
+            if 0 < diff <= MINUTES_LIMIT:  # clean data only
                 durations.append(diff)
 
     avg_minutes = round(sum(durations) / len(durations), 1) if durations else 0
 
     return jsonify({"avg_time": avg_minutes}), 200
+
 
 @admin_salon_activity_bp.route("/customers-trend", methods=["GET"])
 def customers_trend():
@@ -129,7 +122,7 @@ def customers_trend():
     rows = (
         db.session.query(
             func.date(Customers.created_at).label("day"),
-            func.count(Customers.id).label("count")
+            func.count(Customers.id).label("count"),
         )
         .filter(Customers.created_at >= seven_days)
         .group_by(func.date(Customers.created_at))
@@ -151,7 +144,7 @@ def salons_trend():
     rows = (
         db.session.query(
             func.date(Salon.created_at).label("day"),
-            func.count(Salon.id).label("count")
+            func.count(Salon.id).label("count"),
         )
         .filter(Salon.created_at >= ninety_days)
         .group_by(func.date(Salon.created_at))
@@ -162,7 +155,3 @@ def salons_trend():
     data = [{"day": str(r.day), "count": int(r.count)} for r in rows]
 
     return jsonify({"salons": data})
-
-
-
-

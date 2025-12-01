@@ -401,7 +401,9 @@ def get_previous_appointments(customer_id):
     return jsonify(results)
 
 
-@appointments_bp.route("/<int:customer_id>/appointments/<int:appointment_id>", methods=["PUT"])
+@appointments_bp.route(
+    "/<int:customer_id>/appointments/<int:appointment_id>", methods=["PUT"]
+)
 def edit_appointment(customer_id, appointment_id):
     """
     PUT /api/appointments/<customer_id>/appointments/<appointment_id>
@@ -597,8 +599,14 @@ def add_appointment():
         try:
             start_at = datetime.datetime.fromisoformat(start_at_str)
         except ValueError:
-            return jsonify({"error": "Invalid datetime format for start_at. Use ISO 8601 (e.g. 2025-11-20T11:30:00)"}), 400
-
+            return (
+                jsonify(
+                    {
+                        "error": "Invalid datetime format for start_at. Use ISO 8601 (e.g. 2025-11-20T11:30:00)"
+                    }
+                ),
+                400,
+            )
 
         service_stmt = select(Service).filter_by(id=service_id)
         service = db.session.scalar(service_stmt)
@@ -634,11 +642,9 @@ def add_appointment():
 
                 if not isinstance(photo_url, str):
                     continue
-                
+
                 appointment_image = AppointmentImage(
-                    appointment_id=appointment.id,
-                    url=photo_url,
-                    cart_item_id=None
+                    appointment_id=appointment.id, url=photo_url, cart_item_id=None
                 )
                 db.session.add(appointment_image)
 
@@ -652,7 +658,7 @@ def add_appointment():
                     "start_at": str(appointment.start_at),
                     "end_at": str(appointment.end_at),
                     "status": appointment.status,
-                    "photos_count": len(pictures)
+                    "photos_count": len(pictures),
                 }
             ),
             201,

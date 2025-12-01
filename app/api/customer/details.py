@@ -1,5 +1,4 @@
 from flask import Blueprint, request, jsonify
-from sqlalchemy import select
 from ...extensions import db
 from ...models import Customers, AuthUser
 
@@ -78,7 +77,11 @@ def get_customer_details(customer_id):
                         "phone_number": customer.phone_number,
                         "address": customer.address,
                         "email": email,
-                        "date_of_birth": customer.date_of_birth.isoformat() if customer.date_of_birth else None,
+                        "date_of_birth": (
+                            customer.date_of_birth.isoformat()
+                            if customer.date_of_birth
+                            else None
+                        ),
                         "age": customer.age,
                     },
                 }

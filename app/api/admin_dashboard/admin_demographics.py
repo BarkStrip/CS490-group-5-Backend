@@ -18,19 +18,16 @@ admin_demographics_bp = Blueprint(
 @admin_demographics_bp.route("/appointments-by-city", methods=["GET"])
 def appointments_by_city():
     rows = (
-        db.session.query(
-            Salon.city,
-            func.count(Appointment.id)
-        )
+        db.session.query(Salon.city, func.count(Appointment.id))
         .join(Salon, Appointment.salon_id == Salon.id)
         .group_by(Salon.city)
         .all()
     )
 
-    return jsonify([
-        {"name": city or "Unknown", "value": int(count)}
-        for city, count in rows
-    ])
+    return jsonify(
+        [{"name": city or "Unknown", "value": int(count)} for city, count in rows]
+    )
+
 
 # ---------------------------------------------------------
 # 2) LOYALTY SEGMENTS (Loyalty vs Guests)
@@ -41,17 +38,19 @@ def loyalty_segments():
     total_users = db.session.query(func.count(Customers.id)).scalar() or 0
 
     loyalty_users = (
-        db.session.query(func.count(func.distinct(LoyaltyAccount.user_id)))
-        .scalar()
+        db.session.query(func.count(func.distinct(LoyaltyAccount.user_id))).scalar()
         or 0
     )
 
     guest_users = total_users - loyalty_users
 
-    return jsonify([
-        {"segment": "Loyalty Members", "count": int(loyalty_users)},
-        {"segment": "Guests", "count": int(guest_users)},
-    ])
+    return jsonify(
+        [
+            {"segment": "Loyalty Members", "count": int(loyalty_users)},
+            {"segment": "Guests", "count": int(guest_users)},
+        ]
+    )
+
 
 # ---------------------------------------------------------
 # 3) GENDER DISTRIBUTION
@@ -60,20 +59,17 @@ def loyalty_segments():
 def gender_distribution():
 
     rows = (
-        db.session.query(
-            Customers.gender,
-            func.count(Customers.id)
-        )
+        db.session.query(Customers.gender, func.count(Customers.id))
         .filter(Customers.gender.isnot(None))
         .filter(Customers.gender != "")
         .group_by(Customers.gender)
         .all()
     )
 
-    return jsonify([
-        {"gender": gender or "Unknown", "count": int(count)}
-        for gender, count in rows
-    ])
+    return jsonify(
+        [{"gender": gender or "Unknown", "count": int(count)} for gender, count in rows]
+    )
+
 
 # ---------------------------------------------------------
 # 4) AGE GROUP DISTRIBUTION
@@ -89,9 +85,9 @@ def age_groups():
                 (Customers.age.between(25, 34), "25-34"),
                 (Customers.age.between(35, 44), "35-44"),
                 (Customers.age.between(45, 54), "45-54"),
-                else_="55+"
+                else_="55+",
             ).label("age_group"),
-            func.count(Customers.id)
+            func.count(Customers.id),
         )
         .filter(Customers.age.isnot(None))
         .group_by("age_group")
@@ -99,10 +95,4 @@ def age_groups():
         .all()
     )
 
-    return jsonify([
-        {"age_group": group, "count": int(count)}
-        for group, count in rows
-    ])
-
-
-
+    return jsonify([{"age_group": group, "count": int(count)} for group, count in rows])

@@ -2,7 +2,9 @@ from flask import Blueprint, request, jsonify
 from ...extensions import db
 from ...models import Employees, AuthUser
 
-employee_details_bp = Blueprint("employee_details", __name__, url_prefix="/api/employee/details")
+employee_details_bp = Blueprint(
+    "employee_details", __name__, url_prefix="/api/employee/details"
+)
 
 
 @employee_details_bp.route("/<int:employee_id>", methods=["GET"])

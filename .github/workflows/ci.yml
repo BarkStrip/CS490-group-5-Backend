@@ -55,7 +55,16 @@ jobs:
     - name: Verify database exists
       run: |
         mysql -h127.0.0.1 -uroot -proot -e "SHOW DATABASES;"
+    
+    - name: Check code formatting (Black)
+      run: black --check app/ main.py
+      continue-on-error: true
 
+    - name: Run linting (Flake8)
+      run: |
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 . --count --statistics || true
+        
     # --- INITIALIZE DATABASE SCHEMA ---
     - name: Initialize schema using Base.metadata
       env:

@@ -1,9 +1,10 @@
 from flask import Blueprint, request, jsonify
-from sqlalchemy import select
 from ...extensions import db
 from ...models import Salon
 
-salon_details_bp = Blueprint("salon_details", __name__, url_prefix="/api/salons/details")
+salon_details_bp = Blueprint(
+    "salon_details", __name__, url_prefix="/api/salons/details"
+)
 
 
 @salon_details_bp.route("/<int:salon_id>", methods=["GET"])

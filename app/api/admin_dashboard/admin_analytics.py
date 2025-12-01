@@ -10,6 +10,7 @@ admin_analytics_bp = Blueprint(
     url_prefix="/api/admin/analytics",
 )
 
+
 # -------------------------------------------------------------------
 # 1) SUMMARY: Active users, salons, appointments, retention rate
 # -------------------------------------------------------------------
@@ -79,11 +80,9 @@ def get_feature_usage():
         .all()
     )
 
-    data = [
-        {"name": (r.name or "Unknown"), "value": int(r.value)}
-        for r in rows
-    ]
+    data = [{"name": (r.name or "Unknown"), "value": int(r.value)} for r in rows]
     return jsonify(data)
+
 
 # -------------------------------------------------------------------
 # 4) RETENTION COHORT: appointments grouped by month
@@ -109,8 +108,6 @@ def get_retention_cohort():
     return jsonify(data)
 
 
-
-
 # -------------------------------------------------------------------
 # RETURNING USERS TREND (Last 30 Days)
 # -------------------------------------------------------------------
@@ -132,7 +129,7 @@ def get_returning_users_trend():
     rows = (
         db.session.query(
             func.date(Appointment.created_at).label("day"),
-            func.count(Appointment.id).label("returning_users")
+            func.count(Appointment.id).label("returning_users"),
         )
         .filter(Appointment.customer_id.in_(returning_customers))
         .filter(Appointment.created_at >= date_limit)
@@ -142,10 +139,7 @@ def get_returning_users_trend():
     )
 
     data = [
-        {
-            "day": r.day.strftime("%Y-%m-%d"),
-            "returning_users": int(r.returning_users)
-        }
+        {"day": r.day.strftime("%Y-%m-%d"), "returning_users": int(r.returning_users)}
         for r in rows
     ]
 

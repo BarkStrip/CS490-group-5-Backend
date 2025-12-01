@@ -1,7 +1,14 @@
 # Payment processing, tips
 from flask import Blueprint, jsonify, request
 from app.extensions import db
-from app.models import PayMethod, Customers, Order, OrderItem, Cart, CartItem, CartItemImage, AppointmentImage
+from app.models import (
+    PayMethod,
+    Customers,
+    Order,
+    OrderItem,
+    Cart,
+    CartItem,
+)
 from datetime import datetime
 from sqlalchemy import select, delete, update
 
@@ -91,13 +98,10 @@ def create_payment_method(customer_id):
         if not isinstance(last4, str) or len(last4) != 4 or not last4.isdigit():
             return jsonify({"error": "last4 must be exactly 4 digits"}), 400
 
-
         try:
             expiration_date = datetime.strptime(expiration_str, "%m/%y").date()
         except ValueError:
             return jsonify({"error": "expiration must be in MM/YY format"}), 400
-
-
 
         if not isinstance(is_default, int) or is_default not in (0, 1):
             return jsonify({"error": "is_default must be 1 or 0"}), 400
@@ -154,7 +158,9 @@ def create_payment_method(customer_id):
         return jsonify({"error": "Database error", "details": str(e)}), 500
 
 
-@payments_bp.route("/<int:customer_id>/methods/<int:method_id>/set-default", methods=["PUT"])
+@payments_bp.route(
+    "/<int:customer_id>/methods/<int:method_id>/set-default", methods=["PUT"]
+)
 def set_default_payment_method(customer_id, method_id):
 
     customer = db.session.get(Customers, customer_id)
@@ -338,7 +344,9 @@ def create_order():
             # Only delete cart items, NOT cart item images
             delete_stmt = delete(CartItem).where(CartItem.cart_id == customer_cart.id)
             db.session.execute(delete_stmt)
-            print(f"Cleared cart items for customer {customer_id}, but images remain in cart_item_image")
+            print(
+                f"Cleared cart items for customer {customer_id}, but images remain in cart_item_image"
+            )
 
         db.session.commit()
 

@@ -5,6 +5,7 @@ from datetime import datetime
 
 admin_system_bp = Blueprint("admin_system_bp", __name__, url_prefix="/api/admin/system")
 
+
 class SystemLog(db.Model):
     __tablename__ = "system_log"
     id = db.Column(db.Integer, primary_key=True)
@@ -20,6 +21,7 @@ class Salon(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100))
     city = db.Column(db.String(100))
+
 
 @admin_system_bp.route("/status", methods=["GET"])
 def get_status():
@@ -53,6 +55,7 @@ def get_status():
 
     return jsonify(data)
 
+
 @admin_system_bp.route("/errors", methods=["GET"])
 def get_errors():
     """
@@ -78,6 +81,7 @@ def get_errors():
 
     return jsonify({"errors": errors})
 
+
 @admin_system_bp.route("/filters", methods=["GET"])
 def get_filters():
     """
@@ -85,8 +89,9 @@ def get_filters():
     """
     cities = [c.city for c in db.session.query(Salon.city).distinct() if c.city]
 
-    return jsonify({
-        "date_ranges": ["Past Week", "Past Month", "Past 3 Months"],
-        "stores": ["All"] + cities,
-    })
-
+    return jsonify(
+        {
+            "date_ranges": ["Past Week", "Past Month", "Past 3 Months"],
+            "stores": ["All"] + cities,
+        }
+    )
