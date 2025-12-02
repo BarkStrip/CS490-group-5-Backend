@@ -12,6 +12,7 @@ from ...models import (
     Promos,
 )
 from datetime import datetime, timedelta
+from decimal import Decimal
 import uuid
 
 loyalty_bp = Blueprint("loyalty", __name__, url_prefix="/api/loyalty")
@@ -38,19 +39,6 @@ def get_loyalty_dashboard(customer_id):
     ---
     summary: Returns aggregated loyalty stats for the customer
     description: Powers the top-level summary cards in your UI (e.g., "Lifetime Points", "Active Programs", "Total Visits").
-    parameters:
-      - name: customer_id
-        in: path
-        type: integer
-        required: true
-        description: The ID of the customer
-    responses:
-      200:
-        description: Returns total points, active programs count, and visit count.
-      404:
-        description: Customer not found
-      500:
-        description: Server error
     """
     try:
         customer = get_customer_from_id(customer_id)
@@ -102,19 +90,6 @@ def get_customer_loyalty_programs(customer_id):
     ---
     summary: Returns all active loyalty programs for a given customer
     description: Powers the main list in your UI (e.g., the "Jade Boutique" card).
-    parameters:
-      - name: customer_id
-        in: path
-        type: integer
-        required: true
-        description: The ID of the customer
-    responses:
-      200:
-        description: Returns a list of loyalty programs for the customer
-      404:
-        description: Customer not found
-      500:
-        description: Server error
     """
     try:
         customer = get_customer_from_id(customer_id)
@@ -126,14 +101,13 @@ def get_customer_loyalty_programs(customer_id):
             .join(Salon, LoyaltyAccount.salon_id == Salon.id)
             .join(LoyaltyProgram, LoyaltyProgram.salon_id == Salon.id)
             .where(LoyaltyAccount.user_id == customer_id)
-            .where(LoyaltyProgram.active is True)
+            .where(LoyaltyProgram.active == 1)  # only active programs
         )
 
         results = db.session.execute(stmt).all()
 
         response_list = []
         for acc, salon, program in results:
-
             visits_at_salon = db.session.scalar(
                 select(func.count(Appointment.id))
                 .where(Appointment.customer_id == customer_id)
@@ -141,8 +115,17 @@ def get_customer_loyalty_programs(customer_id):
                 .where(Appointment.status == "COMPLETED")
             )
 
-            points_for_reward = getattr(program, "points_for_reward", 1000)
+            points_for_reward = getattr(program, "points_for_reward", None)
+            if points_for_reward is None:
+                points_for_reward = 1000
             points_away = max(0, points_for_reward - acc.points)
+
+            # safe handling for points_per_dollar (can be NULL)
+            raw_ppd = getattr(program, "points_per_dollar", None)
+            if raw_ppd is None:
+                ppd_value = 1.0  # default display if not configured
+            else:
+                ppd_value = float(raw_ppd)
 
             response_list.append(
                 {
@@ -156,9 +139,7 @@ def get_customer_loyalty_programs(customer_id):
                             "reward_description",
                             f"{points_for_reward} points for reward",
                         ),
-                        "points_per_dollar": float(
-                            getattr(program, "points_per_dollar", 1)
-                        ),
+                        "points_per_dollar": ppd_value,
                     },
                     "next_reward_progress": {
                         "points_to_next_reward": points_for_reward,
@@ -194,24 +175,6 @@ def get_loyalty_activity(customer_id, salon_id):
     ---
     summary: Returns loyalty transaction history
     description: Retrieves the most recent 20 loyalty transactions for a customer and salon.
-    parameters:
-      - name: customer_id
-        in: path
-        type: integer
-        required: true
-        description: The ID of the customer
-      - name: salon_id
-        in: path
-        type: integer
-        required: true
-        description: The ID of the salon
-    responses:
-      200:
-        description: List of recent loyalty transactions
-      404:
-        description: Loyalty account not found
-      500:
-        description: Server error
     """
     try:
         account = get_loyalty_account(customer_id, salon_id)
@@ -236,7 +199,6 @@ def get_loyalty_activity(customer_id, salon_id):
 
         activity_list = []
         for txn in transactions:
-
             activity_list.append(
                 {
                     "activity_id": f"txn_{txn.id}",
@@ -273,22 +235,6 @@ def get_available_rewards(customer_id, salon_id):
     ---
     summary: Returns rewards a customer can redeem using points
     description: Fetches loyalty rewards available for the customer's active salon program.
-    parameters:
-      - name: customer_id
-        in: path
-        type: integer
-        required: true
-      - name: salon_id
-        in: path
-        type: integer
-        required: true
-    responses:
-      200:
-        description: List of redeemable rewards
-      404:
-        description: Loyalty account or program not found
-      500:
-        description: Server error
     """
     try:
         account = get_loyalty_account(customer_id, salon_id)
@@ -312,19 +258,25 @@ def get_available_rewards(customer_id, salon_id):
                 404,
             )
 
-        points_for_reward = getattr(program, "points_for_reward", 1000)
+        points_for_reward = getattr(program, "points_for_reward", None)
+        if points_for_reward is None:
+            points_for_reward = 1000
+
         can_redeem = account.points >= points_for_reward
+
+        rv = program.reward_value
+        reward_value = float(rv) if rv is not None else 0.0
 
         reward_list = [
             {
                 "reward_id": f"prog_{program.id}_main_reward",
                 "description": getattr(
-                    program, "reward_description", f"{program.reward_value}% off"
+                    program, "reward_description", f"{reward_value}% off"
                 ),
                 "points_cost": points_for_reward,
                 "is_redeemable": can_redeem,
                 "reward_type": str(program.reward_type),
-                "reward_value": float(program.reward_value),
+                "reward_value": reward_value,
             }
         ]
 
@@ -355,36 +307,9 @@ def redeem_loyalty_reward(customer_id, salon_id):
     ---
     summary: Spend points to redeem a reward
     description: Deducts points, logs the transaction, and generates a one-time promo code for the customer.
-    parameters:
-      - name: customer_id
-        in: path
-        type: integer
-        required: true
-      - name: salon_id
-        in: path
-        type: integer
-        required: true
-      - name: body
-        in: body
-        required: true
-        schema:
-          type: object
-          properties:
-            reward_id:
-              type: string
-              example: "prog_123_main_reward"
-    responses:
-      201:
-        description: Reward redeemed successfully
-      400:
-        description: Not enough points or invalid data
-      404:
-        description: Loyalty account or program not found
-      500:
-        description: Server error
     """
     try:
-        data = request.json
+        data = request.json or {}
         reward_id = data.get("reward_id")
         if not reward_id:
             return jsonify({"status": "error", "message": "reward_id is required"}), 400
@@ -405,7 +330,11 @@ def redeem_loyalty_reward(customer_id, salon_id):
                 404,
             )
 
-        points_cost = getattr(program, "points_for_reward", 1000)
+        points_for_reward = getattr(program, "points_for_reward", None)
+        if points_for_reward is None:
+            points_for_reward = 1000
+
+        points_cost = points_for_reward
 
         if account.points < points_cost:
             return jsonify({"status": "error", "message": "Not enough points"}), 400
@@ -472,12 +401,6 @@ def get_salon_loyalty_program(salon_id):
     """
     GET /api/loyalty/salon/<salon_id>
     Purpose: Retrieve loyalty program details for a specific salon.
-    Input: salon_id (integer) from the URL path.
-    Behavior:
-    - Check if salon exists
-    - Retrieve loyalty program details if it exists
-    - Return flattened loyalty program data with 200 status
-    - Return None if no loyalty program exists for salon
     """
     try:
         # Verify salon exists
@@ -501,6 +424,7 @@ def get_salon_loyalty_program(salon_id):
         )
 
         if not loyalty_program:
+            # Return "empty" program structure when none exists yet
             return (
                 jsonify(
                     {
@@ -508,6 +432,8 @@ def get_salon_loyalty_program(salon_id):
                         "salon_id": salon_id,
                         "id": None,
                         "active": None,
+                        "points_per_dollar": None,
+                        "points_for_reward": None,
                         "visits_for_reward": None,
                         "reward_type": None,
                         "reward_value": None,
@@ -527,6 +453,12 @@ def get_salon_loyalty_program(salon_id):
                     "salon_id": salon_id,
                     "id": loyalty_program.id,
                     "active": loyalty_program.active,
+                    "points_per_dollar": (
+                        float(loyalty_program.points_per_dollar)
+                        if loyalty_program.points_per_dollar is not None
+                        else None
+                    ),
+                    "points_for_reward": loyalty_program.points_for_reward,
                     "visits_for_reward": loyalty_program.visits_for_reward,
                     "reward_type": loyalty_program.reward_type,
                     "reward_value": (
@@ -559,20 +491,14 @@ def update_salon_loyalty_program(salon_id):
     """
     PUT /api/loyalty/salon/<salon_id>
     Purpose: Update loyalty program details for a specific salon.
-    Input:
-        - salon_id (integer) from the URL path
-        - JSON body with fields to update:
-          * active (optional, 0 or 1)
-          * visits_for_reward (optional, integer)
-          * reward_type (optional, 'PERCENT', 'FIXED_AMOUNT', or 'FREE_ITEM')
-          * reward_value (optional, decimal)
-          * reward_description (optional, string)
-    Behavior:
-    - Check if salon exists
-    - Retrieve loyalty program for salon
-    - If no loyalty program exists, create a new one
-    - Update provided fields
-    - Return updated loyalty program data
+    Input JSON can include:
+      * active (0 or 1)
+      * points_per_dollar (decimal)
+      * points_for_reward (int)
+      * visits_for_reward (int)
+      * reward_type ('PERCENT', 'FIXED_AMOUNT', or 'FREE_ITEM')
+      * reward_value (decimal)
+      * reward_description (string)
     """
     try:
         # Verify salon exists
@@ -609,7 +535,7 @@ def update_salon_loyalty_program(salon_id):
         )
 
         if not loyalty_program:
-            # Create new loyalty program
+            # Create new loyalty program (initially "blank"/inactive)
             loyalty_program = LoyaltyProgram(salon_id=salon_id)
             db.session.add(loyalty_program)
 
@@ -624,6 +550,51 @@ def update_salon_loyalty_program(salon_id):
                     400,
                 )
             loyalty_program.active = active
+
+        if "points_per_dollar" in data:
+            ppd = data.get("points_per_dollar")
+            try:
+                if ppd is None or ppd == "":
+                    loyalty_program.points_per_dollar = None
+                else:
+                    loyalty_program.points_per_dollar = Decimal(str(ppd))
+            except Exception:
+                return (
+                    jsonify(
+                        {
+                            "error": "Invalid value",
+                            "message": "points_per_dollar must be a valid decimal number",
+                        }
+                    ),
+                    400,
+                )
+
+        if "points_for_reward" in data:
+            pfr = data.get("points_for_reward")
+            if pfr is not None:
+                try:
+                    pfr_int = int(pfr)
+                except (TypeError, ValueError):
+                    return (
+                        jsonify(
+                            {
+                                "error": "Invalid value",
+                                "message": "points_for_reward must be an integer",
+                            }
+                        ),
+                        400,
+                    )
+                if pfr_int < 0:
+                    return (
+                        jsonify(
+                            {
+                                "error": "Invalid value",
+                                "message": "points_for_reward must be non-negative",
+                            }
+                        ),
+                        400,
+                    )
+                loyalty_program.points_for_reward = pfr_int
 
         if "visits_for_reward" in data:
             visits = data.get("visits_for_reward")
@@ -656,10 +627,11 @@ def update_salon_loyalty_program(salon_id):
         if "reward_value" in data:
             reward_value = data.get("reward_value")
             try:
-                # Convert to Decimal for validation
-                from decimal import Decimal
-
-                loyalty_program.reward_value = Decimal(str(reward_value))
+                loyalty_program.reward_value = (
+                    None
+                    if reward_value is None or reward_value == ""
+                    else Decimal(str(reward_value))
+                )
             except Exception:
                 return (
                     jsonify(
@@ -697,6 +669,12 @@ def update_salon_loyalty_program(salon_id):
                     "salon_id": salon_id,
                     "id": loyalty_program.id,
                     "active": loyalty_program.active,
+                    "points_per_dollar": (
+                        float(loyalty_program.points_per_dollar)
+                        if loyalty_program.points_per_dollar is not None
+                        else None
+                    ),
+                    "points_for_reward": loyalty_program.points_for_reward,
                     "visits_for_reward": loyalty_program.visits_for_reward,
                     "reward_type": loyalty_program.reward_type,
                     "reward_value": (
