@@ -13,8 +13,11 @@ def init_scheduler(app):
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         print(f"[SCHEDULER] {current_time} - Periodic task running")
 
-    scheduler.start()
-    print("[SCHEDULER] Scheduler started")
+    if not scheduler.running:
+        scheduler.start()
+        print("[SCHEDULER] Scheduler started")
+    else:
+        print("[SCHEDULER] Scheduler already running (skipping duplicate start)")
 
     # Shut down the scheduler when exiting the app
     atexit.register(lambda: scheduler.shutdown())
