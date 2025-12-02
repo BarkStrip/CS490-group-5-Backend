@@ -186,7 +186,7 @@ class EmailService:
                                     <table width="100%" cellpadding="0" cellspacing="0">
                                         <tr>
                                             <td align="center" style="padding: 10px 0 35px 0;">
-                                                <a href="{self.frontend_url}/appointments/{appointment_id}"
+                                                <a href="{self.frontend_url}/my-appointments"
                                                    style="display: inline-block; padding: 18px 50px; background: linear-gradient(135deg, #6B8A6B 0%, #4A5F4A 100%); color: #4A5F4A; text-decoration: none; border-radius: 10px; font-weight: 700; font-size: 16px; box-shadow: 0 6px 16px rgba(74, 95, 74, 0.3); letter-spacing: 0.5px; border: 2px solid rgba(255,255,255,0.2);">
                                                     View Appointment Details
                                                 </a>
@@ -538,7 +538,7 @@ class EmailService:
                             <p>If you have any questions, please contact the salon directly.</p>
 
                             <center>
-                                <a href="{self.frontend_url}/salons/{salon_id}" class="button">
+                                <a href="{self.frontend_url}" class="button">
                                     Book Another Appointment
                                 </a>
                             </center>

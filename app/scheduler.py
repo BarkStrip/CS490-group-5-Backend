@@ -19,10 +19,14 @@ def init_scheduler(app):
         try:
             with app.app_context():
                 # Query appointments with status "BOOKED" or "Booked" where end_at is in the past
-                expired_appointments = db.session.query(Appointment).filter(
-                    Appointment.status.in_(["BOOKED", "Booked"]),
-                    Appointment.end_at < current_time
-                ).all()
+                expired_appointments = (
+                    db.session.query(Appointment)
+                    .filter(
+                        Appointment.status.in_(["BOOKED", "Booked"]),
+                        Appointment.end_at < current_time,
+                    )
+                    .all()
+                )
 
                 if expired_appointments:
                     # Update status to "COMPLETED"
@@ -31,12 +35,18 @@ def init_scheduler(app):
 
                     db.session.commit()
                     count = len(expired_appointments)
-                    print(f"[SCHEDULER] {current_time_str} - Auto-completed {count} appointment(s)")
+                    print(
+                        f"[SCHEDULER] {current_time_str} - Auto-completed {count} appointment(s)"
+                    )
                 else:
-                    print(f"[SCHEDULER] {current_time_str} - No appointments to auto-complete")
+                    print(
+                        f"[SCHEDULER] {current_time_str} - No appointments to auto-complete"
+                    )
 
         except Exception as e:
-            print(f"[SCHEDULER] {current_time_str} - Error auto-completing appointments: {e}")
+            print(
+                f"[SCHEDULER] {current_time_str} - Error auto-completing appointments: {e}"
+            )
             db.session.rollback()
 
     if not scheduler.running:

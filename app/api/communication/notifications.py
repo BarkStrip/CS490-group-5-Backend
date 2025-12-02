@@ -321,13 +321,16 @@ def send_cancellation_notification():
 
         # Determine recipient
         if cancelled_by == "customer":
-            # Notify employee
-            if not employee or not employee.email:
+            auth_employee = (
+                db.session.query(AuthUser).filter_by(id=employee.user_id).first()
+            )
+
+            if not auth_employee or not auth_employee.email:
                 return jsonify({"error": "Employee email not found"}), 400
-            to_email = employee.email
+
+            to_email = auth_employee.email
             to_name = f"{employee.first_name} {employee.last_name}"
         else:
-            # Notify customer - get email from AuthUser
             if not customer:
                 return jsonify({"error": "Customer not found"}), 404
             auth_user = (
