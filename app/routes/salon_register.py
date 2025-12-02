@@ -159,16 +159,10 @@ def register_salon():
         db.session.add(loyalty_program)
         db.session.flush()
         
-        # This is old but if still not working, this might be the reason (old implementation of single type, now multiple types for a salon)
-#         salon.type.append(type_obj)
-
+        # Link types - ONLY existing types from Types table (IDs 1-10)
         for tag_name in salon_tags:
             tag_obj = db.session.scalar(select(Types).where(Types.name == tag_name))
-            if not tag_obj:
-                tag_obj = Types(name=tag_name)
-                db.session.add(tag_obj)
-                db.session.flush()
-            if tag_obj not in salon.type:
+            if tag_obj and tag_obj not in salon.type:
                 salon.type.append(tag_obj)
 
         day_mapping = {
