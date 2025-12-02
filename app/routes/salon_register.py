@@ -17,11 +17,31 @@ from app.utils.s3_utils import upload_file_to_s3
 import uuid
 import bcrypt
 import traceback
+import json
 from datetime import time
 
 salon_register_bp = Blueprint(
     "salon_register", __name__, url_prefix="/api/salon_register"
 )
+
+
+@salon_register_bp.route("/types", methods=["GET"])
+def get_types():
+    """
+    Fetch all salon types from the Types table.
+    """
+    try:
+        types = db.session.scalars(select(Types).order_by(Types.name)).all()
+        return jsonify({
+            "status": "success",
+            "types": [type_obj.name for type_obj in types]
+        }), 200
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": "Failed to fetch types",
+            "details": str(e)
+        }), 500
 
 
 @salon_register_bp.route("/register", methods=["POST"])
@@ -57,9 +77,15 @@ def register_salon():
                 400,
             )
 
-        if not salon_data.get("name") or not salon_data.get("type"):
+        if not salon_data.get("name"):
             return (
                 jsonify({"status": "error", "message": "Salon information incomplete"}),
+                400,
+            )
+
+        if not salon_tags or len(salon_tags) == 0:
+            return (
+                jsonify({"status": "error", "message": "Please select at least one salon category"}),
                 400,
             )
 
@@ -104,13 +130,6 @@ def register_salon():
         db.session.add(salon_owner)
         db.session.flush()
 
-        type_name = salon_data["type"].strip().title()
-        type_obj = db.session.scalar(select(Types).where(Types.name == type_name))
-        if not type_obj:
-            type_obj = Types(name=type_name)
-            db.session.add(type_obj)
-            db.session.flush()
-
         full_address = salon_data.get("address", "")
         if salon_data.get("city"):
             full_address += f", {salon_data.get('city')}"
@@ -139,8 +158,9 @@ def register_salon():
         )
         db.session.add(loyalty_program)
         db.session.flush()
-
-        salon.type.append(type_obj)
+        
+        # This is old but if still not working, this might be the reason (old implementation of single type, now multiple types for a salon)
+#         salon.type.append(type_obj)
 
         for tag_name in salon_tags:
             tag_obj = db.session.scalar(select(Types).where(Types.name == tag_name))
@@ -200,6 +220,7 @@ def register_salon():
                     price=float(service_data["price"]),
                     duration=int(service_data.get("duration", 60)),
                     is_active=True,
+                    icon_url=service_data.get("icon_url"),
                 )
                 db.session.add(service)
 
@@ -215,7 +236,7 @@ def register_salon():
                     "message": "Salon registration submitted for verification",
                     "salon_id": salon.id,
                     "owner_id": auth_user.id,
-                    "type_used": type_obj.name,
+                    "tags": salon_tags,
                 }
             ),
             201,
