@@ -144,13 +144,21 @@ def register_salon():
             city=salon_data.get("city", ""),
             phone=salon_data.get("phone", ""),
             about="",
-            types=json.dumps(salon_tags),
             latitude=salon_data.get("latitude", 0.0),
             longitude=salon_data.get("longitude", 0.0),
         )
 
         db.session.add(salon)
         db.session.flush()
+
+        for tag_name in salon_tags:
+            tag_obj = db.session.scalar(select(Types).where(Types.name == tag_name))
+            if not tag_obj:
+                tag_obj = Types(name=tag_name)
+                db.session.add(tag_obj)
+                db.session.flush()
+            if tag_obj not in salon.type:
+                salon.type.append(tag_obj)
 
         day_mapping = {
             "monday": 0,
@@ -193,14 +201,24 @@ def register_salon():
             )
             db.session.add(salon_hour)
 
-        for service_data in services_data:
+        for index, service_data in enumerate(services_data):
             if service_data.get("name") and service_data.get("price"):
+                icon_url = None
+                service_image_file = request.files.get(f"service_image_{index}")
+                
+                if service_image_file:
+                    unique_name = f"services/{uuid.uuid4()}_{service_image_file.filename}"
+                    bucket_name = current_app.config.get("S3_BUCKET_NAME")
+                    if bucket_name:
+                        icon_url = upload_file_to_s3(service_image_file, unique_name, bucket_name)
+                
                 service = Service(
                     salon_id=salon.id,
                     name=service_data["name"],
                     price=float(service_data["price"]),
                     duration=int(service_data.get("duration", 60)),
                     is_active=True,
+                    icon_url=icon_url,
                 )
                 db.session.add(service)
 
