@@ -79,6 +79,7 @@ def get_salon_transactions(salon_id):
 
             items_summary = []
             stylist_name = None
+            appointment_status = None  # track appointment status for this order
 
             for item in order.order_item:
                 if item.service:
@@ -100,6 +101,10 @@ def get_salon_transactions(salon_id):
                         emp = booking_obj.appointment.employee
                         stylist_name = f"{emp.first_name} {emp.last_name}"
 
+                        # Capture appointment status (first one we see)
+                        if appointment_status is None:
+                            appointment_status = booking_obj.appointment.status
+
                 elif item.product:
                     items_summary.append(item.product.name)
 
@@ -120,11 +125,30 @@ def get_salon_transactions(salon_id):
             created_at = getattr(order, "created_at", None)
             date_value = submitted_at or created_at
 
-            # ----- Status -----
-            # We treat any order with items as effectively "Paid",
-            # but still surface the order.status if set.
-            raw_status = order.status or "paid"
-            status = raw_status.capitalize()
+            # ----- Status (derive from appointment if available) -----
+            display_status = None
+
+            if appointment_status:
+                norm = appointment_status.upper()
+
+                # Cancelled variants
+                if norm in {
+                    "CANCELLED",
+                    "CANCELLED_BY_EMPLOYEE",
+                    "CANCELLED_BY_CUSTOMER",
+                }:
+                    display_status = "Cancelled"
+                # Happened / completed visits
+                elif norm in {"BOOKED", "COMPLETED"}:
+                    display_status = "Completed"
+                else:
+                    # Fallback: show the raw appointment status, prettified
+                    display_status = appointment_status.replace("_", " ").title()
+
+            # If we didn't have an appointment or status, fall back to order.status / paid
+            if not display_status:
+                raw_status = order.status or "paid"
+                display_status = raw_status.replace("_", " ").title()
 
             transactions_list.append(
                 {
@@ -139,7 +163,7 @@ def get_salon_transactions(salon_id):
                     "stylist": stylist_name or "N/A",
                     "amount": float(total_amount),
                     "payment_method": "N/A",  # No payment record available
-                    "status": status,
+                    "status": display_status,
                     "refund_reason": getattr(order, "refund_reason", None),
                 }
             )
