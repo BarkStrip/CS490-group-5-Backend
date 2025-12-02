@@ -201,24 +201,15 @@ def register_salon():
             )
             db.session.add(salon_hour)
 
-        for index, service_data in enumerate(services_data):
+        for service_data in services_data:
             if service_data.get("name") and service_data.get("price"):
-                icon_url = None
-                service_image_file = request.files.get(f"service_image_{index}")
-                
-                if service_image_file:
-                    unique_name = f"services/{uuid.uuid4()}_{service_image_file.filename}"
-                    bucket_name = current_app.config.get("S3_BUCKET_NAME")
-                    if bucket_name:
-                        icon_url = upload_file_to_s3(service_image_file, unique_name, bucket_name)
-                
                 service = Service(
                     salon_id=salon.id,
                     name=service_data["name"],
                     price=float(service_data["price"]),
                     duration=int(service_data.get("duration", 60)),
                     is_active=True,
-                    icon_url=icon_url,
+                    icon_url=service_data.get("icon_url"),
                 )
                 db.session.add(service)
 
