@@ -31,7 +31,8 @@ def get_biweekly_period(target_date=None):
     current_sunday = target_date - timedelta(days=days_since_sunday)
 
     # Determine if we're in the first or second week of the period
-    # Use a reference date (e.g., Jan 1, 2024 was a Monday, so Jan 7, 2024 was the first Sunday)
+    # Use a reference date (e.g., Jan 1, 2024 was a Monday, so Jan 7, 2024 was
+    # the first Sunday)
     reference_sunday = datetime(2024, 1, 7).date()
     days_diff = (current_sunday - reference_sunday).days
     weeks_since_reference = days_diff // 7
@@ -99,7 +100,8 @@ def get_current_period_payroll(employee_id):
             hours = Decimal(str(duration.total_seconds() / 3600))
             total_hours += hours
 
-            # Calculate revenue (use price_at_book if available, otherwise service price)
+            # Calculate revenue (use price_at_book if available, otherwise service
+            # price)
             if apt.price_at_book:
                 price = Decimal(str(apt.price_at_book))
             else:
@@ -255,7 +257,8 @@ def get_monthly_total(employee_id):
     now = datetime.now()
     month_start = datetime(now.year, now.month, 1)
 
-    # Calculate next month's first day, then subtract 1 second to get end of current month
+    # Calculate next month's first day, then subtract 1 second to get end of
+    # current month
     if now.month == 12:
         month_end = datetime(now.year + 1, 1, 1) - timedelta(seconds=1)
     else:

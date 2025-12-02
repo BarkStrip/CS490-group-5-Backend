@@ -11,6 +11,7 @@ from ..models import (
     SalonVerify,
     SalonOwners,
     Types,
+    LoyaltyProgram,
 )
 from app.utils.s3_utils import upload_file_to_s3
 import uuid
@@ -150,6 +151,16 @@ def register_salon():
 
         db.session.add(salon)
         db.session.flush()
+
+        loyalty_program = LoyaltyProgram(
+            salon_id=salon.id,
+            active=0,
+        )
+        db.session.add(loyalty_program)
+        db.session.flush()
+        
+        # This is old but if still not working, this might be the reason (old implementation of single type, now multiple types for a salon)
+#         salon.type.append(type_obj)
 
         for tag_name in salon_tags:
             tag_obj = db.session.scalar(select(Types).where(Types.name == tag_name))

@@ -1,7 +1,8 @@
 from flask import Blueprint, jsonify, request
 from app.extensions import db
 
-# Here is where you call the "TABLES" from models. Models is a file that contains all the tables in "Python" format so we can use sqlalchemy
+# Here is where you call the "TABLES" from models. Models is a file that
+# contains all the tables in "Python" format so we can use sqlalchemy
 from ..models import (
     Salon,
     Service,

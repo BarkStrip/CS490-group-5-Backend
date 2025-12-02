@@ -30,10 +30,12 @@ from app.api.admin_dashboard.admin_analytics import admin_analytics_bp
 from app.api.admin_dashboard.admin_demographics import admin_demographics_bp
 from app.api.admin_dashboard.admin_salon_activity import admin_salon_activity_bp
 from app.api.employee.verification import employee_verification_bp
-
+from app.api.communication.notifications import notifications_bp
+from app.api.customer.change_password import update_password
 
 import os
 from app.models import Base
+from app.scheduler import init_scheduler
 
 load_dotenv()
 from app.config import Config  # noqa: E402
@@ -59,6 +61,11 @@ def create_app():
         print("Initializing database...")
         db.init_app(app)
         print("Database initialized")
+
+        print("Initializing scheduler...")
+        init_scheduler(app)
+        print("Scheduler initialized")
+
         print("Initializing Swagger/OpenAPI documentation...")
         # Determine host based on environment
         host = os.environ.get("API_HOST", "127.0.0.1:5000")
@@ -95,6 +102,8 @@ def create_app():
             admin_salon_activity_bp,
             details_bp,
             salon_payroll_bp,
+            notifications_bp,
+            update_password,
         ]
 
         with app.app_context():
@@ -160,8 +169,6 @@ def create_app():
     print(f"Returning app: {app}")
 
     return app
-
-    # --- Register Blueprints ---
 
 
 print("About to call create_app()")
