@@ -11,6 +11,7 @@ from ..models import (
     SalonVerify,
     SalonOwners,
     Types,
+    LoyaltyProgram,
 )
 from app.utils.s3_utils import upload_file_to_s3
 import uuid
@@ -131,6 +132,14 @@ def register_salon():
 
         db.session.add(salon)
         db.session.flush()
+
+        loyalty_program = LoyaltyProgram(
+            salon_id=salon.id,
+            active=0,
+        )
+        db.session.add(loyalty_program)
+        db.session.flush()
+        
         salon.type.append(type_obj)
 
         for tag_name in salon_tags:
