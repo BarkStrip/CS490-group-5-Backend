@@ -17,7 +17,6 @@ from app.utils.s3_utils import upload_file_to_s3
 import uuid
 import bcrypt
 import traceback
-import json
 from datetime import time
 
 salon_register_bp = Blueprint(
@@ -32,16 +31,23 @@ def get_types():
     """
     try:
         types = db.session.scalars(select(Types).order_by(Types.name)).all()
-        return jsonify({
-            "status": "success",
-            "types": [type_obj.name for type_obj in types]
-        }), 200
+        return (
+            jsonify(
+                {"status": "success", "types": [type_obj.name for type_obj in types]}
+            ),
+            200,
+        )
     except Exception as e:
-        return jsonify({
-            "status": "error",
-            "message": "Failed to fetch types",
-            "details": str(e)
-        }), 500
+        return (
+            jsonify(
+                {
+                    "status": "error",
+                    "message": "Failed to fetch types",
+                    "details": str(e),
+                }
+            ),
+            500,
+        )
 
 
 @salon_register_bp.route("/register", methods=["POST"])
@@ -85,7 +91,12 @@ def register_salon():
 
         if not salon_tags or len(salon_tags) == 0:
             return (
-                jsonify({"status": "error", "message": "Please select at least one salon category"}),
+                jsonify(
+                    {
+                        "status": "error",
+                        "message": "Please select at least one salon category",
+                    }
+                ),
                 400,
             )
 
@@ -158,7 +169,7 @@ def register_salon():
         )
         db.session.add(loyalty_program)
         db.session.flush()
-        
+
         # Link types - ONLY existing types from Types table (IDs 1-10)
         for tag_name in salon_tags:
             tag_obj = db.session.scalar(select(Types).where(Types.name == tag_name))
@@ -460,7 +471,8 @@ def delete_product(product_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": "Failed to delete product", "details": str(e)}), 500
-     
+
+
 @salon_register_bp.route(
     "/<int:salon_id>/verification_status",
     methods=["GET"],
