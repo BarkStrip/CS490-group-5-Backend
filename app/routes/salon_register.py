@@ -139,7 +139,7 @@ def register_salon():
         )
         db.session.add(loyalty_program)
         db.session.flush()
-        
+
         salon.type.append(type_obj)
 
         for tag_name in salon_tags:
