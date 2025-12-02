@@ -1,5 +1,6 @@
 # Book, edit, cancel appointments and set availability
 from flask import Blueprint, jsonify, request
+from app.services.email_service import email_service
 from app.extensions import db
 from ...models import (
     AppointmentImage,
@@ -10,6 +11,7 @@ from ...models import (
     Customers,
     TimeBlock,
     Service,
+    AuthUser,
 )
 from datetime import timedelta
 import datetime
@@ -356,15 +358,16 @@ def get_previous_appointments(customer_id):
     # Get current datetime
     now = datetime.datetime.now()
 
-    # Query for completed previous appointments (start_at < now AND status = 'COMPLETED'), ordered by start_at descending (most recent first)
+    # Query for completed previous appointments (start_at < now AND status =
+    # 'COMPLETED'), ordered by start_at descending (most recent first)
     previous_appointments = (
         db.session.query(Appointment)
         .filter(
-            and_(
-                Appointment.customer_id == customer_id,
+            Appointment.customer_id == customer_id,
+            or_(
                 Appointment.start_at < now,
-                Appointment.status == "COMPLETED",
-            )
+                Appointment.status.in_(["CANCELLED", "COMPLETED", "NO_SHOW"]),
+            ),
         )
         .order_by(Appointment.start_at.desc())
         .all()
@@ -482,7 +485,35 @@ def edit_appointment(customer_id, appointment_id):
                     ),
                     400,
                 )
+        if "status" in data:
+            new_status = data.get("status")
+            old_status = appointment.status
+            appointment.status = new_status
 
+            # TRIGGER NOTIFICATION IF CANCELLING
+            if new_status == "CANCELLED" and old_status != "CANCELLED":
+
+                try:
+                    # Get user email
+                    user = db.session.get(AuthUser, customer.user_id)
+
+                    email_service.send_cancellation_notification(
+                        to_email=user.email,
+                        to_name=f"{customer.first_name} {customer.last_name}",
+                        cancelled_by="customer",
+                        salon_name=appointment.salon.name,
+                        service_name=(
+                            appointment.service.name
+                            if appointment.service
+                            else "Service"
+                        ),
+                        appointment_date=appointment.start_at.strftime("%B %d, %Y"),
+                        appointment_time=appointment.start_at.strftime("%I:%M %p"),
+                        salon_id=appointment.salon_id,
+                        cancellation_reason=data.get("notes", "Cancelled by user"),
+                    )
+                except Exception as e:
+                    print(f"Failed to send cancellation email: {e}")
         if "status" in data:
             appointment.status = data.get("status")
 
@@ -554,11 +585,12 @@ def add_appointment():
     """
     Add a new appointment booking
     ---
-    summary: Create a new appointment record in the database
+    summary: Create a new appointment record in the database and send confirmation email
     description: receives booking details from the frontend (bookAppt)
         and stores them in the appointments table. It validates all required fields,
         calculates the appointment end time based on the service duration,
-        and saves the appointment in the database.
+        saves the appointment in the database, and automatically sends a confirmation
+        email to the customer.
     tags:
       - Appointments
     parameters:
@@ -568,7 +600,7 @@ def add_appointment():
         description: JSON payload containing appointment details
     responses:
       201:
-        description: Appointment successfully created
+        description: Appointment successfully created and confirmation email sent
       400:
         description: Missing or invalid parameters
       404:
@@ -590,7 +622,7 @@ def add_appointment():
         customer_id = data["customer_id"]
         salon_id = data["salon_id"]
         service_id = data["service_id"]
-        employee_id = data.get("employee_id")  # can be null for "Any employee"
+        employee_id = data.get("employee_id")
         start_at_str = data["start_at"]
         notes = data.get("notes")
         status = data.get("status", "Booked")
@@ -639,7 +671,6 @@ def add_appointment():
 
         if isinstance(pictures, list):
             for photo_url in pictures:
-
                 if not isinstance(photo_url, str):
                     continue
 
@@ -650,6 +681,69 @@ def add_appointment():
 
         db.session.commit()
 
+        email_sent = False
+        email_error = None
+
+        try:
+            customer = db.session.query(Customers).filter_by(id=customer_id).first()
+            if customer:
+                auth_user = (
+                    db.session.query(AuthUser).filter_by(id=customer.user_id).first()
+                )
+
+                if auth_user and auth_user.email:
+                    salon = db.session.query(Salon).filter_by(id=salon_id).first()
+
+                    employee = None
+                    stylist_name = "Your Stylist"
+                    if employee_id:
+                        employee = (
+                            db.session.query(Employees)
+                            .filter_by(id=employee_id)
+                            .first()
+                        )
+                        if employee:
+                            stylist_name = (
+                                f"{employee.first_name} {employee.last_name}".strip()
+                            )
+
+                    customer_name = (
+                        f"{customer.first_name} {customer.last_name}".strip()
+                    )
+                    if not customer_name:
+                        customer_name = "Valued Customer"
+
+                    result = email_service.send_appointment_confirmation(
+                        to_email=auth_user.email,
+                        customer_name=customer_name,
+                        salon_name=salon.name if salon else "Salon",
+                        service_name=service.name if service else "Service",
+                        appointment_date=start_at.strftime("%B %d, %Y"),
+                        appointment_time=start_at.strftime("%I:%M %p"),
+                        stylist_name=stylist_name,
+                        appointment_id=appointment.id,
+                        salon_address=salon.address if salon else "",
+                        salon_phone=salon.phone if salon else "",
+                    )
+
+                    if result["success"]:
+                        email_sent = True
+                        print(f" Confirmation email sent to {auth_user.email}")
+                    else:
+                        email_error = result.get("error")
+                        print(f" Failed to send confirmation email: {email_error}")
+                else:
+                    print(" Customer email not found in AuthUser table")
+            else:
+                print(" Customer not found")
+
+        except Exception as email_exception:
+            email_error = str(email_exception)
+            print(f" Exception while sending confirmation email: {email_error}")
+            import traceback
+
+            traceback.print_exc()
+
         return (
             jsonify(
                 {
@@ -659,6 +753,8 @@ def add_appointment():
                     "end_at": str(appointment.end_at),
                     "status": appointment.status,
                     "photos_count": len(pictures),
+                    "confirmation_email_sent": email_sent,
+                    "email_error": email_error if email_error else None,
                 }
             ),
             201,

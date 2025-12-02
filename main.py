@@ -30,7 +30,8 @@ from app.api.admin_dashboard.admin_analytics import admin_analytics_bp
 from app.api.admin_dashboard.admin_demographics import admin_demographics_bp
 from app.api.admin_dashboard.admin_salon_activity import admin_salon_activity_bp
 from app.api.employee.verification import employee_verification_bp
-
+from app.api.communication.notifications import notifications_bp
+from app.api.customer.change_password import update_password
 
 import os
 from app.models import Base
@@ -95,6 +96,8 @@ def create_app():
             admin_salon_activity_bp,
             details_bp,
             salon_payroll_bp,
+            notifications_bp,
+            update_password,
         ]
 
         with app.app_context():
@@ -143,9 +146,9 @@ def create_app():
         route_count = 0
         for rule in app.url_map.iter_rules():
             route_count += 1
-            print(
-                f"   Route {route_count}: {rule.endpoint} -> {rule.rule} [{list(rule.methods)}]"
-            )  # noqa: E501
+        print(
+            f"   Route {route_count}: {rule.endpoint} -> {rule.rule} [{list(rule.methods)}]"
+        )  # noqa: E501
         print(f"Total routes registered: {route_count}")
 
     except Exception as e:
@@ -160,8 +163,6 @@ def create_app():
     print(f"Returning app: {app}")
 
     return app
-
-    # --- Register Blueprints ---
 
 
 print("About to call create_app()")
