@@ -14,6 +14,13 @@ class EmailService:
 
     def __init__(self):
         """Initialize Resend with API key"""
+        if os.getenv("TESTING") == "1":
+            self.disabled = True
+            self.api_key = None
+            self.from_email = "test@example.com"
+            self.frontend_url = "http://localhost:3000"
+            print("⚠️ EmailService running in TEST MODE — no API key required")
+            return
         self.api_key = os.getenv("RESEND_API_KEY")
         if not self.api_key:
             raise ValueError("RESEND_API_KEY environment variable is required")
