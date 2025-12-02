@@ -445,3 +445,55 @@ def delete_product(product_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": "Failed to delete product", "details": str(e)}), 500
+
+
+@salon_register_bp.route(
+    "/<int:salon_id>/verification_status",
+    methods=["GET"],
+)
+def get_salon_verification_status(salon_id: int):
+    """
+    Get the latest verification status for a salon.
+
+    ---
+    tags:
+      - Salon Verification
+    parameters:
+      - in: path
+        name: salon_id
+        type: integer
+        required: true
+        description: Salon ID
+    responses:
+      200:
+        description: Verification status retrieved successfully
+        schema:
+          type: object
+          properties:
+            status:
+              type: string
+              enum: [PENDING, APPROVED, REJECTED]
+              example: APPROVED
+      404:
+        description: Salon not found
+    """
+    salon = db.session.get(Salon, salon_id)
+    if salon is None:
+        return (
+            jsonify(
+                {"status": "error", "message": "Salon not found"},
+            ),
+            404,
+        )
+
+    stmt = (
+        select(SalonVerify)
+        .where(SalonVerify.salon_id == salon_id)
+        .order_by(SalonVerify.created_at.desc())
+        .limit(1)
+    )
+    latest = db.session.execute(stmt).scalar_one_or_none()
+
+    status = latest.status if latest is not None else "PENDING"
+
+    return jsonify({"status": status}), 200
