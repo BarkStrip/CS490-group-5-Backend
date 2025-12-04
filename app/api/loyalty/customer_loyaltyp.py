@@ -550,7 +550,7 @@ def checkout_preview():
 
             # calculate eligible discount from existing points
             reward_chunks = current_points // points_for_reward
-            eligible_discount = float(reward_chunks * reward_value)
+            eligible_discount = round(float(reward_chunks * reward_value), 2)
 
             # estimated points earned from current cart spend for this salon
             amount_spent = float(spend_by_salon.get(salon_id, 0) or 0)
