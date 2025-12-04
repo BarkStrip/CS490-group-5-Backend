@@ -506,7 +506,6 @@ def checkout_preview():
     try:
         salon_ids = list(spend_by_salon.keys())
 
-        # also include salons that customer already has accounts with even if spend is zero
         existing_accounts = db.session.scalars(
             select(LoyaltyAccount).where(LoyaltyAccount.user_id == customer_id)
         ).all()
@@ -528,9 +527,7 @@ def checkout_preview():
 
             current_points = account.points if account else 0
 
-            # default program behavior if missing
             if not program or not program.active or program.program_type != "POINTS":
-                # no active program -> show info and potential estimated points (0)
                 estimated_points = int(spend_by_salon.get(salon_id, 0) * (float(program.points_per_dollar) if (program and program.points_per_dollar) else 0))
                 response[str(salon_id)] = {
                     "salon_id": salon_id,
@@ -543,7 +540,6 @@ def checkout_preview():
                 }
                 continue
 
-            # program exists and active
             points_for_reward = int(program.points_for_reward or 1000)
             reward_value = float(program.reward_value or 0.0)
             ppd = int(program.points_per_dollar or 1)  # frontend guarantees whole number per your note
