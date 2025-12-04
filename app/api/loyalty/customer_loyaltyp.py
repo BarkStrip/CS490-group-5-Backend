@@ -442,6 +442,8 @@ def check_cart_rewards():
         reward_chunks = total_points // points_required
         eligible_discount = round(float(reward_chunks * reward_value), 0)
 
+        formatted_discount = f"{eligible_discount:.2f}"
+
         if eligible_discount <= 0:
             response[str(salon_id)] = {"info_text": "No points available for use", "max_discount": 0}
             continue
@@ -449,7 +451,7 @@ def check_cart_rewards():
         response[str(salon_id)] = {
             "total_points": total_points,
             "eligible_discount": eligible_discount,
-            "info_text": f"{total_points} total points. Eligible for ${eligible_discount} off",
+            "info_text": f"{total_points} total points. Eligible for ${formatted_discount} off",
             "max_discount": eligible_discount
         }
 
@@ -548,6 +550,8 @@ def checkout_preview():
             reward_chunks = current_points // points_for_reward
             eligible_discount = round(float(reward_chunks * reward_value), 2)
 
+            formatted_discount = f"{eligible_discount:.2f}"
+
             # estimated points earned from current cart spend for this salon
             amount_spent = float(spend_by_salon.get(salon_id, 0) or 0)
             estimated_points = int(math.floor(amount_spent * ppd))
@@ -555,7 +559,7 @@ def checkout_preview():
             info_text = "No points available for use"
             max_discount = 0.0
             if current_points > 0 and eligible_discount > 0:
-                info_text = f"{current_points} total points. Eligible for ${eligible_discount} off"
+                info_text = f"{current_points} total points. Eligible for ${formatted_discount} off"
                 max_discount = eligible_discount
             else:
                 # no current points, show prospective earnings
