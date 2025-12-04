@@ -439,8 +439,7 @@ def create_order():
     tip_amnt = data.get("tip_amnt", 0)
     tax_amnt = data.get("tax_amnt", 0)
     total_amnt = data.get("total_amnt")
-    promo_id = data.get("promo_id", 0)
-    
+    promo_id = data.get("promo_id", 0)    
 
     if not data:
         return jsonify({"error": "No JSON body received"}), 400

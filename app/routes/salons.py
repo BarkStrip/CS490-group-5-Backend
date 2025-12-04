@@ -8,6 +8,7 @@ from ..models import (
     Service,
     SalonVerify,
     Review,
+    ReviewReply,
     Customers,
     Types,
     t_salon_type_assignments,
@@ -706,6 +707,7 @@ def get_salon_reviews(salon_id):
             .join(Customers, Review.customers_id == Customers.id)
             .filter(Review.salon_id == salon_id)
             .options(joinedload(Review.review_image))
+            .options(joinedload(Review.review_reply))
             .order_by(Review.created_at.desc())
         )
 
@@ -722,6 +724,36 @@ def get_salon_reviews(salon_id):
 
             image_list = [img.url for img in review_obj.review_image]
 
+            # Get review replies
+            reply_list = []
+            for reply in review_obj.review_reply:
+                # Get replier name from auth_user
+                replier_name = "Salon Owner"
+                if reply.replier:
+                    replier_name = (
+                        reply.replier.email.split("@")[0]
+                        if reply.replier.email
+                        else "Salon Owner"
+                    )
+
+                reply_list.append(
+                    {
+                        "id": reply.id,
+                        "text_body": reply.text_body,
+                        "replier_name": replier_name,
+                        "created_at": (
+                            reply.created_at.strftime("%Y-%m-%d %H:%M:%S")
+                            if reply.created_at
+                            else None
+                        ),
+                        "updated_at": (
+                            reply.updated_at.strftime("%Y-%m-%d %H:%M:%S")
+                            if reply.updated_at
+                            else None
+                        ),
+                    }
+                )
+
             review_list.append(
                 {
                     "id": review_obj.id,
@@ -735,6 +767,7 @@ def get_salon_reviews(salon_id):
                     "customers_id": review_obj.customers_id,
                     "customer_name": f"{customer_first_name} {customer_last_name}",
                     "images": image_list,
+                    "replies": reply_list,
                 }
             )
 

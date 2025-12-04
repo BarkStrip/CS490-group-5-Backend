@@ -35,6 +35,7 @@ from app.api.customer.change_password import update_password
 
 import os
 from app.models import Base
+from app.scheduler import init_scheduler
 
 load_dotenv()
 from app.config import Config  # noqa: E402
@@ -60,6 +61,11 @@ def create_app():
         print("Initializing database...")
         db.init_app(app)
         print("Database initialized")
+
+        print("Initializing scheduler...")
+        init_scheduler(app)
+        print("Scheduler initialized")
+
         print("Initializing Swagger/OpenAPI documentation...")
         # Determine host based on environment
         host = os.environ.get("API_HOST", "127.0.0.1:5000")
@@ -146,9 +152,9 @@ def create_app():
         route_count = 0
         for rule in app.url_map.iter_rules():
             route_count += 1
-        print(
-            f"   Route {route_count}: {rule.endpoint} -> {rule.rule} [{list(rule.methods)}]"
-        )  # noqa: E501
+            print(
+                f"   Route {route_count}: {rule.endpoint} -> {rule.rule} [{list(rule.methods)}]"
+            )  # noqa: E501
         print(f"Total routes registered: {route_count}")
 
     except Exception as e:

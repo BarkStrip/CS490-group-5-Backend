@@ -216,3 +216,44 @@ def update_employee_status(employee_id):
             ),
             500,
         )
+
+
+@employee_verification_bp.route("/status/<int:employee_id>", methods=["GET"])
+def get_employee_verification_status(employee_id: int):
+    """
+    Get the current verification status for an employee.
+
+    ---
+    tags:
+      - Employee Verification
+    parameters:
+      - in: path
+        name: employee_id
+        type: integer
+        required: true
+        description: Employee ID
+    responses:
+      200:
+        description: Verification status retrieved successfully
+        schema:
+          type: object
+          properties:
+            status:
+              type: string
+              enum: [PENDING, APPROVED, REJECTED]
+              example: APPROVED
+      404:
+        description: Employee not found
+    """
+    employee = db.session.get(Employees, employee_id)
+    if employee is None:
+        return (
+            jsonify(
+                {"status": "error", "message": "Employee not found"},
+            ),
+            404,
+        )
+
+    status = employee.employment_status or "PENDING"
+
+    return jsonify({"status": status}), 200
