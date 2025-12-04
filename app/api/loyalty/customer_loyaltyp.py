@@ -434,7 +434,7 @@ def check_cart_rewards():
         reward_value = float(program.reward_value or 0)
 
         reward_chunks = total_points // points_required
-        eligible_discount = float(reward_chunks * reward_value)
+        eligible_discount = round(float(reward_chunks * reward_value), 0)
 
         if eligible_discount <= 0:
             response[str(salon_id)] = {"info_text": "No points available for use", "max_discount": 0}
