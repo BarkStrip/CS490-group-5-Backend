@@ -352,6 +352,7 @@ def award_loyalty_points(customer_id, salon_id, order_total):
 def create_order():
     data = request.get_json(force=True)
     customer_id = data.get("customer_id")
+    cart_items = data.get("cart_items", [])
     salon_id = data.get("salon_id")
 
     if not salon_id:
@@ -365,7 +366,6 @@ def create_order():
     tax_amnt = data.get("tax_amnt", 0)
     total_amnt = data.get("total_amnt")
     promo_id = data.get("promo_id", 0)
-    cart_items = data.get("cart_items", [])
 
     if not data:
         return jsonify({"error": "No JSON body received"}), 400
