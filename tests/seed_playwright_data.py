@@ -29,12 +29,13 @@ def seed_playwright_users() -> None:
     """
     Seed fixed test data for Playwright into the *current* DB.
 
-    IMPORTANT: Call this ONLY inside an app.app_context().
     """
     print("🔄 Seeding Playwright test data into TEST DB...")
 
     # 1) CUSTOMER account
-    cust_user = AuthUser.query.filter_by(email="playwright_tester@jade.com").first()
+    cust_user = (
+        db.session.query(AuthUser).filter_by(email="playwright_tester@jade.com").first()
+    )
     if not cust_user:
         cust_user = AuthUser(
             email="playwright_tester@jade.com",
@@ -47,7 +48,9 @@ def seed_playwright_users() -> None:
     else:
         print(f"  ℹ CUSTOMER auth_user already exists (id={cust_user.id})")
 
-    customer_profile = Customers.query.filter_by(user_id=cust_user.id).first()
+    customer_profile = (
+        db.session.query(Customers).filter_by(user_id=cust_user.id).first()
+    )
     if not customer_profile:
         customer_profile = Customers(
             user_id=cust_user.id,
@@ -66,9 +69,11 @@ def seed_playwright_users() -> None:
         print(f"  ℹ Customers profile already exists (id={customer_profile.id})")
 
     # 2) SALON OWNER account
-    owner_user = AuthUser.query.filter_by(
-        email="playwright_tester_owner@jade.com"
-    ).first()
+    owner_user = (
+        db.session.query(AuthUser)
+        .filter_by(email="playwright_tester_owner@jade.com")
+        .first()
+    )
     if not owner_user:
         owner_user = AuthUser(
             email="playwright_tester_owner@jade.com",
@@ -81,7 +86,9 @@ def seed_playwright_users() -> None:
     else:
         print(f"  ℹ OWNER auth_user already exists (id={owner_user.id})")
 
-    owner_profile = SalonOwners.query.filter_by(user_id=owner_user.id).first()
+    owner_profile = (
+        db.session.query(SalonOwners).filter_by(user_id=owner_user.id).first()
+    )
     if not owner_profile:
         owner_profile = SalonOwners(
             user_id=owner_user.id,
@@ -97,7 +104,7 @@ def seed_playwright_users() -> None:
         print(f"  ℹ SalonOwners profile already exists (id={owner_profile.id})")
 
     # 3) SALON linked to that owner
-    salon = Salon.query.filter_by(name="PlaywrightTest").first()
+    salon = db.session.query(Salon).filter_by(name="PlaywrightTest").first()
     if not salon:
         salon = Salon(
             salon_owner_id=owner_profile.id,
@@ -117,7 +124,11 @@ def seed_playwright_users() -> None:
 
     # 3a) SALON HOURS 0–6, 09:00–17:00
     for weekday in range(7):
-        hours = SalonHours.query.filter_by(salon_id=salon.id, weekday=weekday).first()
+        hours = (
+            db.session.query(SalonHours)
+            .filter_by(salon_id=salon.id, weekday=weekday)
+            .first()
+        )
         if not hours:
             hours = SalonHours(
                 salon_id=salon.id,
@@ -132,7 +143,7 @@ def seed_playwright_users() -> None:
             print(f"  ℹ SalonHours already exists for weekday={weekday}")
 
     # 3b) SALON VERIFY row: APPROVED
-    verify = SalonVerify.query.filter_by(salon_id=salon.id).first()
+    verify = db.session.query(SalonVerify).filter_by(salon_id=salon.id).first()
     if not verify:
         verify = SalonVerify(
             salon_id=salon.id,
@@ -147,7 +158,9 @@ def seed_playwright_users() -> None:
             print("  🔁 Updated existing SalonVerify to APPROVED")
 
     # 3c) SERVICE: Haircut
-    service = Service.query.filter_by(salon_id=salon.id, name="Haircut").first()
+    service = (
+        db.session.query(Service).filter_by(salon_id=salon.id, name="Haircut").first()
+    )
     if not service:
         service = Service(
             salon_id=salon.id,
@@ -162,7 +175,7 @@ def seed_playwright_users() -> None:
         print("  ℹ Service 'Haircut' already exists")
 
     # 3d) LOYALTY PROGRAM for the salon
-    lp = LoyaltyProgram.query.filter_by(salon_id=salon.id).first()
+    lp = db.session.query(LoyaltyProgram).filter_by(salon_id=salon.id).first()
     if not lp:
         lp = LoyaltyProgram(
             salon_id=salon.id,
@@ -177,7 +190,11 @@ def seed_playwright_users() -> None:
         print("  ℹ LoyaltyProgram already exists for this salon")
 
     # 4) EMPLOYEE account linked to this salon
-    emp_user = AuthUser.query.filter_by(email="playwright_tester_emp@jade.com").first()
+    emp_user = (
+        db.session.query(AuthUser)
+        .filter_by(email="playwright_tester_emp@jade.com")
+        .first()
+    )
     if not emp_user:
         emp_user = AuthUser(
             email="playwright_tester_emp@jade.com",
@@ -190,7 +207,9 @@ def seed_playwright_users() -> None:
     else:
         print(f"  ℹ EMPLOYEE auth_user already exists (id={emp_user.id})")
 
-    employee_profile = Employees.query.filter_by(user_id=emp_user.id).first()
+    employee_profile = (
+        db.session.query(Employees).filter_by(user_id=emp_user.id).first()
+    )
     if not employee_profile:
         employee_profile = Employees(
             user_id=emp_user.id,
