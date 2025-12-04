@@ -1,1 +1,1 @@
-from tests.seed_playwright_data import seed_playwright_users
+# Make 'tests' a package so we can import from it in CI.
