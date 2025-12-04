@@ -286,6 +286,68 @@ def delete_payment_method(customer_id, method_id):
         return jsonify({"error": "Database error", "details": str(e)}), 500
 
 
+def award_loyalty_points(customer_id, salon_id, order_total):
+    print("---- AWARD POINTS START ----")
+    print("customer:", customer_id)
+    print("salon:", salon_id)
+    print("order_total:", order_total)
+
+    program = db.session.scalar(
+        select(LoyaltyProgram).where(LoyaltyProgram.salon_id == salon_id)
+    )
+    print("program found:", program is not None)
+
+    if not program:
+        print("NO PROGRAM — EXIT")
+        return None
+
+    points_per_dollar = int(program.points_per_dollar or 1)
+    print("points_per_dollar:", points_per_dollar)
+
+    earned_points = int(order_total * points_per_dollar)
+    print("earned_points:", earned_points)
+
+    account = db.session.scalar(
+        select(LoyaltyAccount)
+        .where(LoyaltyAccount.user_id == customer_id)
+        .where(LoyaltyAccount.salon_id == salon_id)
+    )
+    print("existing account:", account)
+
+    if not account:
+        print("CREATING NEW LOYALTY ACCOUNT")
+        account = LoyaltyAccount(
+            user_id=customer_id,
+            salon_id=salon_id,
+            points=earned_points
+        )
+        db.session.add(account)
+        db.session.flush()  # <<< IMPORTANT
+        print("new account id after flush:", account.id)
+    else:
+        print("UPDATING EXISTING ACCOUNT")
+        account.points += earned_points
+
+    print("creating transaction now")
+    txn = LoyaltyTransaction(
+        loyalty_account_id=account.id,
+        points_change=earned_points,
+        reason=f"Points earned from order (${order_total})"
+    )
+    db.session.add(txn)
+
+    try:
+        db.session.commit()
+        print("COMMIT SUCCESSFUL")
+    except Exception as e:
+        print("COMMIT ERROR:", e)
+        db.session.rollback()
+
+    print("---- AWARD POINTS END ----")
+
+    return earned_points
+
+
 @payments_bp.route("/create_order", methods=["POST"])
 def create_order():
     data = request.get_json(force=True)
@@ -373,51 +435,3 @@ def create_order():
         print(f"Error creating order: {e}")
         error_response = {"error": "unexpected error", "details": str(e)}
         return error_response, 500
-
-
-def award_loyalty_points(customer_id, salon_id, order_total):
-    """
-    Creates or updates loyalty account and records points.
-    """
-    # 1. Find loyalty program
-    program = db.session.scalar(
-        select(LoyaltyProgram).where(LoyaltyProgram.salon_id == salon_id)
-    )
-    if not program:
-        return None  # salon has no loyalty program
-
-    points_per_dollar = int(program.points_per_dollar or 1)
-
-    # 2. Points earned for this purchase
-    earned_points = int(order_total * points_per_dollar)
-
-    # 3. Get or create loyalty account
-    account = db.session.scalar(
-        select(LoyaltyAccount)
-        .where(LoyaltyAccount.user_id == customer_id)
-        .where(LoyaltyAccount.salon_id == salon_id)
-    )
-
-    if not account:
-        # Create new loyalty account
-        account = LoyaltyAccount(
-            user_id=customer_id,
-            salon_id=salon_id,
-            points=earned_points
-        )
-        db.session.add(account)
-    else:
-        # Add new points
-        account.points += earned_points
-
-    # 4. Create loyalty transaction log
-    txn = LoyaltyTransaction(
-        loyalty_account_id=account.id,
-        points_change=earned_points,
-        reason=f"Points earned from order (total ${order_total})"
-    )
-    db.session.add(txn)
-
-    db.session.commit()
-
-    return earned_points
