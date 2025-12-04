@@ -131,7 +131,9 @@ def get_customer_loyalty_programs(customer_id):
         return jsonify({"status": "error", "message": "Failed to get programs", "details": str(e)}), 500
 
 
-@loyalty_bp.route("/customers/<int:customer_id>/programs/<int:salon_id>/activity", methods=["GET"])
+@loyalty_bp.route(
+    "/customers/<int:customer_id>/programs/<int:salon_id>/activity", methods=["GET"]
+)
 def get_loyalty_activity(customer_id, salon_id):
     try:
         account = get_loyalty_account(customer_id, salon_id)
@@ -163,7 +165,9 @@ def get_loyalty_activity(customer_id, salon_id):
         return jsonify({"status": "error", "message": "Failed to get activity", "details": str(e)}), 500
 
 
-@loyalty_bp.route("/customers/<int:customer_id>/programs/<int:salon_id>/rewards", methods=["GET"])
+@loyalty_bp.route(
+    "/customers/<int:customer_id>/programs/<int:salon_id>/rewards", methods=["GET"]
+)
 def get_available_rewards(customer_id, salon_id):
     try:
         account = get_loyalty_account(customer_id, salon_id)
@@ -201,7 +205,9 @@ def get_available_rewards(customer_id, salon_id):
         return jsonify({"status": "error", "message": "Failed to get rewards", "details": str(e)}), 500
 
 
-@loyalty_bp.route("/customers/<int:customer_id>/programs/<int:salon_id>/redeem", methods=["POST"])
+@loyalty_bp.route(
+    "/customers/<int:customer_id>/programs/<int:salon_id>/redeem", methods=["POST"]
+)
 def redeem_loyalty_reward(customer_id, salon_id):
     try:
         data = request.json or {}
@@ -602,7 +608,7 @@ def process_loyalty_for_order(customer_id, cart_items, applied_rewards):
                     deduct_txn = LoyaltyTransaction(
                         loyalty_account_id=account.id,
                         points_change=-points_to_deduct,
-                        reason=f"Redeemed ${discount_amount} off at checkout"
+                        reason=f"Redeemed ${discount_amount} off at checkout",
                     )
                     db.session.add(deduct_txn)
 
@@ -618,7 +624,9 @@ def process_loyalty_for_order(customer_id, cart_items, applied_rewards):
             program = db.session.scalar(select(LoyaltyProgram).where(LoyaltyProgram.salon_id == salon_id))
             account = get_loyalty_account(customer_id, salon_id)
             if not account:
-                account = LoyaltyAccount(user_id=customer_id, salon_id=salon_id, points=0)
+                account = LoyaltyAccount(
+                    user_id=customer_id, salon_id=salon_id, points=0
+                )
                 db.session.add(account)
                 db.session.flush()
 
@@ -629,7 +637,7 @@ def process_loyalty_for_order(customer_id, cart_items, applied_rewards):
                     add_txn = LoyaltyTransaction(
                         loyalty_account_id=account.id,
                         points_change=points_to_add,
-                        reason=f"Earned from order (Spent ${amount_spent})"
+                        reason=f"Earned from order (Spent ${amount_spent})",
                     )
                     db.session.add(add_txn)
 

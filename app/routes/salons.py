@@ -730,15 +730,29 @@ def get_salon_reviews(salon_id):
                 # Get replier name from auth_user
                 replier_name = "Salon Owner"
                 if reply.replier:
-                    replier_name = reply.replier.email.split('@')[0] if reply.replier.email else "Salon Owner"
+                    replier_name = (
+                        reply.replier.email.split("@")[0]
+                        if reply.replier.email
+                        else "Salon Owner"
+                    )
 
-                reply_list.append({
-                    "id": reply.id,
-                    "text_body": reply.text_body,
-                    "replier_name": replier_name,
-                    "created_at": reply.created_at.strftime("%Y-%m-%d %H:%M:%S") if reply.created_at else None,
-                    "updated_at": reply.updated_at.strftime("%Y-%m-%d %H:%M:%S") if reply.updated_at else None,
-                })
+                reply_list.append(
+                    {
+                        "id": reply.id,
+                        "text_body": reply.text_body,
+                        "replier_name": replier_name,
+                        "created_at": (
+                            reply.created_at.strftime("%Y-%m-%d %H:%M:%S")
+                            if reply.created_at
+                            else None
+                        ),
+                        "updated_at": (
+                            reply.updated_at.strftime("%Y-%m-%d %H:%M:%S")
+                            if reply.updated_at
+                            else None
+                        ),
+                    }
+                )
 
             review_list.append(
                 {
