@@ -8,6 +8,9 @@ from app.models import (
     OrderItem,
     Cart,
     CartItem,
+    LoyaltyAccount,
+    LoyaltyProgram,
+    LoyaltyTransaction
 )
 from datetime import datetime
 from sqlalchemy import select, delete, update
@@ -158,9 +161,7 @@ def create_payment_method(customer_id):
         return jsonify({"error": "Database error", "details": str(e)}), 500
 
 
-@payments_bp.route(
-    "/<int:customer_id>/methods/<int:method_id>/set-default", methods=["PUT"]
-)
+@payments_bp.route("/<int:customer_id>/methods/<int:method_id>/set-default", methods=["PUT"])
 def set_default_payment_method(customer_id, method_id):
 
     customer = db.session.get(Customers, customer_id)
@@ -350,6 +351,16 @@ def create_order():
 
         db.session.commit()
 
+        order_total_for_points = float(subtotal or 0)
+
+        earned = award_loyalty_points(
+            customer_id=customer_id,
+            salon_id=salon_id,
+            order_total=order_total_for_points
+        )
+
+        print(f"LOYALTY: Awarded {earned} points to customer {customer_id} (salon {salon_id})")
+
         return (
             jsonify(
                 {"message": "Order created successfully", "order_id": new_order.id}
@@ -362,3 +373,51 @@ def create_order():
         print(f"Error creating order: {e}")
         error_response = {"error": "unexpected error", "details": str(e)}
         return error_response, 500
+
+
+def award_loyalty_points(customer_id, salon_id, order_total):
+    """
+    Creates or updates loyalty account and records points.
+    """
+    # 1. Find loyalty program
+    program = db.session.scalar(
+        select(LoyaltyProgram).where(LoyaltyProgram.salon_id == salon_id)
+    )
+    if not program:
+        return None  # salon has no loyalty program
+
+    points_per_dollar = int(program.points_per_dollar or 1)
+
+    # 2. Points earned for this purchase
+    earned_points = int(order_total * points_per_dollar)
+
+    # 3. Get or create loyalty account
+    account = db.session.scalar(
+        select(LoyaltyAccount)
+        .where(LoyaltyAccount.user_id == customer_id)
+        .where(LoyaltyAccount.salon_id == salon_id)
+    )
+
+    if not account:
+        # Create new loyalty account
+        account = LoyaltyAccount(
+            user_id=customer_id,
+            salon_id=salon_id,
+            points=earned_points
+        )
+        db.session.add(account)
+    else:
+        # Add new points
+        account.points += earned_points
+
+    # 4. Create loyalty transaction log
+    txn = LoyaltyTransaction(
+        loyalty_account_id=account.id,
+        points_change=earned_points,
+        reason=f"Points earned from order (total ${order_total})"
+    )
+    db.session.add(txn)
+
+    db.session.commit()
+
+    return earned_points
