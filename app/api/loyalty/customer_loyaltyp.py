@@ -579,69 +579,6 @@ def checkout_preview():
         return jsonify({"status": "error", "message": "checkout preview failed", "details": str(e)}), 500
 
 
-def process_loyalty_for_order(customer_id, cart_items, applied_rewards):
-    """
-    Deduct points for used rewards and accrue new points for spends.
-    Intended to be called inside your create_order route after payment success.
-    """
-    try:
-        for reward in applied_rewards:
-            salon_id = reward.get('salon_id')
-            discount_amount = float(reward.get('discount_amount', 0) or 0)
-
-            program = db.session.scalar(select(LoyaltyProgram).where(LoyaltyProgram.salon_id == salon_id))
-            if program and discount_amount > 0:
-                rv = float(program.reward_value or 1)
-                req = int(program.points_for_reward or 1000)
-                points_to_deduct = int((discount_amount / rv) * req)
-
-                account = get_loyalty_account(customer_id, salon_id)
-                if account and account.points >= points_to_deduct:
-                    account.points -= points_to_deduct
-                    db.session.add(account)
-                    deduct_txn = LoyaltyTransaction(
-                        loyalty_account_id=account.id,
-                        points_change=-points_to_deduct,
-                        reason=f"Redeemed ${discount_amount} off at checkout"
-                    )
-                    db.session.add(deduct_txn)
-
-        # accrual
-        salon_spend = {}
-        for item in cart_items:
-            s_id = item.get('salon_id') or item.get('service_salon_id') or item.get('product_salon_id')
-            price = float(item.get('unit_price', 0) or 0) * int(item.get('qty', 1) or 1)
-            if s_id:
-                salon_spend[s_id] = salon_spend.get(s_id, 0) + price
-
-        for salon_id, amount_spent in salon_spend.items():
-            program = db.session.scalar(select(LoyaltyProgram).where(LoyaltyProgram.salon_id == salon_id))
-            account = get_loyalty_account(customer_id, salon_id)
-            if not account:
-                account = LoyaltyAccount(user_id=customer_id, salon_id=salon_id, points=0)
-                db.session.add(account)
-                db.session.flush()
-
-            if program and program.active and program.points_per_dollar:
-                points_to_add = int(math.floor(amount_spent * float(program.points_per_dollar)))
-                if points_to_add > 0:
-                    account.points += points_to_add
-                    add_txn = LoyaltyTransaction(
-                        loyalty_account_id=account.id,
-                        points_change=points_to_add,
-                        reason=f"Earned from order (Spent ${amount_spent})"
-                    )
-                    db.session.add(add_txn)
-
-        db.session.commit()
-        return True
-
-    except Exception as e:
-        current_app.logger.error(f"Loyalty processing failed: {e}")
-        db.session.rollback()
-        return False
-
-
 @loyalty_bp.route("/apply-earned-points", methods=["POST"])
 def apply_earned_points():
     data = request.get_json()
