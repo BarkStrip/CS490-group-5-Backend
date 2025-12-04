@@ -353,6 +353,13 @@ def create_order():
     data = request.get_json(force=True)
     customer_id = data.get("customer_id")
     salon_id = data.get("salon_id")
+
+    if not salon_id:
+        if len(cart_items) > 0:
+            salon_id = cart_items[0].get("salon_id")
+        else:
+            return jsonify({"error": "salon_id missing and cannot be inferred"}), 400
+        
     subtotal = data.get("subtotal")
     tip_amnt = data.get("tip_amnt", 0)
     tax_amnt = data.get("tax_amnt", 0)
