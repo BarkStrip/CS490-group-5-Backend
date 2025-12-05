@@ -1069,3 +1069,189 @@ def get_salon(salon_owner_id):
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@salons_bp.route("/types", methods=["GET"])
+def get_types():
+    """
+    Get all salon types for landing page display
+    ---
+    tags:
+      - Salons
+    responses:
+      200:
+        description: List of all salon types
+        schema:
+          type: object
+          properties:
+            types:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  name:
+                    type: string
+              example:
+                - id: 1
+                  name: "Hair"
+                - id: 2
+                  name: "Nails"
+      500:
+        description: Database error
+        schema:
+          $ref: '#/definitions/Error'
+    """
+    try:
+        types_query = db.session.query(Types.id, Types.name).order_by(Types.name).all()
+        
+        types_list = [{"id": t.id, "name": t.name} for t in types_query]
+        
+        return jsonify({"types": types_list}), 200
+        
+    except Exception as e:
+        return jsonify({"error": "Database error", "details": str(e)}), 500
+
+
+@salons_bp.route("/types/<int:type_id>/salons", methods=["GET"])
+def get_salons_by_type(type_id):
+    """
+    Get all salons that offer a specific type
+    ---
+    tags:
+      - Salons
+    parameters:
+      - in: path
+        name: type_id
+        type: integer
+        required: true
+        description: The type ID to filter by
+      - in: query
+        name: lat
+        type: number
+        format: float
+        description: User latitude for distance calculation
+      - in: query
+        name: lon
+        type: number
+        format: float
+        description: User longitude for distance calculation
+    responses:
+      200:
+        description: Salons filtered by type
+        schema:
+          type: object
+          properties:
+            type_id:
+              type: integer
+            type_name:
+              type: string
+            results_found:
+              type: integer
+            salons:
+              type: array
+              items:
+                $ref: '#/definitions/Salon'
+      404:
+        description: Type not found
+      500:
+        description: Database error
+    """
+    try:
+        user_lat = request.args.get("lat", type=float)
+        user_lon = request.args.get("lon", type=float)
+        
+        # Verify type exists
+        type_obj = db.session.query(Types).filter(Types.id == type_id).first()
+        if not type_obj:
+            return jsonify({"error": "Type not found"}), 404
+        
+        # Query salons with this type
+        salons_query = (
+            db.session.query(
+                Salon.id,
+                Salon.name,
+                func.group_concat(func.distinct(Types.name)).label("salon_types"),
+                Salon.address,
+                Salon.city,
+                Salon.latitude,
+                Salon.longitude,
+                Salon.phone,
+                func.avg(Review.rating).label("avg_rating"),
+                func.count(func.distinct(Review.id)).label("total_reviews"),
+                func.avg(Service.price).label("avg_service_price"),
+            )
+            .join(SalonVerify, SalonVerify.salon_id == Salon.id)
+            .join(
+                t_salon_type_assignments,
+                t_salon_type_assignments.c.salon_id == Salon.id,
+            )
+            .join(Types, Types.id == t_salon_type_assignments.c.type_id)
+            .outerjoin(Review, Review.salon_id == Salon.id)
+            .outerjoin(Service, Service.salon_id == Salon.id)
+            .filter(
+                SalonVerify.status == "APPROVED",
+                t_salon_type_assignments.c.type_id == type_id
+            )
+            .group_by(Salon.id)
+            .order_by(desc("avg_rating"))
+        )
+        
+        salons = salons_query.all()
+        
+        salon_list = []
+        for s in salons:
+            distance = None
+            if user_lat and user_lon and s.latitude and s.longitude:
+                R = 3958.8
+                dlat = radians(float(s.latitude) - user_lat)
+                dlon = radians(float(s.longitude) - user_lon)
+                a = (
+                    sin(dlat / 2) ** 2
+                    + cos(radians(user_lat))
+                    * cos(radians(float(s.latitude)))
+                    * sin(dlon / 2) ** 2
+                )
+                c = 2 * atan2(sqrt(a), sqrt(1 - a))
+                distance = R * c
+            
+            salon_list.append(
+                {
+                    "id": s.id,
+                    "name": s.name,
+                    "types": s.salon_types.split(",") if s.salon_types else [],
+                    "address": s.address,
+                    "city": s.city,
+                    "latitude": float(s.latitude) if s.latitude else None,
+                    "longitude": float(s.longitude) if s.longitude else None,
+                    "phone": s.phone,
+                    "avg_rating": (
+                        round(float(s.avg_rating), 1) if s.avg_rating else None
+                    ),
+                    "total_reviews": s.total_reviews,
+                    "avg_service_price": (
+                        round(float(s.avg_service_price), 2)
+                        if s.avg_service_price
+                        else None
+                    ),
+                    "distance_miles": round(distance, 2) if distance else None,
+                }
+            )
+        
+        # Sort by distance if coordinates provided
+        if user_lat and user_lon:
+            salon_list.sort(
+                key=lambda x: (x["distance_miles"] if x["distance_miles"] else 9999)
+            )
+        
+        return jsonify(
+            {
+                "type_id": type_id,
+                "type_name": type_obj.name,
+                "results_found": len(salon_list),
+                "salons": salon_list,
+            }
+        ), 200
+        
+    except Exception as e:
+        return jsonify({"error": "Database error", "details": str(e)}), 500
