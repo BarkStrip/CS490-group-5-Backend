@@ -24,6 +24,32 @@ salon_register_bp = Blueprint(
 )
 
 
+@salon_register_bp.route("/types", methods=["GET"])
+def get_types():
+    """
+    Fetch all salon types from the Types table.
+    """
+    try:
+        types = db.session.scalars(select(Types).order_by(Types.name)).all()
+        return (
+            jsonify(
+                {"status": "success", "types": [type_obj.name for type_obj in types]}
+            ),
+            200,
+        )
+    except Exception as e:
+        return (
+            jsonify(
+                {
+                    "status": "error",
+                    "message": "Failed to fetch types",
+                    "details": str(e),
+                }
+            ),
+            500,
+        )
+
+
 @salon_register_bp.route("/register", methods=["POST"])
 def register_salon():
     """
@@ -57,9 +83,20 @@ def register_salon():
                 400,
             )
 
-        if not salon_data.get("name") or not salon_data.get("type"):
+        if not salon_data.get("name"):
             return (
                 jsonify({"status": "error", "message": "Salon information incomplete"}),
+                400,
+            )
+
+        if not salon_tags or len(salon_tags) == 0:
+            return (
+                jsonify(
+                    {
+                        "status": "error",
+                        "message": "Please select at least one salon category",
+                    }
+                ),
                 400,
             )
 
@@ -104,13 +141,6 @@ def register_salon():
         db.session.add(salon_owner)
         db.session.flush()
 
-        type_name = salon_data["type"].strip().title()
-        type_obj = db.session.scalar(select(Types).where(Types.name == type_name))
-        if not type_obj:
-            type_obj = Types(name=type_name)
-            db.session.add(type_obj)
-            db.session.flush()
-
         full_address = salon_data.get("address", "")
         if salon_data.get("city"):
             full_address += f", {salon_data.get('city')}"
@@ -140,15 +170,10 @@ def register_salon():
         db.session.add(loyalty_program)
         db.session.flush()
 
-        salon.type.append(type_obj)
-
+        # Link types - ONLY existing types from Types table (IDs 1-10)
         for tag_name in salon_tags:
             tag_obj = db.session.scalar(select(Types).where(Types.name == tag_name))
-            if not tag_obj:
-                tag_obj = Types(name=tag_name)
-                db.session.add(tag_obj)
-                db.session.flush()
-            if tag_obj not in salon.type:
+            if tag_obj and tag_obj not in salon.type:
                 salon.type.append(tag_obj)
 
         day_mapping = {
@@ -200,6 +225,7 @@ def register_salon():
                     price=float(service_data["price"]),
                     duration=int(service_data.get("duration", 60)),
                     is_active=True,
+                    icon_url=service_data.get("icon_url"),
                 )
                 db.session.add(service)
 
@@ -215,7 +241,7 @@ def register_salon():
                     "message": "Salon registration submitted for verification",
                     "salon_id": salon.id,
                     "owner_id": auth_user.id,
-                    "type_used": type_obj.name,
+                    "tags": salon_tags,
                 }
             ),
             201,
@@ -445,3 +471,55 @@ def delete_product(product_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": "Failed to delete product", "details": str(e)}), 500
+
+
+@salon_register_bp.route(
+    "/<int:salon_id>/verification_status",
+    methods=["GET"],
+)
+def get_salon_verification_status(salon_id: int):
+    """
+    Get the latest verification status for a salon.
+
+    ---
+    tags:
+      - Salon Verification
+    parameters:
+      - in: path
+        name: salon_id
+        type: integer
+        required: true
+        description: Salon ID
+    responses:
+      200:
+        description: Verification status retrieved successfully
+        schema:
+          type: object
+          properties:
+            status:
+              type: string
+              enum: [PENDING, APPROVED, REJECTED]
+              example: APPROVED
+      404:
+        description: Salon not found
+    """
+    salon = db.session.get(Salon, salon_id)
+    if salon is None:
+        return (
+            jsonify(
+                {"status": "error", "message": "Salon not found"},
+            ),
+            404,
+        )
+
+    stmt = (
+        select(SalonVerify)
+        .where(SalonVerify.salon_id == salon_id)
+        .order_by(SalonVerify.created_at.desc())
+        .limit(1)
+    )
+    latest = db.session.execute(stmt).scalar_one_or_none()
+
+    status = latest.status if latest is not None else "PENDING"
+
+    return jsonify({"status": status}), 200

@@ -21,10 +21,11 @@ receipts_bp = Blueprint("payment", __name__, url_prefix="/api/receipts")
 def get_salon_transactions(salon_id):
     """
     Returns all transactions for a given salon id, including
-    customer info, item details, and an assumed 'paid' status.
+    customer info, item details, and a derived status based on
+    related appointment(s) when available.
 
     IMPORTANT ASSUMPTION:
-    - Any Order that has OrderItem rows is treated as PAID
+    - Any Order that has OrderItem rows is treated as a real transaction
       (we no longer rely on the Payment table here).
     """
     try:
@@ -80,11 +81,15 @@ def get_salon_transactions(salon_id):
             items_summary = []
             stylist_name = None
 
+            # 🔹 collect ALL appointment statuses for this order
+            appointment_statuses = set()
+
             for item in order.order_item:
+                # ----- Service line -----
                 if item.service:
                     items_summary.append(item.service.name)
 
-                    # --- Safe stylist lookup via booking/appointment ---
+                    # Safe stylist lookup via booking/appointment
                     booking_obj = None
                     if item.booking:
                         if isinstance(item.booking, (list, tuple)):
@@ -100,6 +105,10 @@ def get_salon_transactions(salon_id):
                         emp = booking_obj.appointment.employee
                         stylist_name = f"{emp.first_name} {emp.last_name}"
 
+                        if booking_obj.appointment.status:
+                            appointment_statuses.add(booking_obj.appointment.status)
+
+                # ----- Product line -----
                 elif item.product:
                     items_summary.append(item.product.name)
 
@@ -120,15 +129,29 @@ def get_salon_transactions(salon_id):
             created_at = getattr(order, "created_at", None)
             date_value = submitted_at or created_at
 
-            # ----- Status -----
-            # We treat any order with items as effectively "Paid",
-            # but still surface the order.status if set.
-            raw_status = order.status or "paid"
-            status = raw_status.capitalize()
+            # ----- Status derivation -----
+            cancel_statuses = {
+                "CANCELLED",
+                "CANCELLED_BY_EMPLOYEE",
+                "CANCELLED_BY_CUSTOMER",
+                "CANCELLED_BY_SALON",
+            }
+
+            if appointment_statuses:
+                upper_statuses = {s.upper() for s in appointment_statuses if s}
+
+                if upper_statuses & cancel_statuses:
+                    display_status = "Cancelled"
+                else:
+                    # appointment exists and wasn’t cancelled → treat as completed
+                    display_status = "Completed"
+            else:
+                # No appointment linked (e.g., product-only order) – use order.status
+                raw_status = (order.status or "paid").strip()
+                display_status = raw_status.replace("_", " ").title() or "Paid"
 
             transactions_list.append(
                 {
-                    # No Payment table: use ORDER-based identifiers
                     "transaction_id": f"ORDER-{order.id}",
                     "payment_id": None,
                     "order_id": order.id,
@@ -139,7 +162,7 @@ def get_salon_transactions(salon_id):
                     "stylist": stylist_name or "N/A",
                     "amount": float(total_amount),
                     "payment_method": "N/A",  # No payment record available
-                    "status": status,
+                    "status": display_status,
                     "refund_reason": getattr(order, "refund_reason", None),
                 }
             )
