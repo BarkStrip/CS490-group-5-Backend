@@ -461,39 +461,18 @@ def check_cart_rewards():
 @loyalty_bp.route("/cart/checkout-preview", methods=["POST"])
 def checkout_preview():
     """
-    NEW endpoint for frontend checkout preview.
-
-    Input JSON:
-    {
-      "customer_id": 123,
-      "cart_spending": [
-         { "salon_id": 1, "amount_spent": 50.00 },
-         { "salon_id": 2, "amount_spent": 20.00 }
-      ]
-    }
-
-    Output JSON: mapping by salon_id (string):
-    {
-      "1": {
-         "salon_id": 1,
-         "salon_name": "Acme Salon",
-         "total_points": 500,                      # current points (if any)
-         "eligible_discount": 50.0,                # dollars eligible from existing points
-         "info_text": "500 total points. Eligible for $50 off",
-         "max_discount": 50.0,
-         "estimated_points_earned": 50             # points they'll earn from the current cart spending at this salon
-      },
-      ...
-    }
+    Checkout preview endpoint — returns loyalty info ONLY for salons
+    the user is currently purchasing from.
     """
+
     data = request.get_json() or {}
     customer_id = data.get("customer_id")
-    cart_spending = data.get("cart_spending", [])  # array of {salon_id, amount_spent}
+    cart_spending = data.get("cart_spending", [])
 
     if customer_id is None:
         return jsonify({"error": "customer_id required"}), 400
 
-    # convert to dict by salon
+    # Build mapping: { salon_id: amount_spent }
     spend_by_salon = {}
     for entry in cart_spending:
         try:
@@ -503,34 +482,36 @@ def checkout_preview():
         amt = float(entry.get("amount_spent", 0) or 0)
         spend_by_salon[sid] = spend_by_salon.get(sid, 0) + amt
 
+    # IMPORTANT: Only use salons user is buying from
+    salon_ids = list(spend_by_salon.keys())
     response = {}
 
     try:
-        salon_ids = list(spend_by_salon.keys())
-
-        existing_accounts = db.session.scalars(
-            select(LoyaltyAccount).where(LoyaltyAccount.user_id == customer_id)
-        ).all()
-        for acc in existing_accounts:
-            if acc.salon_id not in salon_ids:
-                salon_ids.append(acc.salon_id)
-
         for salon_id in salon_ids:
+
             salon = db.session.get(Salon, salon_id)
             salon_name = salon.name if salon else f"Salon #{salon_id}"
 
             program: LoyaltyProgram = db.session.scalar(
-                select(LoyaltyProgram).where(LoyaltyProgram.salon_id == salon_id)
+                select(LoyaltyProgram)
+                .where(LoyaltyProgram.salon_id == salon_id)
             )
 
             account: LoyaltyAccount = db.session.scalar(
-                select(LoyaltyAccount).where(LoyaltyAccount.user_id == customer_id).where(LoyaltyAccount.salon_id == salon_id)
+                select(LoyaltyAccount)
+                .where(LoyaltyAccount.user_id == customer_id)
+                .where(LoyaltyAccount.salon_id == salon_id)
             )
 
             current_points = account.points if account else 0
 
+            # No program, inactive, or not points-based
             if not program or not program.active or program.program_type != "POINTS":
-                estimated_points = int(spend_by_salon.get(salon_id, 0) * (float(program.points_per_dollar) if (program and program.points_per_dollar) else 0))
+                estimated_points = int(
+                    spend_by_salon.get(salon_id, 0) *
+                    (float(program.points_per_dollar) if program else 0)
+                )
+
                 response[str(salon_id)] = {
                     "salon_id": salon_id,
                     "salon_name": salon_name,
@@ -542,39 +523,52 @@ def checkout_preview():
                 }
                 continue
 
+            # Program details
             points_for_reward = int(program.points_for_reward or 1000)
             reward_value = float(program.reward_value or 0.0)
-            ppd = int(program.points_per_dollar or 1)  # frontend guarantees whole number per your note
+            ppd = int(program.points_per_dollar or 1)
 
-            # calculate eligible discount from existing points
+            # Eligible discount from existing points
             reward_chunks = current_points // points_for_reward
-            eligible_discount = round(float(reward_chunks * reward_value), 2)
+            eligible_discount = round(reward_chunks * reward_value, 2)
 
-            formatted_discount = f"{eligible_discount:.2f}"
-
-            # estimated points earned from current cart spend for this salon
-            amount_spent = float(spend_by_salon.get(salon_id, 0) or 0)
+            # Amount spent now
+            amount_spent = float(spend_by_salon.get(salon_id, 0))
             estimated_points = int(math.floor(amount_spent * ppd))
 
-            info_text = "No points available for use"
-            max_discount = 0.0
-            if current_points > 0 and eligible_discount > 0:
-                info_text = f"{current_points} total points. Eligible for ${formatted_discount} off"
-                max_discount = eligible_discount
-            else:
-                # no current points, show prospective earnings
-                if estimated_points > 0:
-                    info_text = f"No points yet — you'll earn {estimated_points} points from this purchase"
-                else:
-                    info_text = "No points available for use"
+            # Build info_text
+            if current_points == 0:
+                # No points yet
+                info_text = (
+                    f"No points yet — you'll earn {estimated_points} points from this purchase"
+                )
+                max_discount = 0
 
+            elif current_points < points_for_reward:
+                # Have some points but not enough
+                points_needed = points_for_reward - current_points
+
+                info_text = (
+                    f"Total points: {current_points} — you'll earn {estimated_points} points from this purchase. "
+                    f"{points_needed} points away from a ${reward_value:.0f} discount"
+                )
+                max_discount = 0
+
+            else:
+                # Eligible for reward
+                info_text = (
+                    f"{current_points} total points. Eligible for ${eligible_discount:.2f} off"
+                )
+                max_discount = eligible_discount
+
+            # Build response for this salon
             response[str(salon_id)] = {
                 "salon_id": salon_id,
                 "salon_name": salon_name,
                 "total_points": current_points,
                 "eligible_discount": eligible_discount,
                 "info_text": info_text,
-                "max_discount": float(max_discount),
+                "max_discount": max_discount,
                 "estimated_points_earned": estimated_points
             }
 
@@ -582,7 +576,11 @@ def checkout_preview():
 
     except Exception as e:
         current_app.logger.error(f"checkout-preview failed: {e}")
-        return jsonify({"status": "error", "message": "checkout preview failed", "details": str(e)}), 500
+        return jsonify({
+            "status": "error",
+            "message": "checkout preview failed",
+            "details": str(e)
+        }), 500
 
 
 @loyalty_bp.route("/apply-earned-points", methods=["POST"])
