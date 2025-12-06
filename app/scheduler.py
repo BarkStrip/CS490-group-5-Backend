@@ -1,4 +1,7 @@
+# app/scheduler.py
+
 from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.schedulers import SchedulerNotRunningError
 import atexit
 from datetime import datetime
 from app.extensions import db
@@ -29,7 +32,6 @@ def init_scheduler(app):
                 )
 
                 if expired_appointments:
-                    # Update status to "COMPLETED"
                     for appointment in expired_appointments:
                         appointment.status = "COMPLETED"
 
@@ -55,5 +57,10 @@ def init_scheduler(app):
     else:
         print("[SCHEDULER] Scheduler already running (skipping duplicate start)")
 
-    # Shut down the scheduler when exiting the app
-    atexit.register(lambda: scheduler.shutdown())
+    def safe_shutdown():
+        try:
+            scheduler.shutdown(wait=False)
+        except SchedulerNotRunningError:
+            pass
+
+    atexit.register(safe_shutdown)

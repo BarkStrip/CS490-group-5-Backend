@@ -8,7 +8,6 @@ from ..models import (
     Service,
     SalonVerify,
     Review,
-    ReviewReply,
     Customers,
     Types,
     t_salon_type_assignments,
@@ -1070,6 +1069,7 @@ def get_salon(salon_owner_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
 @salons_bp.route("/types", methods=["GET"])
 def get_types():
     """
@@ -1104,11 +1104,11 @@ def get_types():
     """
     try:
         types_query = db.session.query(Types.id, Types.name).order_by(Types.name).all()
-        
+
         types_list = [{"id": t.id, "name": t.name} for t in types_query]
-        
+
         return jsonify({"types": types_list}), 200
-        
+
     except Exception as e:
         return jsonify({"error": "Database error", "details": str(e)}), 500
 
@@ -1160,12 +1160,12 @@ def get_salons_by_type(type_id):
     try:
         user_lat = request.args.get("lat", type=float)
         user_lon = request.args.get("lon", type=float)
-        
+
         # Verify type exists
         type_obj = db.session.query(Types).filter(Types.id == type_id).first()
         if not type_obj:
             return jsonify({"error": "Type not found"}), 404
-        
+
         # Query salons with this type
         salons_query = (
             db.session.query(
@@ -1191,14 +1191,14 @@ def get_salons_by_type(type_id):
             .outerjoin(Service, Service.salon_id == Salon.id)
             .filter(
                 SalonVerify.status == "APPROVED",
-                t_salon_type_assignments.c.type_id == type_id
+                t_salon_type_assignments.c.type_id == type_id,
             )
             .group_by(Salon.id)
             .order_by(desc("avg_rating"))
         )
-        
+
         salons = salons_query.all()
-        
+
         salon_list = []
         for s in salons:
             distance = None
@@ -1214,7 +1214,7 @@ def get_salons_by_type(type_id):
                 )
                 c = 2 * atan2(sqrt(a), sqrt(1 - a))
                 distance = R * c
-            
+
             salon_list.append(
                 {
                     "id": s.id,
@@ -1237,21 +1237,24 @@ def get_salons_by_type(type_id):
                     "distance_miles": round(distance, 2) if distance else None,
                 }
             )
-        
+
         # Sort by distance if coordinates provided
         if user_lat and user_lon:
             salon_list.sort(
                 key=lambda x: (x["distance_miles"] if x["distance_miles"] else 9999)
             )
-        
-        return jsonify(
-            {
-                "type_id": type_id,
-                "type_name": type_obj.name,
-                "results_found": len(salon_list),
-                "salons": salon_list,
-            }
-        ), 200
-        
+
+        return (
+            jsonify(
+                {
+                    "type_id": type_id,
+                    "type_name": type_obj.name,
+                    "results_found": len(salon_list),
+                    "salons": salon_list,
+                }
+            ),
+            200,
+        )
+
     except Exception as e:
         return jsonify({"error": "Database error", "details": str(e)}), 500
