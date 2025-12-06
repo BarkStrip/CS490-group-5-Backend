@@ -315,7 +315,7 @@ def login_user():
             "user_id": user.id,
             "email": user.email,
             "role": user.role,
-            "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=1),
+            "exp": datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=1),
         }
         token = jwt.encode(payload, current_app.config["SECRET_KEY"], algorithm="HS256")
 

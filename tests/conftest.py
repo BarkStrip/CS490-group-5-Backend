@@ -13,6 +13,7 @@ from flask import Flask
 import sys
 from pathlib import Path
 from dotenv import load_dotenv
+import uuid
 
 test_env_path = Path(__file__).parent / ".env.test"
 if test_env_path.exists():
@@ -242,14 +243,18 @@ def sample_customer(db_session):
 
 @pytest.fixture
 def sample_owner(db_session):
-    """Create a sample salon owner (AuthUser + SalonOwners profile)."""
-    # 1. Create AuthUser Test1
+    """Create a sample salon owner with a unique email per test run."""
+    # Generate random ID to ensure uniqueness
+    unique_id = str(uuid.uuid4())[:8]
+    email = f"owner_{unique_id}@example.com"
+
+    # 1. Create AuthUser
     hashed_pw = bcrypt.hashpw(b"ownerpass123", bcrypt.gensalt())
     auth_user = AuthUser(
-        email="owner@example.com",
+        email=email,
         password_hash=hashed_pw,
         role="OWNER",
-        firebase_uid="owner_uid_456",
+        firebase_uid=f"owner_uid_{unique_id}",
     )
     db_session.add(auth_user)
     db_session.flush()
