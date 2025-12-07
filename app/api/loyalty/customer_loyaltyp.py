@@ -908,6 +908,7 @@ def get_customer_points_summary(customer_id):
         ).all()
 
         if not accounts:
+            # No loyalty accounts yet => all zeros
             return (
                 jsonify(
                     {
