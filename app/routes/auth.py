@@ -5,11 +5,11 @@ from ..extensions import db
 from ..models import AuthUser, Customers, Admins, SalonOwners, Employees, Cart
 import bcrypt
 import jwt
-import datetime
-
+from datetime import datetime, timedelta, timezone
+from app.services.email_service import email_service
 auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
-
-
+import random
+import string
 @auth_bp.route("/signup", methods=["POST"])
 def signup_user():
     """
@@ -293,7 +293,6 @@ def login_user():
         data = request.get_json(force=True)
         email = data.get("email")
         password = data.get("password")
-
         if not email or not password:
             return (
                 jsonify({"status": "error", "message": "Email and password required"}),
@@ -315,8 +314,8 @@ def login_user():
             "user_id": user.id,
             "email": user.email,
             "role": user.role,
-            "exp": datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=1),
-        }
+            "exp": datetime.now(timezone.utc) + timedelta(hours=1),    
+                  }
         token = jwt.encode(payload, current_app.config["SECRET_KEY"], algorithm="HS256")
 
         return (
@@ -327,6 +326,7 @@ def login_user():
         )
 
     except Exception as e:
+        print(f"Login Error: {str(e)}") 
         return (
             jsonify(
                 {
@@ -488,3 +488,213 @@ def check_email_exists():
             ),
             500,
         )
+
+
+@auth_bp.route("/forgot-password", methods=["POST"])
+def forgot_password():
+    """
+    Initiate password reset
+    ---
+    tags:
+      - Auth
+    summary: Send OTP to user's email
+    description: Generates a 6-digit OTP and sends it to the provided email address. If the email does not exist, it returns a success message to prevent user enumeration.
+    parameters:
+      - in: body
+        name: body
+        required: true
+        description: User email address
+        schema:
+          type: object
+          required:
+            - email
+          properties:
+            email:
+              type: string
+              format: email
+              example: user@example.com
+    responses:
+      200:
+        description: OTP sent successfully (or simulated success)
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: OTP sent successfully
+      500:
+        description: Server error or email service failure
+    """
+    try:
+        data = request.get_json()
+        email = data.get("email")
+        
+        user = db.session.query(AuthUser).filter_by(email=email).first()
+        
+        # Security: Don't reveal if user exists
+        if not user:
+            return jsonify({"message": "If an account exists, an OTP has been sent."}), 200
+
+        # 1. Generate 6-digit OTP
+        otp_code = "".join(random.choices(string.digits, k=6))
+        
+        # 2. Save to DB with 10 minute expiration
+        user.otp_code = otp_code
+        user.otp_expires_at = datetime.now() + timedelta(minutes=10)
+        db.session.commit()
+
+        # 3. Send Email
+        email_service.send_otp_email(user.email, otp_code)
+        
+        return jsonify({"message": "OTP sent successfully"}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@auth_bp.route("/verify-otp", methods=["POST"])
+def verify_otp_route():
+    """
+    Verify OTP code
+    ---
+    tags:
+      - Auth
+    summary: Verify the 6-digit OTP code
+    description: Checks if the provided OTP matches the user's stored code and has not expired.
+    parameters:
+      - in: body
+        name: body
+        required: true
+        description: Email and OTP code
+        schema:
+          type: object
+          required:
+            - email
+            - otp
+          properties:
+            email:
+              type: string
+              format: email
+              example: user@example.com
+            otp:
+              type: string
+              example: "123456"
+              description: The 6-digit code received via email
+    responses:
+      200:
+        description: OTP verified successfully
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: OTP verified
+            can_reset:
+              type: boolean
+              example: true
+      400:
+        description: Invalid OTP, expired OTP, or missing fields
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: Invalid OTP code
+    """
+    try:
+        data = request.get_json()
+        email = data.get("email")
+        otp_input = data.get("otp")
+
+        if not email or not otp_input:
+             return jsonify({"error": "Email and OTP are required"}), 400
+
+        user = db.session.query(AuthUser).filter_by(email=email).first()
+        
+        if not user or not user.otp_code:
+            return jsonify({"error": "Invalid request"}), 400
+
+        # Check expiration
+        if datetime.now() > user.otp_expires_at:
+            return jsonify({"error": "OTP has expired"}), 400
+
+        # Check match
+        if user.otp_code != otp_input:
+            return jsonify({"error": "Invalid OTP code"}), 400
+
+        # Success: Clear OTP so it can't be reused
+        user.otp_code = None
+        user.otp_expires_at = None
+        db.session.commit()
+        
+        return jsonify({"message": "OTP verified", "can_reset": True}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@auth_bp.route("/reset-password", methods=["POST"])
+def reset_password():
+    """
+    Reset password
+    ---
+    tags:
+      - Auth
+    summary: Set a new password
+    description: Updates the user's password. This should be called immediately after OTP verification.
+    parameters:
+      - in: body
+        name: body
+        required: true
+        description: Email and new password
+        schema:
+          type: object
+          required:
+            - email
+            - password
+          properties:
+            email:
+              type: string
+              format: email
+              example: user@example.com
+            password:
+              type: string
+              format: password
+              example: "NewSecurePass123!"
+              description: The new password to set
+    responses:
+      200:
+        description: Password updated successfully
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: Password updated successfully
+      404:
+        description: User not found
+      500:
+        description: Server error
+    """
+    try:
+        data = request.get_json()
+        email = data.get("email")
+        new_password = data.get("password")
+        
+        if not email or not new_password:
+             return jsonify({"error": "Email and password are required"}), 400
+
+        user = db.session.query(AuthUser).filter_by(email=email).first()
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+            
+        hashed_pw = bcrypt.hashpw(new_password.encode("utf-8"), bcrypt.gensalt())
+        user.password_hash = hashed_pw
+        db.session.commit()
+        
+        return jsonify({"message": "Password updated successfully"}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+

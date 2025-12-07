@@ -66,6 +66,73 @@ class EmailService:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
+    def send_otp_email(self, to_email: str, otp_code: str) -> dict:
+        """
+        Send OTP for password reset
+        """
+        try:
+            subject = "Reset your password"
+            
+            html_content = f"""
+            <html>
+                <head>
+                    <style>
+                        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                        .code-box {{ 
+                            background-color: #f4f4f4; 
+                            padding: 20px; 
+                            text-align: center; 
+                            font-size: 32px; 
+                            letter-spacing: 10px; 
+                            font-weight: bold; 
+                            border-radius: 8px;
+                            margin: 20px 0;
+                            border: 2px dashed #ccc;
+                        }}
+                        .footer {{ font-size: 12px; color: #777; margin-top: 30px; }}
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <h2>Password Reset Request</h2>
+                        <p>We received a request to reset your password. Use the code below to proceed:</p>
+                        
+                        <div class="code-box">
+                            {otp_code}
+                        </div>
+                        
+                        <p>This code will expire in 10 minutes.</p>
+                        <p>If you didn't request this, you can safely ignore this email.</p>
+                        
+                        <div class="footer">
+                            <p>Sent via Salon App Security</p>
+                        </div>
+                    </div>
+                </body>
+            </html>
+            """
+
+            params = {
+                "from": self.from_email,
+                "to": [to_email],
+                "subject": subject,
+                "html": html_content,
+            }
+
+            email_response = resend.Emails.send(params)
+
+            return {
+                "success": True,
+                "message": "OTP sent successfully",
+                "email_id": email_response.get("id"),
+            }
+
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+
+
     def send_appointment_confirmation(
         self,
         to_email,

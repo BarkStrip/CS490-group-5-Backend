@@ -58,6 +58,9 @@ class AuthUser(Base):
     )
     firebase_uid = mapped_column(String(128))
 
+    otp_code = mapped_column(String(6), nullable=True)
+    otp_expires_at = mapped_column(DateTime, nullable=True)
+    
     admins: Mapped[List["Admins"]] = relationship(
         "Admins", uselist=True, back_populates="user"
     )
