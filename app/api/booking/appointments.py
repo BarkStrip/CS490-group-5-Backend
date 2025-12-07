@@ -197,7 +197,7 @@ def get_employee_available_times(employee_id):
                 EmpAvail.weekday == weekday_model,
                 EmpAvail.effective_from <= selected_date,
                 or_(
-                    EmpAvail.effective_to is None,
+                    EmpAvail.effective_to == None,
                     EmpAvail.effective_to >= selected_date,
                 ),
             )

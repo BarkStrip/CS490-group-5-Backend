@@ -11,7 +11,7 @@ from ...models import (
     LoyaltyTransaction,
     Promos,
 )
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 import uuid
 import math
@@ -313,8 +313,7 @@ def redeem_loyalty_reward(customer_id, salon_id):
         db.session.add(new_txn)
 
         promo_code = f"LOYALTY-{str(uuid.uuid4())[:8].upper()}"
-        expires = datetime.utcnow() + timedelta(days=30)
-
+        expires = datetime.now(timezone.utc) + timedelta(days=30)
         new_promo = Promos(
             code=promo_code,
             type=program.reward_type,
@@ -650,9 +649,14 @@ def check_cart_rewards():
     response = {}
 
     for salon_id in salon_ids:
-        program: LoyaltyProgram = LoyaltyProgram.query.filter_by(
-            salon_id=salon_id, active=1, program_type="POINTS"
-        ).first()
+        # FIX: Use db.session.scalar(select(...))
+        program = db.session.scalar(
+            select(LoyaltyProgram).where(
+                LoyaltyProgram.salon_id == salon_id,
+                LoyaltyProgram.active == 1,
+                LoyaltyProgram.program_type == "POINTS",
+            )
+        )
 
         if not program:
             response[str(salon_id)] = {
@@ -661,9 +665,13 @@ def check_cart_rewards():
             }
             continue
 
-        account: LoyaltyAccount = LoyaltyAccount.query.filter_by(
-            user_id=customer_id, salon_id=salon_id
-        ).first()
+        # FIX: Use db.session.scalar(select(...))
+        account = db.session.scalar(
+            select(LoyaltyAccount).where(
+                LoyaltyAccount.user_id == customer_id,
+                LoyaltyAccount.salon_id == salon_id,
+            )
+        )
 
         if not account or account.points <= 0:
             response[str(salon_id)] = {
@@ -833,9 +841,13 @@ def apply_earned_points():
         salon_id = entry["salon_id"]
         amount_spent = float(entry["amount_spent"])
 
-        program: LoyaltyProgram = LoyaltyProgram.query.filter_by(
-            salon_id=salon_id, active=1, program_type="POINTS"
-        ).first()
+        program = db.session.scalar(
+            select(LoyaltyProgram).where(
+                LoyaltyProgram.salon_id == salon_id,
+                LoyaltyProgram.active == 1,
+                LoyaltyProgram.program_type == "POINTS",
+            )
+        )
 
         if not program:
             continue
@@ -844,9 +856,12 @@ def apply_earned_points():
             math.floor(amount_spent * float(program.points_per_dollar or 0))
         )
 
-        account = LoyaltyAccount.query.filter_by(
-            user_id=customer_id, salon_id=salon_id
-        ).first()
+        account = db.session.scalar(
+            select(LoyaltyAccount).where(
+                LoyaltyAccount.user_id == customer_id,
+                LoyaltyAccount.salon_id == salon_id,
+            )
+        )
 
         if account:
             account.points += earned_points
@@ -856,5 +871,6 @@ def apply_earned_points():
             )
             db.session.add(account)
 
+    db.session.commit()
     db.session.commit()
     return jsonify({"success": True})
