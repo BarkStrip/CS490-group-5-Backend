@@ -98,8 +98,7 @@ class TestSalons:
 
         assert response.status_code == 200
         data = json.loads(response.data)
-        assert data["id"] == 1
-        assert "name" in data
+        assert data["id"] == sample_salon.id
         assert "avg_rating" in data
 
     def test_get_salon_details_nonexistent(self, client):

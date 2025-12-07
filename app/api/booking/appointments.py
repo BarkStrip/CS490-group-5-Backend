@@ -197,7 +197,7 @@ def get_employee_available_times(employee_id):
                 EmpAvail.weekday == weekday_model,
                 EmpAvail.effective_from <= selected_date,
                 or_(
-                    EmpAvail.effective_to is None,
+                    EmpAvail.effective_to == None,
                     EmpAvail.effective_to >= selected_date,
                 ),
             )
@@ -404,7 +404,9 @@ def get_previous_appointments(customer_id):
     return jsonify(results)
 
 
-@appointments_bp.route("/<int:customer_id>/appointments/<int:appointment_id>", methods=["PUT"])
+@appointments_bp.route(
+    "/<int:customer_id>/appointments/<int:appointment_id>", methods=["PUT"]
+)
 def edit_appointment(customer_id, appointment_id):
     """
     PUT /api/appointments/<customer_id>/appointments/<appointment_id>

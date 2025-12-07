@@ -30,7 +30,7 @@ def seed_playwright_users() -> None:
     Seed fixed test data for Playwright into the *current* DB.
 
     """
-    print("🔄 Seeding Playwright test data into TEST DB...")
+    print(" Seeding Playwright test data into TEST DB...")
 
     # 1) CUSTOMER account
     cust_user = (
@@ -44,7 +44,7 @@ def seed_playwright_users() -> None:
         )
         db.session.add(cust_user)
         db.session.flush()
-        print(f"  ✅ Created CUSTOMER auth_user id={cust_user.id}")
+        print(f"   Created CUSTOMER auth_user id={cust_user.id}")
     else:
         print(f"  ℹ CUSTOMER auth_user already exists (id={cust_user.id})")
 
@@ -64,7 +64,7 @@ def seed_playwright_users() -> None:
         )
         db.session.add(customer_profile)
         db.session.flush()
-        print(f"  ✅ Created Customers profile id={customer_profile.id}")
+        print(f"   Created Customers profile id={customer_profile.id}")
     else:
         print(f"  ℹ Customers profile already exists (id={customer_profile.id})")
 
@@ -82,7 +82,7 @@ def seed_playwright_users() -> None:
         )
         db.session.add(owner_user)
         db.session.flush()
-        print(f"  ✅ Created OWNER auth_user id={owner_user.id}")
+        print(f"   Created OWNER auth_user id={owner_user.id}")
     else:
         print(f"  ℹ OWNER auth_user already exists (id={owner_user.id})")
 
@@ -99,7 +99,7 @@ def seed_playwright_users() -> None:
         )
         db.session.add(owner_profile)
         db.session.flush()
-        print(f"  ✅ Created SalonOwners profile id={owner_profile.id}")
+        print(f"   Created SalonOwners profile id={owner_profile.id}")
     else:
         print(f"  ℹ SalonOwners profile already exists (id={owner_profile.id})")
 
@@ -118,7 +118,7 @@ def seed_playwright_users() -> None:
         )
         db.session.add(salon)
         db.session.flush()
-        print(f"  ✅ Created Salon '{salon.name}' (id={salon.id})")
+        print(f"   Created Salon '{salon.name}' (id={salon.id})")
     else:
         print(f"  ℹ Salon '{salon.name}' already exists (id={salon.id})")
 
@@ -138,7 +138,7 @@ def seed_playwright_users() -> None:
                 close_time=time(17, 0, 0),
             )
             db.session.add(hours)
-            print(f"  ✅ Created SalonHours weekday={weekday} 09:00–17:00")
+            print(f"   Created SalonHours weekday={weekday} 09:00–17:00")
         else:
             print(f"  ℹ SalonHours already exists for weekday={weekday}")
 
@@ -151,11 +151,11 @@ def seed_playwright_users() -> None:
             admin_id=None,
         )
         db.session.add(verify)
-        print("  ✅ Created SalonVerify with status=APPROVED")
+        print("   Created SalonVerify with status=APPROVED")
     else:
         if verify.status != "APPROVED":
             verify.status = "APPROVED"
-            print("  🔁 Updated existing SalonVerify to APPROVED")
+            print("   Updated existing SalonVerify to APPROVED")
 
     # 3c) SERVICE: Haircut
     service = (
@@ -170,7 +170,7 @@ def seed_playwright_users() -> None:
             is_active=1,
         )
         db.session.add(service)
-        print("  ✅ Created Service 'Haircut'")
+        print("   Created Service 'Haircut'")
     else:
         print("  ℹ Service 'Haircut' already exists")
 
@@ -185,7 +185,7 @@ def seed_playwright_users() -> None:
             reward_type=None,
         )
         db.session.add(lp)
-        print("  ✅ Created LoyaltyProgram (inactive, POINTS)")
+        print("   Created LoyaltyProgram (inactive, POINTS)")
     else:
         print("  ℹ LoyaltyProgram already exists for this salon")
 
@@ -203,7 +203,7 @@ def seed_playwright_users() -> None:
         )
         db.session.add(emp_user)
         db.session.flush()
-        print(f"  ✅ Created EMPLOYEE auth_user id={emp_user.id}")
+        print(f"   Created EMPLOYEE auth_user id={emp_user.id}")
     else:
         print(f"  ℹ EMPLOYEE auth_user already exists (id={emp_user.id})")
 
@@ -223,9 +223,9 @@ def seed_playwright_users() -> None:
         )
         db.session.add(employee_profile)
         db.session.flush()
-        print(f"  ✅ Created Employees profile id={employee_profile.id}")
+        print(f"   Created Employees profile id={employee_profile.id}")
     else:
         print(f"  ℹ Employees profile already exists (id={employee_profile.id})")
 
     db.session.commit()
-    print("✅ Finished seeding Playwright test data.")
+    print(" Finished seeding Playwright test data.")
