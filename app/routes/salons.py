@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from app.extensions import db
-
+from app.utils.salon_cleanup import hard_delete_salon
 # Here is where you call the "TABLES" from models. Models is a file that
 # contains all the tables in "Python" format so we can use sqlalchemy
 from ..models import (
@@ -1258,3 +1258,87 @@ def get_salons_by_type(type_id):
 
     except Exception as e:
         return jsonify({"error": "Database error", "details": str(e)}), 500
+    
+@salons_bp.route('/<int:salon_id>/hard-delete', methods=['DELETE'])
+def delete_salon_completely(salon_id):
+    """
+    Permanently delete a salon and all associated data.
+    ---
+    summary: Hard delete a salon (Destructive)
+    description: |
+      WARNING: This is a destructive operation.
+      It performs a cascading delete of ALL data associated with the salon, including:
+      - Appointments & Images
+      - Orders, Cart Items, Payments
+      - Employees, Availability, Time Blocks
+      - Services, Products
+      - Reviews, Loyalty Programs
+      
+      **Scenario B Logic:**
+      If the Salon Owner has NO other salons remaining after this deletion, 
+      the Owner's profile and User account (AuthUser) will also be deleted.
+    tags:
+      - Salons
+    parameters:
+      - in: path
+        name: salon_id
+        type: integer
+        required: true
+        description: The ID of the salon to delete.
+    responses:
+      200:
+        description: Salon successfully deleted.
+        schema:
+          type: object
+          properties:
+            status:
+              type: string
+              example: success
+            message:
+              type: string
+              example: Salon 15 and all associated data have been permanently deleted.
+      404:
+        description: Salon not found.
+        schema:
+          type: object
+          properties:
+            status:
+              type: string
+              example: error
+            message:
+              type: string
+              example: Salon not found or already deleted.
+      500:
+        description: Server error during deletion.
+        schema:
+          type: object
+          properties:
+            status:
+              type: string
+              example: error
+            message:
+              type: string
+              example: Failed to delete salon
+            details:
+              type: string
+    """
+    try:
+        success = hard_delete_salon(salon_id)
+        
+        if success:
+            return jsonify({
+                "status": "success",
+                "message": f"Salon {salon_id} and all associated data have been permanently deleted."
+            }), 200
+        else:
+            return jsonify({
+                "status": "error",
+                "message": "Salon not found or already deleted."
+            }), 404
+
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": "Failed to delete salon",
+            "details": str(e)
+        }), 500
