@@ -643,16 +643,21 @@ def check_cart_rewards():
     Backwards-compatible endpoint — returns similar structure as before.
     Input: { "customer_id": 123, "salon_ids": [1, 2, 5] }
     """
-    data = request.get_json()
+    data = request.get_json() or {}
     customer_id = data.get("customer_id")
     salon_ids = data.get("salon_ids", [])
 
     response = {}
 
     for salon_id in salon_ids:
-        program: LoyaltyProgram = LoyaltyProgram.query.filter_by(
-            salon_id=salon_id, active=1, program_type="POINTS"
-        ).first()
+        # SQLAlchemy 2.0 style: use session + select
+        program: LoyaltyProgram = db.session.scalar(
+            select(LoyaltyProgram).where(
+                LoyaltyProgram.salon_id == salon_id,
+                LoyaltyProgram.active == 1,
+                LoyaltyProgram.program_type == "POINTS",
+            )
+        )
 
         if not program:
             response[str(salon_id)] = {
@@ -661,9 +666,12 @@ def check_cart_rewards():
             }
             continue
 
-        account: LoyaltyAccount = LoyaltyAccount.query.filter_by(
-            user_id=customer_id, salon_id=salon_id
-        ).first()
+        account: LoyaltyAccount = db.session.scalar(
+            select(LoyaltyAccount).where(
+                LoyaltyAccount.user_id == customer_id,
+                LoyaltyAccount.salon_id == salon_id,
+            )
+        )
 
         if not account or account.points <= 0:
             response[str(salon_id)] = {
@@ -870,7 +878,6 @@ def process_loyalty_for_order(customer_id, cart_items, applied_rewards):
                     )
                     db.session.add(deduct_txn)
 
-        # Accrual
         salon_spend = {}
         for item in cart_items:
             s_id = (
@@ -1081,17 +1088,27 @@ def get_customer_salon_visits(customer_id, salon_id):
 
 @loyalty_bp.route("/apply-earned-points", methods=["POST"])
 def apply_earned_points():
-    data = request.get_json()
+    data = request.get_json() or {}
     customer_id = data.get("customer_id")
     spending = data.get("spending", [])
 
-    for entry in spending:
-        salon_id = entry["salon_id"]
-        amount_spent = float(entry["amount_spent"])
+    if customer_id is None:
+        return jsonify({"error": "customer_id required"}), 400
 
-        program: LoyaltyProgram = LoyaltyProgram.query.filter_by(
-            salon_id=salon_id, active=1, program_type="POINTS"
-        ).first()
+    for entry in spending:
+        salon_id = entry.get("salon_id")
+        amount_spent = float(entry.get("amount_spent", 0) or 0)
+
+        if salon_id is None or amount_spent <= 0:
+            continue
+
+        program: LoyaltyProgram = db.session.scalar(
+            select(LoyaltyProgram).where(
+                LoyaltyProgram.salon_id == salon_id,
+                LoyaltyProgram.active == 1,
+                LoyaltyProgram.program_type == "POINTS",
+            )
+        )
 
         if not program:
             continue
@@ -1099,10 +1116,15 @@ def apply_earned_points():
         earned_points = int(
             math.floor(amount_spent * float(program.points_per_dollar or 0))
         )
+        if earned_points <= 0:
+            continue
 
-        account = LoyaltyAccount.query.filter_by(
-            user_id=customer_id, salon_id=salon_id
-        ).first()
+        account: LoyaltyAccount = db.session.scalar(
+            select(LoyaltyAccount).where(
+                LoyaltyAccount.user_id == customer_id,
+                LoyaltyAccount.salon_id == salon_id,
+            )
+        )
 
         if account:
             account.points += earned_points
@@ -1113,4 +1135,4 @@ def apply_earned_points():
             db.session.add(account)
 
     db.session.commit()
-    return jsonify({"success": True})
+    return jsonify({"success": True}), 200
