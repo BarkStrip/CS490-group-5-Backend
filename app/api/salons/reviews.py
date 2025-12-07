@@ -27,7 +27,7 @@ def post_new_review():
     - salon_id (int)
     - rating (int)
     - comment (string)
-    - picture (file, optional)
+    - picture (file, optional, up to 2 images)
     """
     try:
 
@@ -36,7 +36,8 @@ def post_new_review():
         rating = request.form.get("rating", type=int)
         comment = request.form.get("comment")
 
-        image_file = request.files.get("picture")
+        # Get multiple image files (up to 2)
+        image_files = request.files.getlist("picture")
 
         if not all([customer_id, salon_id, rating]):
             return (
@@ -75,30 +76,33 @@ def post_new_review():
 
         db.session.flush()
 
-        image_url = None
-        new_image_id = None
+        uploaded_images = []
 
-        if image_file:
+        # Upload up to 2 images
+        if image_files and len(image_files) > 0:
             bucket_name = current_app.config.get("S3_BUCKET_NAME")
             if not bucket_name:
                 current_app.logger.error("S3_BUCKET_NAME is not configured")
                 db.session.rollback()
                 return jsonify({"error": "Server configuration error"}), 500
 
-            unique_name = (
-                f"reviews/{new_review.id}/{uuid.uuid4()}_{image_file.filename}"
-            )
+            # Limit to 2 images
+            for image_file in image_files[:2]:
+                if image_file and image_file.filename:
+                    unique_name = (
+                        f"reviews/{new_review.id}/{uuid.uuid4()}_{image_file.filename}"
+                    )
 
-            image_url = upload_file_to_s3(image_file, unique_name, bucket_name)
+                    image_url = upload_file_to_s3(image_file, unique_name, bucket_name)
 
-            if not image_url:
-                db.session.rollback()
-                return jsonify({"error": "File upload failed"}), 500
+                    if not image_url:
+                        db.session.rollback()
+                        return jsonify({"error": "File upload failed"}), 500
 
-            new_image = ReviewImage(review_id=new_review.id, url=image_url)
-            db.session.add(new_image)
-            db.session.flush()
-            new_image_id = new_image.id
+                    new_image = ReviewImage(review_id=new_review.id, url=image_url)
+                    db.session.add(new_image)
+                    db.session.flush()
+                    uploaded_images.append({"id": new_image.id, "url": image_url})
 
         db.session.commit()
 
@@ -114,11 +118,7 @@ def post_new_review():
                         "rating": new_review.rating,
                         "comment": new_review.comment,
                         "created_at": new_review.created_at.isoformat(),
-                        "image": (
-                            {"id": new_image_id, "url": image_url}
-                            if image_url
-                            else None
-                        ),
+                        "images": uploaded_images if uploaded_images else [],
                     },
                 }
             ),
