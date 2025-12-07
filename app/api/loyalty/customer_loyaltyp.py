@@ -830,6 +830,7 @@ def checkout_preview():
             500,
         )
 
+
 @loyalty_bp.route("/customers/<int:customer_id>/points-summary", methods=["GET"])
 def get_customer_points_summary(customer_id):
     """
@@ -841,9 +842,7 @@ def get_customer_points_summary(customer_id):
     try:
         customer = get_customer_from_id(customer_id)
         if not customer:
-            return jsonify(
-                {"status": "error", "message": "Customer not found"}
-            ), 404
+            return jsonify({"status": "error", "message": "Customer not found"}), 404
 
         # All loyalty accounts for this customer (across all salons)
         accounts = db.session.scalars(
@@ -852,13 +851,16 @@ def get_customer_points_summary(customer_id):
 
         if not accounts:
             # No loyalty accounts yet => all zeros
-            return jsonify(
-                {
-                    "customer_id": customer_id,
-                    "lifetime_points": 0,
-                    "current_total_points": 0,
-                }
-            ), 200
+            return (
+                jsonify(
+                    {
+                        "customer_id": customer_id,
+                        "lifetime_points": 0,
+                        "current_total_points": 0,
+                    }
+                ),
+                200,
+            )
 
         account_ids = [acc.id for acc in accounts]
 
@@ -870,7 +872,10 @@ def get_customer_points_summary(customer_id):
             func.coalesce(
                 func.sum(
                     case(
-                        (LoyaltyTransaction.points_change > 0, LoyaltyTransaction.points_change),
+                        (
+                            LoyaltyTransaction.points_change > 0,
+                            LoyaltyTransaction.points_change,
+                        ),
                         else_=0,
                     )
                 ),
@@ -880,13 +885,16 @@ def get_customer_points_summary(customer_id):
 
         lifetime_points = db.session.scalar(lifetime_stmt) or 0
 
-        return jsonify(
-            {
-                "customer_id": customer_id,
-                "lifetime_points": int(lifetime_points),
-                "current_total_points": int(current_total_points),
-            }
-        ), 200
+        return (
+            jsonify(
+                {
+                    "customer_id": customer_id,
+                    "lifetime_points": int(lifetime_points),
+                    "current_total_points": int(current_total_points),
+                }
+            ),
+            200,
+        )
 
     except Exception as e:
         current_app.logger.error(
@@ -902,6 +910,7 @@ def get_customer_points_summary(customer_id):
             ),
             500,
         )
+
 
 @loyalty_bp.route(
     "/customers/<int:customer_id>/salons/<int:salon_id>/visits",
@@ -920,19 +929,20 @@ def get_customer_salon_visits(customer_id, salon_id):
         # Ensure customer exists
         customer = get_customer_from_id(customer_id)
         if not customer:
-            return jsonify(
-                {"status": "error", "message": "Customer not found"}
-            ), 404
+            return jsonify({"status": "error", "message": "Customer not found"}), 404
 
         # Ensure salon exists
         salon = db.session.get(Salon, salon_id)
         if not salon:
-            return jsonify(
-                {
-                    "status": "error",
-                    "message": f"Salon not found for id {salon_id}",
-                }
-            ), 404
+            return (
+                jsonify(
+                    {
+                        "status": "error",
+                        "message": f"Salon not found for id {salon_id}",
+                    }
+                ),
+                404,
+            )
 
         # Count completed appointments for this customer at this salon
         total_completed = db.session.scalar(
@@ -942,13 +952,16 @@ def get_customer_salon_visits(customer_id, salon_id):
             .where(Appointment.status == "COMPLETED")
         )
 
-        return jsonify(
-            {
-                "customer_id": customer_id,
-                "salon_id": salon_id,
-                "total_completed_visits": total_completed or 0,
-            }
-        ), 200
+        return (
+            jsonify(
+                {
+                    "customer_id": customer_id,
+                    "salon_id": salon_id,
+                    "total_completed_visits": total_completed or 0,
+                }
+            ),
+            200,
+        )
 
     except Exception as e:
         current_app.logger.error(
@@ -964,6 +977,7 @@ def get_customer_salon_visits(customer_id, salon_id):
             ),
             500,
         )
+
 
 @loyalty_bp.route("/apply-earned-points", methods=["POST"])
 def apply_earned_points():
