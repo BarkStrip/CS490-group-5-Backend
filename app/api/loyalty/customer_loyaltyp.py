@@ -726,7 +726,6 @@ def checkout_preview():
         amt = float(entry.get("amount_spent", 0) or 0)
         spend_by_salon[sid] = spend_by_salon.get(sid, 0) + amt
 
-    # IMPORTANT: Only use salons user is buying from
     salon_ids = list(spend_by_salon.keys())
     response = {}
 
@@ -740,10 +739,11 @@ def checkout_preview():
                 select(LoyaltyProgram).where(LoyaltyProgram.salon_id == salon_id)
             )
 
-            account: LoyaltyAccount = db.session.scalar(
-                select(LoyaltyAccount)
-                .where(LoyaltyAccount.user_id == customer_id)
-                .where(LoyaltyAccount.salon_id == salon_id)
+            account = db.session.scalar(
+                select(LoyaltyAccount).where(
+                    LoyaltyAccount.user_id == customer_id,
+                    LoyaltyAccount.salon_id == salon_id,
+                )
             )
 
             current_points = account.points if account else 0
