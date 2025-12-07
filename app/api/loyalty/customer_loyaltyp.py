@@ -1,6 +1,6 @@
 # Points, promotions, redemption
 from flask import Blueprint, jsonify, request, current_app
-from sqlalchemy import select, func
+from sqlalchemy import select, func, case
 from app.extensions import db
 from ...models import (
     Customers,
@@ -857,3 +857,138 @@ def process_loyalty_for_order(customer_id, cart_items, applied_rewards):
         current_app.logger.error(f"Loyalty processing failed: {e}")
         db.session.rollback()  # Don't break the order if loyalty fails, just log it
         return False
+
+@loyalty_bp.route("/customers/<int:customer_id>/points-summary", methods=["GET"])
+def get_customer_points_summary(customer_id):
+    """
+    Get lifetime and current points for a customer (all salons combined)
+    ---
+    summary: Returns lifetime points and current total points for a customer
+    description: Uses LoyaltyTransaction as a ledger to sum points earned and redeemed.
+    """
+    try:
+        customer = get_customer_from_id(customer_id)
+        if not customer:
+            return jsonify(
+                {"status": "error", "message": "Customer not found"}
+            ), 404
+
+        # All loyalty accounts for this customer (across all salons)
+        accounts = db.session.scalars(
+            select(LoyaltyAccount).where(LoyaltyAccount.user_id == customer_id)
+        ).all()
+
+        if not accounts:
+            # No loyalty accounts yet => all zeros
+            return jsonify(
+                {
+                    "customer_id": customer_id,
+                    "lifetime_points": 0,
+                    "current_total_points": 0,
+                }
+            ), 200
+
+        account_ids = [acc.id for acc in accounts]
+
+        # Current points = sum of account.points (what you already use)
+        current_total_points = sum((acc.points or 0) for acc in accounts)
+
+        # Lifetime points = sum of all positive point changes in LoyaltyTransaction
+        lifetime_stmt = select(
+            func.coalesce(
+                func.sum(
+                    case(
+                        (LoyaltyTransaction.points_change > 0, LoyaltyTransaction.points_change),
+                        else_=0,
+                    )
+                ),
+                0,
+            )
+        ).where(LoyaltyTransaction.loyalty_account_id.in_(account_ids))
+
+        lifetime_points = db.session.scalar(lifetime_stmt) or 0
+
+        return jsonify(
+            {
+                "customer_id": customer_id,
+                "lifetime_points": int(lifetime_points),
+                "current_total_points": int(current_total_points),
+            }
+        ), 200
+
+    except Exception as e:
+        current_app.logger.error(
+            f"Failed to get points summary for customer {customer_id}: {e}"
+        )
+        return (
+            jsonify(
+                {
+                    "status": "error",
+                    "message": "Failed to get points summary",
+                    "details": str(e),
+                }
+            ),
+            500,
+        )
+
+@loyalty_bp.route(
+    "/customers/<int:customer_id>/salons/<int:salon_id>/visits",
+    methods=["GET"],
+)
+def get_customer_salon_visits(customer_id, salon_id):
+    """
+    Get visit count for a customer at a specific salon
+    ---
+    summary: Returns how many completed visits a customer has at one salon
+    description: Uses the Appointment table to count completed appointments
+                 for (customer_id, salon_id). Can power "Visits to This Salon"
+                 on the loyalty UI or other stats.
+    """
+    try:
+        # Ensure customer exists
+        customer = get_customer_from_id(customer_id)
+        if not customer:
+            return jsonify(
+                {"status": "error", "message": "Customer not found"}
+            ), 404
+
+        # Ensure salon exists
+        salon = db.session.get(Salon, salon_id)
+        if not salon:
+            return jsonify(
+                {
+                    "status": "error",
+                    "message": f"Salon not found for id {salon_id}",
+                }
+            ), 404
+
+        # Count completed appointments for this customer at this salon
+        total_completed = db.session.scalar(
+            select(func.count(Appointment.id))
+            .where(Appointment.customer_id == customer_id)
+            .where(Appointment.salon_id == salon_id)
+            .where(Appointment.status == "COMPLETED")
+        )
+
+        return jsonify(
+            {
+                "customer_id": customer_id,
+                "salon_id": salon_id,
+                "total_completed_visits": total_completed or 0,
+            }
+        ), 200
+
+    except Exception as e:
+        current_app.logger.error(
+            f"Failed to get visits for customer {customer_id} at salon {salon_id}: {e}"
+        )
+        return (
+            jsonify(
+                {
+                    "status": "error",
+                    "message": "Failed to get visit count",
+                    "details": str(e),
+                }
+            ),
+            500,
+        )
