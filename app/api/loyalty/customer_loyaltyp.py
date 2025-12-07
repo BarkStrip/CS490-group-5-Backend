@@ -777,9 +777,7 @@ def checkout_preview():
 
             # Build info_text
             if current_points == 0:
-                info_text = (
-                    f"No points yet — you'll earn {estimated_points} points from this purchase"
-                )
+                info_text = f"No points yet — you'll earn {estimated_points} points from this purchase"
                 max_discount = 0
 
             elif current_points < points_for_reward:
@@ -791,9 +789,7 @@ def checkout_preview():
                 max_discount = 0
 
             else:
-                info_text = (
-                    f"{current_points} total points. Eligible for ${eligible_discount:.2f} off"
-                )
+                info_text = f"{current_points} total points. Eligible for ${eligible_discount:.2f} off"
                 max_discount = eligible_discount
 
             response[str(salon_id)] = {
@@ -859,9 +855,7 @@ def process_loyalty_for_order(customer_id, cart_items, applied_rewards):
                 or item.get("service_salon_id")
                 or item.get("product_salon_id")
             )
-            price = float(item.get("unit_price", 0) or 0) * int(
-                item.get("qty", 1) or 1
-            )
+            price = float(item.get("unit_price", 0) or 0) * int(item.get("qty", 1) or 1)
             if s_id:
                 salon_spend[s_id] = salon_spend.get(s_id, 0) + price
 
