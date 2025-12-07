@@ -19,6 +19,8 @@ from app.api.salons.salon_pay_portal import salon_payroll_bp
 from app.api.customer.user_gallery import user_gallery_bp
 from app.api.customer.details import details_bp
 from app.routes.salons import salons_bp
+from app.api.admin_dashboard.admin_revenue import admin_revenue_bp
+from app.api.admin_dashboard.admin_reports import admin_reports_export_bp
 from flask import Flask
 from flask_cors import CORS
 
@@ -104,6 +106,8 @@ def create_app():
             salon_payroll_bp,
             notifications_bp,
             update_password,
+            admin_revenue_bp,
+            admin_reports_export_bp,
         ]
 
         with app.app_context():
