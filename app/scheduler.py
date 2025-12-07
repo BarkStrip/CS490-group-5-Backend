@@ -16,7 +16,7 @@ def init_scheduler(app):
     import os
 
     # Don't start scheduler in Flask reloader parent process
-    if os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
+    if os.environ.get("FLASK_ENV") == "development" and os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
         print("[SCHEDULER] Skipping initialization in reloader parent process")
         return
 
