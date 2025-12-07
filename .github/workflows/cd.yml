@@ -10,12 +10,12 @@ jobs:
     steps:
     - name: CD Process Documentation
       run: |
-        echo "🚂 Continuous Deployment Active"
+        echo " Continuous Deployment Active"
         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         echo "Platform: Railway (Native Git Integration)"
         echo "Branch: ${{ github.ref_name }}"
         echo "Commit: ${{ github.sha }}"
         echo "Environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'dev' }}"
         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        echo "✅ Railway automatically deploys this commit"
-        echo "📊 View deployment: https://railway.app"
+        echo " Railway automatically deploys this commit"
+        echo " View deployment: https://railway.app"
