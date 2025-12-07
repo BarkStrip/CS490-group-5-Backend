@@ -49,21 +49,22 @@ def init_scheduler(app):
                 if expired_appointments:
                     count = len(expired_appointments)
                     print(
-                        f"[SCHEDULER] Found {count} expired appointment(s)"
+                        f"[SCHEDULER] Found {count} expired appointment(s):", flush=True
                     )
+
                     for appointment in expired_appointments:
                         print(
-                            f"[SCHEDULER]   - Apt #{appointment.id}: end_at={appointment.end_at} (current={current_time})"
+                            f"[SCHEDULER]   - Apt #{appointment.id}: end_at={appointment.end_at} (current={current_time})", flush=True
                         )
                         appointment.status = "COMPLETED"
 
                     db.session.commit()
                     print(
-                        f"[SCHEDULER] Auto-completed {count} appointment(s)"
+                        f"[SCHEDULER] Auto-completed {count} appointment(s)", flush=True
                     )
                 else:
                     print(
-                        f"[SCHEDULER] No appointments to auto-complete"
+                        f"[SCHEDULER] No appointments to auto-complete", flush=True
                     )
 
         except Exception as e:
