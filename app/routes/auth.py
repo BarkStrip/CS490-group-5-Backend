@@ -10,6 +10,24 @@ from app.services.email_service import email_service
 auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
 import random
 import string
+
+# For calculating the age
+def calculate_age(date_of_birth):
+    """Calculate age from date of birth"""
+    if not date_of_birth:
+        return None
+    
+    if isinstance(date_of_birth, str):
+        date_of_birth = datetime.strptime(date_of_birth, '%Y-%m-%d').date()
+    
+    today = datetime.now().date()
+    age = today.year - date_of_birth.year
+    
+    if (today.month, today.day) < (date_of_birth.month, date_of_birth.day):
+        age -= 1
+    
+    return age
+
 @auth_bp.route("/signup", methods=["POST"])
 def signup_user():
     """
@@ -81,6 +99,8 @@ def signup_user():
         address = data.get("address")
         role = data.get("role", "CUSTOMER").upper()
         salon_id = data.get("salon_id")
+        date_of_birth_str = data.get("date_of_birth")
+        gender = data.get("gender") 
 
         # Validate required fields
         if not email or not password or not first_name or not phone_number:
@@ -93,7 +113,66 @@ def signup_user():
                 ),
                 400,
             )
-
+        if role == "CUSTOMER":
+                    if not date_of_birth_str or not gender:
+                        return (
+                            jsonify(
+                                {
+                                    "status": "error",
+                                    "message": "Date of birth and gender are required for customer registration",
+                                }
+                            ),
+                            400,
+                        )
+                    
+                    # Validate and process DOB
+                    try:
+                        date_of_birth = datetime.strptime(date_of_birth_str, '%Y-%m-%d').date()
+                        age = calculate_age(date_of_birth)
+                        
+                        if age < 13:
+                            return (
+                                jsonify(
+                                    {
+                                        "status": "error",
+                                        "message": "You must be at least 13 years old to create an account",
+                                    }
+                                ),
+                                400,
+                            )
+                        
+                        if age > 120:
+                            return (
+                                jsonify(
+                                    {
+                                        "status": "error",
+                                        "message": "Please enter a valid date of birth",
+                                    }
+                                ),
+                                400,
+                            )
+                    except ValueError:
+                        return (
+                            jsonify(
+                                {
+                                    "status": "error",
+                                    "message": "Invalid date format. Please use YYYY-MM-DD",
+                                }
+                            ),
+                            400,
+                        )
+                    
+                    # Validate gender
+                    if gender not in ['Male', 'Female', 'Other']:
+                        return (
+                            jsonify(
+                                {
+                                    "status": "error",
+                                    "message": "Gender must be Male, Female, or Other",
+                                }
+                            ),
+                            400,
+                        )
         # Validate role
         if role not in ["CUSTOMER", "ADMIN", "OWNER", "EMPLOYEE"]:
             return (
@@ -151,6 +230,9 @@ def signup_user():
                 last_name=last_name,
                 phone_number=phone_number,
                 address=address,
+                date_of_birth=date_of_birth,  
+                gender=gender,                
+                age=age,
             )
             db.session.add(profile)
             db.session.flush()
