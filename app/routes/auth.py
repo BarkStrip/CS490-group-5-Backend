@@ -236,7 +236,6 @@ def signup_user():
             )
             db.session.add(profile)
             db.session.flush()
-            # new_cart = Cart(user_id=auth_user.id)
             new_cart = Cart(user_id=profile.id)
             db.session.add(new_cart)
 
@@ -280,7 +279,10 @@ def signup_user():
             "address": address,
             "role": role,
         }
-
+        if role == "CUSTOMER":
+            response_user["date_of_birth"] = date_of_birth.isoformat()
+            response_user["gender"] = gender
+            response_user["age"] = age
         # Add salon_id to response for employees
         if role == "EMPLOYEE":
             response_user["salon_id"] = salon_id
