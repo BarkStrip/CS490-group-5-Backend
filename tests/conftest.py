@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 from dotenv import load_dotenv
 import uuid
-
+from datetime import date
 test_env_path = Path(__file__).parent / ".env.test"
 if test_env_path.exists():
     load_dotenv(test_env_path, override=True)
@@ -222,6 +222,8 @@ def sample_customer(db_session):
         password_hash=hashed_pw,
         role="CUSTOMER",
         firebase_uid="test_uid_123",
+        date_of_birth=date(1990, 1, 1),
+        age=33
     )
     db_session.add(auth_user)
     db_session.flush()  # Flush to generate auth_user.id
@@ -319,6 +321,8 @@ def test_user_data():
         "phone_number": "555-0199",
         "role": "CUSTOMER",
         "gender": "Prefer not to say",
+        "gender": "Male", 
+        "date_of_birth": "1995-01-01",
     }
 
 
@@ -333,6 +337,8 @@ def test_gettype():
         "phone_number": "555-0199",
         "role": "CUSTOMER",
         "gender": "Prefer not to say",
+        "gender": "Female",
+        "date_of_birth": "1998-05-20",
     }
 
 

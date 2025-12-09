@@ -7,9 +7,30 @@ import bcrypt
 import jwt
 from datetime import datetime, timedelta, timezone
 from app.services.email_service import email_service
+
 auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
 import random
 import string
+
+
+# For calculating the age
+def calculate_age(date_of_birth):
+    """Calculate age from date of birth"""
+    if not date_of_birth:
+        return None
+
+    if isinstance(date_of_birth, str):
+        date_of_birth = datetime.strptime(date_of_birth, "%Y-%m-%d").date()
+
+    today = datetime.now().date()
+    age = today.year - date_of_birth.year
+
+    if (today.month, today.day) < (date_of_birth.month, date_of_birth.day):
+        age -= 1
+
+    return age
+
+
 @auth_bp.route("/signup", methods=["POST"])
 def signup_user():
     """
@@ -81,6 +102,8 @@ def signup_user():
         address = data.get("address")
         role = data.get("role", "CUSTOMER").upper()
         salon_id = data.get("salon_id")
+        date_of_birth_str = data.get("date_of_birth")
+        gender = data.get("gender")
 
         # Validate required fields
         if not email or not password or not first_name or not phone_number:
@@ -93,7 +116,66 @@ def signup_user():
                 ),
                 400,
             )
+        if role == "CUSTOMER":
+            if not date_of_birth_str or not gender:
+                return (
+                    jsonify(
+                        {
+                            "status": "error",
+                            "message": "Date of birth and gender are required for customer registration",
+                        }
+                    ),
+                    400,
+                )
 
+            # Validate and process DOB
+            try:
+                date_of_birth = datetime.strptime(date_of_birth_str, "%Y-%m-%d").date()
+                age = calculate_age(date_of_birth)
+
+                if age < 13:
+                    return (
+                        jsonify(
+                            {
+                                "status": "error",
+                                "message": "You must be at least 13 years old to create an account",
+                            }
+                        ),
+                        400,
+                    )
+
+                if age > 120:
+                    return (
+                        jsonify(
+                            {
+                                "status": "error",
+                                "message": "Please enter a valid date of birth",
+                            }
+                        ),
+                        400,
+                    )
+            except ValueError:
+                return (
+                    jsonify(
+                        {
+                            "status": "error",
+                            "message": "Invalid date format. Please use YYYY-MM-DD",
+                        }
+                    ),
+                    400,
+                )
+
+            # Validate gender
+            if gender not in ["Male", "Female", "Other"]:
+                return (
+                    jsonify(
+                        {
+                            "status": "error",
+                            "message": "Gender must be Male, Female, or Other",
+                        }
+                    ),
+                    400,
+                )
         # Validate role
         if role not in ["CUSTOMER", "ADMIN", "OWNER", "EMPLOYEE"]:
             return (
@@ -151,10 +233,12 @@ def signup_user():
                 last_name=last_name,
                 phone_number=phone_number,
                 address=address,
+                date_of_birth=date_of_birth,
+                gender=gender,
+                age=age,
             )
             db.session.add(profile)
             db.session.flush()
-            # new_cart = Cart(user_id=auth_user.id)
             new_cart = Cart(user_id=profile.id)
             db.session.add(new_cart)
 
@@ -198,7 +282,10 @@ def signup_user():
             "address": address,
             "role": role,
         }
-
+        if role == "CUSTOMER":
+            response_user["date_of_birth"] = date_of_birth.isoformat()
+            response_user["gender"] = gender
+            response_user["age"] = age
         # Add salon_id to response for employees
         if role == "EMPLOYEE":
             response_user["salon_id"] = salon_id
@@ -314,8 +401,8 @@ def login_user():
             "user_id": user.id,
             "email": user.email,
             "role": user.role,
-            "exp": datetime.now(timezone.utc) + timedelta(hours=1),    
-                  }
+            "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+        }
         token = jwt.encode(payload, current_app.config["SECRET_KEY"], algorithm="HS256")
 
         return (
@@ -326,7 +413,7 @@ def login_user():
         )
 
     except Exception as e:
-        print(f"Login Error: {str(e)}") 
+        print(f"Login Error: {str(e)}")
         return (
             jsonify(
                 {
@@ -528,16 +615,19 @@ def forgot_password():
     try:
         data = request.get_json()
         email = data.get("email")
-        
+
         user = db.session.query(AuthUser).filter_by(email=email).first()
-        
+
         # Security: Don't reveal if user exists
         if not user:
-            return jsonify({"message": "If an account exists, an OTP has been sent."}), 200
+            return (
+                jsonify({"message": "If an account exists, an OTP has been sent."}),
+                200,
+            )
 
         # 1. Generate 6-digit OTP
         otp_code = "".join(random.choices(string.digits, k=6))
-        
+
         # 2. Save to DB with 10 minute expiration
         user.otp_code = otp_code
         user.otp_expires_at = datetime.now() + timedelta(minutes=10)
@@ -545,7 +635,7 @@ def forgot_password():
 
         # 3. Send Email
         email_service.send_otp_email(user.email, otp_code)
-        
+
         return jsonify({"message": "OTP sent successfully"}), 200
 
     except Exception as e:
@@ -607,10 +697,10 @@ def verify_otp_route():
         otp_input = data.get("otp")
 
         if not email or not otp_input:
-             return jsonify({"error": "Email and OTP are required"}), 400
+            return jsonify({"error": "Email and OTP are required"}), 400
 
         user = db.session.query(AuthUser).filter_by(email=email).first()
-        
+
         if not user or not user.otp_code:
             return jsonify({"error": "Invalid request"}), 400
 
@@ -626,7 +716,7 @@ def verify_otp_route():
         user.otp_code = None
         user.otp_expires_at = None
         db.session.commit()
-        
+
         return jsonify({"message": "OTP verified", "can_reset": True}), 200
 
     except Exception as e:
@@ -680,21 +770,20 @@ def reset_password():
         data = request.get_json()
         email = data.get("email")
         new_password = data.get("password")
-        
+
         if not email or not new_password:
-             return jsonify({"error": "Email and password are required"}), 400
+            return jsonify({"error": "Email and password are required"}), 400
 
         user = db.session.query(AuthUser).filter_by(email=email).first()
         if not user:
             return jsonify({"error": "User not found"}), 404
-            
+
         hashed_pw = bcrypt.hashpw(new_password.encode("utf-8"), bcrypt.gensalt())
         user.password_hash = hashed_pw
         db.session.commit()
-        
+
         return jsonify({"message": "Password updated successfully"}), 200
 
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
-
