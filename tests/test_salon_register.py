@@ -88,15 +88,18 @@ class TestSalonRegisterEndpoint:
         assert salon.name == "Luxe Salon"
         assert len(salon.type) == 2
         # Hours (Monday Open, Tuesday Closed)
+        # Sunday = 0, Monday = 1, ...
         mon_hours = (
-            db_session.query(SalonHours).filter_by(salon_id=salon_id, weekday=0).first()
+            db_session.query(SalonHours).filter_by(salon_id=salon_id, weekday=1).first()
         )
+        assert mon_hours is not None
         assert mon_hours.is_open == 1
         assert mon_hours.open_time == time(9, 0)
 
         tue_hours = (
-            db_session.query(SalonHours).filter_by(salon_id=salon_id, weekday=1).first()
+            db_session.query(SalonHours).filter_by(salon_id=salon_id, weekday=2).first()
         )
+        assert tue_hours is not None
         assert tue_hours.is_open == 0
         # Service
         svc = (
