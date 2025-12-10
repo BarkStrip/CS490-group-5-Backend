@@ -121,11 +121,18 @@ def upload_salon_home_image():
         salon_id = request.form.get('salon_id')
         user_id = request.form.get('user_id')
         
+        # Log received values for debugging
+        print(f"Received salon_id: {salon_id}, user_id: {user_id}")
+        
         if not salon_id or not user_id:
             return jsonify({"error": "salon_id and user_id are required"}), 400
         
-        salon_id = int(salon_id)
-        user_id = int(user_id)
+        # Validate they can be converted to integers
+        try:
+            salon_id = int(salon_id)
+            user_id = int(user_id)
+        except (ValueError, TypeError) as e:
+            return jsonify({"error": f"Invalid salon_id or user_id format: {str(e)}"}), 400
         
         # Verify that the user is the salon owner
         salon = db.session.query(Salon).filter(Salon.id == salon_id).first()
