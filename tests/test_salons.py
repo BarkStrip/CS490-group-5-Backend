@@ -131,7 +131,7 @@ class TestSalons:
 
     def test_get_salon_gallery(self, client):
         """Test retrieving salon gallery images."""
-        response = client.get("/api/salons/details/1/gallery")
+        response = client.get("/api/salons/details/1/review-gallery")
 
         assert response.status_code == 200
         data = json.loads(response.data)

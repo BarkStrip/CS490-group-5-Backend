@@ -871,10 +871,10 @@ def get_salon_services(salon_id):
         return jsonify({"error": "Database error", "details": str(e)}), 500
 
 
-@salons_bp.route("/details/<int:salon_id>/gallery", methods=["GET"])
-def get_salon_gallery(salon_id):
+@salons_bp.route("/details/<int:salon_id>/review-gallery", methods=["GET"])
+def get_salon_review_gallery(salon_id):
     """
-    Get salon gallery images
+    Get salon gallery images from reviews
     ---
     tags:
       - Salons
@@ -902,9 +902,11 @@ def get_salon_gallery(salon_id):
                     type: integer
                   url:
                     type: string
-                  created_at:
+                  customer_name:
                     type: string
-                  updated_at:
+                  rating:
+                    type: number
+                  created_at:
                     type: string
       500:
         description: Database error
@@ -912,40 +914,39 @@ def get_salon_gallery(salon_id):
           $ref: '#/definitions/Error'
     """
     try:
-        # Import the correct model
-        from app.models import SalonImage
-
-        # --- Query all salon images ---
-        images_query = (
-            db.session.query(SalonImage)
-            .filter(SalonImage.salon_id == salon_id)
-            .order_by(SalonImage.created_at.desc())
+        # Query all reviews with their images for this salon
+        reviews_query = (
+            db.session.query(Review, Customers.first_name, Customers.last_name)
+            .join(Customers, Review.customers_id == Customers.id)
+            .filter(Review.salon_id == salon_id)
+            .options(joinedload(Review.review_image))
+            .order_by(Review.created_at.desc())
         )
 
-        images = images_query.all()
+        reviews_with_names = reviews_query.all()
 
-        if not images:
+        if not reviews_with_names:
             return jsonify({"salon_id": salon_id, "media_found": 0, "gallery": []}), 200
 
-        # --- Build JSON response ---
+        # Extract all images from reviews
         gallery_list = []
-        for img in images:
-            gallery_list.append(
-                {
-                    "id": img.id,
-                    "url": img.url,
-                    "created_at": (
-                        img.created_at.strftime("%Y-%m-%d %H:%M:%S")
-                        if img.created_at
-                        else None
-                    ),
-                    "updated_at": (
-                        img.updated_at.strftime("%Y-%m-%d %H:%M:%S")
-                        if img.updated_at
-                        else None
-                    ),
-                }
-            )
+        for review_obj, customer_first_name, customer_last_name in reviews_with_names:
+            # Only process reviews that have images
+            if review_obj.review_image:
+                for img in review_obj.review_image:
+                    gallery_list.append(
+                        {
+                            "id": img.id,
+                            "url": img.url,
+                            "customer_name": f"{customer_first_name} {customer_last_name}",
+                            "rating": float(review_obj.rating) if review_obj.rating else None,
+                            "created_at": (
+                                img.created_at.strftime("%Y-%m-%d %H:%M:%S")
+                                if img.created_at
+                                else None
+                            ),
+                        }
+                    )
 
         return jsonify(
             {
