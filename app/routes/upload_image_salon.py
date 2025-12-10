@@ -66,16 +66,6 @@ def upload_salon_image():
         db.session.rollback()
         return jsonify({"error": "Failed to upload image", "details": str(e)}), 500
 
-
-from flask import Blueprint, jsonify, request, current_app
-from app.extensions import db
-from ..models import SalonImage, Salon
-from app.utils.s3_utils import upload_file_to_s3
-from sqlalchemy import select
-import uuid
-
-salon_images_bp = Blueprint("salon_images", __name__, url_prefix="/api/salon_images")
-
 @salon_images_bp.route("/upload_salon_home_image", methods=["POST"])
 def upload_salon_home_image():
     """
@@ -150,11 +140,16 @@ def upload_salon_home_image():
         if file.filename == '':
             return jsonify({"error": "No image file selected"}), 400
         
-        # Upload to S3
-        file_extension = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'jpg'
-        s3_filename = f"salon_hero/{salon_id}/{uuid.uuid4()}.{file_extension}"
+        # Get S3 bucket name from config
+        bucket_name = current_app.config.get("S3_BUCKET_NAME")
+        if not bucket_name:
+            current_app.logger.error("S3_BUCKET_NAME is not configured")
+            return jsonify({"error": "Server configuration error"}), 500
         
-        image_url = upload_file_to_s3(file, s3_filename)
+        # Upload to S3
+        unique_name = f"salon_hero/{salon_id}/{uuid.uuid4()}_{file.filename}"
+        
+        image_url = upload_file_to_s3(file, unique_name, bucket_name)
         
         if not image_url:
             return jsonify({"error": "Failed to upload image to S3"}), 500
@@ -192,6 +187,7 @@ def upload_salon_home_image():
             
     except Exception as e:
         db.session.rollback()
+        current_app.logger.error(f"Failed to upload salon hero image: {e}")
         return jsonify({"error": "Server error", "details": str(e)}), 500
 
 
@@ -246,6 +242,7 @@ def get_salon_home_image(salon_id):
             }), 200
             
     except Exception as e:
+        current_app.logger.error(f"Failed to get salon hero image: {e}")
         return jsonify({"error": "Server error", "details": str(e)}), 500
 
 @salon_images_bp.route("/get_images/<int:salon_id>", methods=["GET"])
