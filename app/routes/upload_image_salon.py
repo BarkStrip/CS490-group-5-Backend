@@ -67,6 +67,15 @@ def upload_salon_image():
         return jsonify({"error": "Failed to upload image", "details": str(e)}), 500
 
 
+from flask import Blueprint, jsonify, request, current_app
+from app.extensions import db
+from ..models import SalonImage, Salon
+from app.utils.s3_utils import upload_file_to_s3
+from sqlalchemy import select
+import uuid
+
+salon_images_bp = Blueprint("salon_images", __name__, url_prefix="/api/salon_images")
+
 @salon_images_bp.route("/upload_salon_home_image", methods=["POST"])
 def upload_salon_home_image():
     """
@@ -123,7 +132,7 @@ def upload_salon_home_image():
         if not salon:
             return jsonify({"error": "Salon not found"}), 404
         
-        if salon.user_id != user_id:
+        if salon.salon_owner_id != user_id:
             return jsonify({"error": "Unauthorized: Only the salon owner can upload images"}), 403
         
         # Get the image file
@@ -177,7 +186,8 @@ def upload_salon_home_image():
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": "Server error", "details": str(e)}), 500
-    
+
+
 @salon_images_bp.route("/get_salon_home_image/<int:salon_id>", methods=["GET"])
 def get_salon_home_image(salon_id):
     """
