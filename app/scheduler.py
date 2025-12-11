@@ -139,6 +139,7 @@ def init_scheduler(app):
                             service_name = appointment.service.name
                             employee_name = f"{appointment.employee.first_name} {appointment.employee.last_name}"
                             salon_address = appointment.salon.address or ""
+                            salon_phone = appointment.salon.phone or ""
 
                             # Format date and time
                             formatted_date = appointment.start_at.strftime("%B %d, %Y")
@@ -155,6 +156,7 @@ def init_scheduler(app):
                                 stylist_name=employee_name,
                                 appointment_id=appointment.id,
                                 salon_address=salon_address,
+                                salon_phone=salon_phone,
                             )
 
                             if result.get("success"):

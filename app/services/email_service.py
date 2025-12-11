@@ -332,6 +332,7 @@ class EmailService:
         stylist_name: str,
         appointment_id: int,
         salon_address: str = "",
+        salon_phone: str = "",
     ) -> Dict:
         """
         Send appointment reminder email
@@ -346,119 +347,165 @@ class EmailService:
             stylist_name: Name of stylist/employee
             appointment_id: ID of the appointment
             salon_address: Optional salon address
+            salon_phone: Optional salon phone number
 
         Returns:
             Dict with 'success' boolean and 'message' or 'error'
         """
         try:
-            subject = f" Reminder: Your appointment at {salon_name} in 1 hour"
+            subject = f"Reminder: Your appointment at {salon_name} in 1 hour"
 
             html_content = f"""
-            <html>
-                <head>
-                    <style>
-                        body {{
-                            font-family: Arial, sans-serif;
-                            line-height: 1.6;
-                            color: #333;
-                        }}
-                        .container {{
-                            max-width: 600px;
-                            margin: 0 auto;
-                            padding: 20px;
-                        }}
-                        .header {{
-                            background-color: #4CAF50;
-                            color: white;
-                            padding: 20px;
-                            text-align: center;
-                            border-radius: 5px 5px 0 0;
-                        }}
-                        .content {{
-                            background-color: #f9f9f9;
-                            padding: 30px;
-                            border-radius: 0 0 5px 5px;
-                        }}
-                        .appointment-details {{
-                            background-color: white;
-                            padding: 20px;
-                            border-radius: 5px;
-                            margin: 20px 0;
-                        }}
-                        .detail-row {{
-                            margin: 10px 0;
-                            padding: 10px 0;
-                            border-bottom: 1px solid #eee;
-                        }}
-                        .detail-label {{
-                            font-weight: bold;
-                            color: #666;
-                        }}
-                        .button {{
-                            display: inline-block;
-                            background-color: #4CAF50;
-                            color: white;
-                            padding: 12px 30px;
-                            text-decoration: none;
-                            border-radius: 5px;
-                            margin: 20px 0;
-                        }}
-                        .footer {{
-                            text-align: center;
-                            margin-top: 20px;
-                            color: #666;
-                            font-size: 12px;
-                        }}
-                    </style>
-                </head>
-                <body>
-                    <div class="container">
-                        <div class="header">
-                            <h1> Appointment Reminder</h1>
-                        </div>
-                        <div class="content">
-                            <p>Hi <strong>{customer_name}</strong>,</p>
-                            <p>This is a friendly reminder that your appointment is coming up in <strong>1 hour</strong>!</p>
-                            
-                            <div class="appointment-details">
-                                <h2>Appointment Details</h2>
-                                <div class="detail-row">
-                                    <span class="detail-label">Salon:</span> {salon_name}
-                                </div>
-                                <div class="detail-row">
-                                    <span class="detail-label">Service:</span> {service_name}
-                                </div>
-                                <div class="detail-row">
-                                    <span class="detail-label">Date:</span> {appointment_date}
-                                </div>
-                                <div class="detail-row">
-                                    <span class="detail-label">Time:</span> {appointment_time}
-                                </div>
-                                <div class="detail-row">
-                                    <span class="detail-label">Stylist:</span> {stylist_name}
-                                </div>
-                                {f'<div class="detail-row"><span class="detail-label">Address:</span> {salon_address}</div>' if salon_address else ''}
-                            </div>
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; background-color: #d4e3d4;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #d4e3d4; padding: 30px 20px;">
+                <tr>
+                    <td align="center">
+                        <table width="600" cellpadding="0" cellspacing="0" style="background-color: #fafdfb; border-radius: 16px; overflow: hidden; box-shadow: 0 8px 24px rgba(74, 95, 74, 0.15);">
+                            <!-- Header with JADE Branding -->
+                            <tr>
+                                <td style="background: linear-gradient(135deg, #6B8A6B 0%, #ffffff 100%); padding: 45px 40px; text-align: center;">
+                                    <div style="background-color: rgba(255,255,255,0.2); display: inline-block; padding: 12px 35px; border-radius: 50px; margin-bottom: 18px; border: 2px solid rgba(255,255,255,0.3);">
+                                        <h1 style="color: #4A5F4A; margin: 0; font-size: 36px; font-weight: 700; letter-spacing: 4px;">
+                                            JADE
+                                        </h1>
+                                    </div>
+                                    <h2 style="color: #4A5F4A; margin: 15px 0 0 0; font-size: 26px; font-weight: 600;">
+                                        Appointment Reminder
+                                    </h2>
+                                    <p style="color: #4A5F4A; margin: 10px 0 0 0; font-size: 16px;">
+                                        Your appointment is in 1 hour
+                                    </p>
+                                </td>
+                            </tr>
+                            <!-- Content -->
+                            <tr>
+                                <td style="padding: 45px 40px; background-color: #ffffff;">
+                                    <p style="color: #2d3748; font-size: 17px; line-height: 1.6; margin: 0 0 10px 0;">
+                                        Hi <strong style="color: #4A5F4A;">{customer_name}</strong>,
+                                    </p>
+                                    <p style="color: #4a5568; font-size: 16px; line-height: 1.7; margin: 0 0 35px 0;">
+                                        This is a friendly reminder that your appointment at <strong style="color: #4A5F4A;">{salon_name}</strong> is coming up in <strong style="color: #4A5F4A;">1 hour</strong>. We're looking forward to seeing you!
+                                    </p>
 
-                            <p>We look forward to seeing you!</p>
+                                    <!-- Appointment Details Card -->
+                                    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 12px; border: 2px solid #8BA888; margin: 0 0 35px 0; box-shadow: 0 2px 8px rgba(139, 168, 136, 0.15);">
+                                        <tr>
+                                            <td style="padding: 30px 35px;">
+                                                <h3 style="color: #4A5F4A; margin: 0 0 25px 0; font-size: 19px; font-weight: 700; border-bottom: 3px solid #8BA888; padding-bottom: 15px;">
+                                                    Appointment Details
+                                                </h3>
+                                                <table width="100%" cellpadding="0" cellspacing="0">
+                                                    <tr>
+                                                        <td style="padding: 14px 0; color: #4a5568; font-size: 15px; width: 140px; vertical-align: middle;">
+                                                            <strong style="color: #2d3748;">Date</strong>
+                                                        </td>
+                                                        <td style="padding: 14px 0; color: #2d3748; font-size: 16px; font-weight: 600;">
+                                                            {appointment_date}
+                                                        </td>
+                                                    </tr>
+                                                    <tr style="border-top: 1px solid #e8ede8;">
+                                                        <td style="padding: 14px 0; color: #4a5568; font-size: 15px; vertical-align: middle;">
+                                                            <strong style="color: #2d3748;">Time</strong>
+                                                        </td>
+                                                        <td style="padding: 14px 0; color: #2d3748; font-size: 16px; font-weight: 600;">
+                                                            {appointment_time}
+                                                        </td>
+                                                    </tr>
+                                                    <tr style="border-top: 1px solid #e8ede8;">
+                                                        <td style="padding: 14px 0; color: #4a5568; font-size: 15px; vertical-align: middle;">
+                                                            <strong style="color: #2d3748;">Service</strong>
+                                                        </td>
+                                                        <td style="padding: 14px 0; color: #2d3748; font-size: 16px; font-weight: 600;">
+                                                            {service_name}
+                                                        </td>
+                                                    </tr>
+                                                    <tr style="border-top: 1px solid #e8ede8;">
+                                                        <td style="padding: 14px 0; color: #4a5568; font-size: 15px; vertical-align: middle;">
+                                                            <strong style="color: #2d3748;">Stylist</strong>
+                                                        </td>
+                                                        <td style="padding: 14px 0; color: #2d3748; font-size: 16px; font-weight: 600;">
+                                                            {stylist_name}
+                                                        </td>
+                                                    </tr>
+                                                    <tr style="border-top: 1px solid #e8ede8;">
+                                                        <td style="padding: 14px 0; color: #4a5568; font-size: 15px; vertical-align: middle;">
+                                                            <strong style="color: #2d3748;">Location</strong>
+                                                        </td>
+                                                        <td style="padding: 14px 0; color: #2d3748; font-size: 15px; line-height: 1.5; font-weight: 500;">
+                                                            {salon_address if salon_address else 'See appointment details'}
+                                                        </td>
+                                                    </tr>
+                                                    <tr style="border-top: 1px solid #e8ede8;">
+                                                        <td style="padding: 14px 0; color: #4a5568; font-size: 15px; vertical-align: middle;">
+                                                            <strong style="color: #2d3748;">Phone</strong>
+                                                        </td>
+                                                        <td style="padding: 14px 0; color: #2d3748; font-size: 15px; font-weight: 500;">
+                                                            {salon_phone if salon_phone else 'See appointment details'}
+                                                        </td>
+                                                    </tr>
+                                                </table>
+                                            </td>
+                                        </tr>
+                                    </table>
 
-                            <center>
-                                <a href="{self.frontend_url}/my-appointments" class="button">
-                                    View Appointment Details
-                                </a>
-                            </center>
+                                    <!-- Action Button -->
+                                    <table width="100%" cellpadding="0" cellspacing="0">
+                                        <tr>
+                                            <td align="center" style="padding: 10px 0 35px 0;">
+                                                <a href="{self.frontend_url}/my-appointments"
+                                                   style="display: inline-block; padding: 18px 50px; background: linear-gradient(135deg, #6B8A6B 0%, #4A5F4A 100%); color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 700; font-size: 16px; box-shadow: 0 6px 16px rgba(74, 95, 74, 0.3); letter-spacing: 0.5px; border: 2px solid rgba(255,255,255,0.2);">
+                                                    View Appointment Details
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    </table>
 
-                            <p style="margin-top: 30px; font-size: 14px; color: #666;">
-                                Need to cancel or reschedule? Please contact the salon as soon as possible.
-                            </p>
-                        </div>
-                        <div class="footer">
-                            <p>This is an automated reminder from your salon booking system.</p>
-                        </div>
-                    </div>
-                </body>
-            </html>
-            """
+                                    <!-- Info Box -->
+                                    <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #f0f7f0 0%, #e8ede8 100%); border-radius: 10px; border-left: 5px solid #6B8A6B; margin: 20px 0 0 0; box-shadow: 0 2px 8px rgba(107, 138, 107, 0.1);">
+                                        <tr>
+                                            <td style="padding: 25px 28px;">
+                                                <p style="color: #2d3748; font-size: 15px; line-height: 1.7; margin: 0;">
+                                                    <strong style="color: #4A5F4A; font-size: 16px;">Important Reminders:</strong><br><br>
+                                                    <span style="color: #4a5568;">
+                                                    • Please arrive 10 minutes before your appointment<br>
+                                                    • To reschedule or cancel, please notify us at least 24 hours in advance<br>
+                                                    • Bring any reference photos or inspiration for your service
+                                                    </span>
+                                                </p>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+
+                            <!-- Footer -->
+                            <tr>
+                                <td style="background: linear-gradient(to bottom, #e8ede8 0%, #d4e3d4 100%); padding: 30px 40px; text-align: center; border-top: 2px solid #c4d3c4;">
+                                    <p style="color: #4A5F4A; font-size: 15px; margin: 0 0 10px 0; font-weight: 700; letter-spacing: 2px;">
+                                        JADE
+                                    </p>
+                                    <p style="color: #6B8A6B; font-size: 14px; margin: 0 0 5px 0; font-weight: 600;">
+                                        {salon_name}
+                                    </p>
+                                    <p style="color: #718096; font-size: 13px; margin: 0; line-height: 1.6;">
+                                        This is an automated reminder email.<br>
+                                        Please do not reply to this message.
+                                    </p>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </body>
+        </html>
+        """
 
             params = {
                 "from": self.from_email,
