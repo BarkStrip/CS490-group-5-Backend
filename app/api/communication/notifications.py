@@ -668,15 +668,18 @@ def send_hours_change():
             return jsonify({"error": "Salon not found"}), 404
 
         employees = (
-            db.session.query(Employees)
-            .filter_by(salon_id=salon_id, employment_status="active")
-            .all()
-        )
+              db.session.query(Employees)
+              .filter_by(salon_id=salon_id, employment_status="active")
+              .all()
+          )
 
         if not employees:
-            return jsonify({"error": "No active employees found"}), 404
+              return jsonify({"error": "No active employees found"}), 404
 
-        employee_emails = [emp.email for emp in employees if emp.email]
+        employee_emails = []
+        for emp in employees:
+              if emp.user and emp.user.email:
+                  employee_emails.append(emp.user.email)
 
         if not employee_emails:
             return jsonify({"error": "No employee emails found"}), 400
