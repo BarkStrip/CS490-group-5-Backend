@@ -1,6 +1,6 @@
-# Salon Backend API
+# Jade - Backend API
 
-This is the backend repository for the Salon application, built using **Flask** and **SQLAlchemy** with a **MySQL** database.
+This is the backend repository for the Multi-Salon Management System application, built using **Flask** and **SQLAlchemy** with a **MySQL** database.
 
 ## Prerequisites
 
