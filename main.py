@@ -64,9 +64,12 @@ def create_app():
         db.init_app(app)
         print("Database initialized")
 
-        print("Initializing scheduler...")
-        init_scheduler(app)
-        print("Scheduler initialized")
+        if os.environ.get("ENABLE_SCHEDULER", "").lower() == "true":
+            print("Initializing scheduler...")
+            init_scheduler(app)
+            print("Scheduler initialized")
+        else:
+            print("Scheduler disabled (ENABLE_SCHEDULER != true)")
 
         print("Initializing Swagger/OpenAPI documentation...")
         # Determine host based on environment
@@ -110,8 +113,11 @@ def create_app():
             admin_reports_export_bp,
         ]
 
-        with app.app_context():
-            Base.metadata.create_all(bind=db.engine)
+        if os.environ.get("ENABLE_DB_INIT", "").lower() == "true":
+            with app.app_context():
+                Base.metadata.create_all(bind=db.engine)
+        else:
+            print("DB init disabled (ENABLE_DB_INIT != true)")
 
         for bp in blueprints:
             app.register_blueprint(bp)
