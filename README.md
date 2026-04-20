@@ -1,98 +1,221 @@
-# Jade - Backend API
+# JADE — Salon Marketplace Backend API
 
-This is the backend repository for the Multi-Salon Management System application, built using **Flask** and **SQLAlchemy** with a **MySQL** database.
-
-## Prerequisites
-
-Before starting, ensure you have the following installed:
-
-* **Python 3.x**
-* **MySQL Server** (running locally or accessible via network)
-* **A Virtual Environment** (recommended, e.g., `myenv`)
+A production-grade REST API powering a multi-vendor salon marketplace. Built with Flask and SQLAlchemy, JADE supports 13+ salons with full booking lifecycle management, role-based access control, geospatial search, transactional email notifications, and AWS S3 media storage.
 
 ---
-> ⚠️ **Important:**  
-> Make sure you run the new `.sql` file — which includes **new columns** and **updated data** — **before starting the backend server**.  
->
-> 📂 [Download the SQL file here](https://drive.google.com/file/d/1Up1kC2FIogDFia8xwv9LOFLWqg4mzEQO/view?usp=drive_link)
 
-## Setup Instructions
+## Features
 
-### 1. Environment Setup
+### Authentication & Authorization
+- JWT-based authentication with Bearer token scheme
+- Role-based access control across 4 roles: OWNER, CUSTOMER, EMPLOYEE, ADMIN
+- Password update flow with email verification
+- Secure token handling and route-level permission enforcement
 
-1.  **Activate your Virtual Environment:**
-    ```bash
-    .\myenv\Scripts\activate
-    ```
+### Salon Discovery
+- Search salons by city, category, and service type
+- Geospatial search using latitude/longitude with distance calculation (miles)
+- Verified salon filtering (`salon_verify.status = 'VERIFIED'`)
+- Salon detail pages with average rating and review count
 
-2.  **Install Dependencies:**
-    ```bash
-    pip install -r requirements.txt
-    # (Example dependencies: Flask Flask-SQLAlchemy PyMySQL sqlacodegen)
-    ```
-### 2. Create and Configure Environment Variables
+### Booking & Appointments
+- Full appointment lifecycle: create, view, update, cancel
+- Employee assignment and scheduling
+- Price-at-booking capture to handle service price changes over time
+- Appointment status tracking (Booked, Completed, Cancelled)
+- Notes and special instructions support
 
-You need to set up environment variables to store your database connection string securely.
+### Notifications (Email via Resend)
+- Appointment confirmation email on booking
+- Reminder email 1 hour before appointment (cron-triggered)
+- Cancellation notifications (role-aware: customer vs. employee flow)
+- In-app messaging between customer and employee about an appointment
+- Post-appointment review request email with unique token
+- Bulk employee notification for salon hours changes
 
-1.  **Create `.env` File:** Create a file named `.env` in the root of your application directory (same level as your main application file).
+### Services & Products
+- Service management per salon (pricing, duration, active status)
+- Product catalog with inventory tracking (SKU, stock quantity)
+- Shopping cart operations
+- Image upload per service and product via AWS S3
 
-2.  **Add Database Configuration:** Copy one of the following configurations into your `.env` file:
+### Reviews
+- Customer reviews with star ratings and comments
+- Photo attachments on reviews
+- Review request flow triggered after appointment completion
 
-   **For Local Database:**
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| API Framework | Flask 3.x |
+| ORM | SQLAlchemy + Flask-SQLAlchemy |
+| Database | MySQL |
+| Authentication | JWT (Flask-JWT-Extended) |
+| Email | Resend API |
+| File Storage | AWS S3 (Boto3) |
+| API Docs | Swagger UI (Flasgger) |
+| Deployment | Railway + Gunicorn |
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────┐
+│                  Client (Frontend)               │
+└────────────────────────┬────────────────────────┘
+                         │ REST API (JWT)
+                         │
+┌────────────────────────▼────────────────────────┐
+│               Flask Application                  │
+│                                                  │
+│  ┌──────────────┐  ┌──────────────────────────┐ │
+│  │ Auth & RBAC  │  │     Route Blueprints      │ │
+│  │  Middleware  │  │  /auth  /salons  /appts   │ │
+│  └──────────────┘  │  /services  /products     │ │
+│                    │  /cart  /reviews  /images  │ │
+│                    │  /notifications            │ │
+│                    └──────────────────────────┘ │
+│                                                  │
+│  ┌──────────────┐  ┌─────────────┐              │
+│  │  SQLAlchemy  │  │   AWS S3    │              │
+│  │     ORM      │  │   Boto3     │              │
+│  └──────┬───────┘  └─────────────┘              │
+└─────────┼───────────────────────────────────────┘
+          │
+┌─────────▼──────────┐     ┌──────────────────────┐
+│    MySQL Database   │     │     Resend Email      │
+│   30+ tables        │     │  Transactional API    │
+│   Strategic indexes │     └──────────────────────┘
+└─────────────────────┘
+```
+
+---
+
+## API Endpoints
+
+### Authentication
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/auth/register` | Register new user |
+| POST | `/api/auth/login` | Login and receive JWT |
+| POST | `/api/auth/password` | Update password |
+
+### Salons
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/salons` | Search salons (city, category, geo) |
+| GET | `/api/salons/<id>` | Get salon details |
+| GET | `/api/cities` | List cities with verified salons |
+| GET | `/api/categories` | List service categories |
+
+### Appointments
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/appointments` | Book appointment |
+| GET | `/api/appointments/<id>` | Get appointment details |
+| PATCH | `/api/appointments/<id>` | Update appointment |
+| DELETE | `/api/appointments/<id>` | Cancel appointment |
+
+### Notifications
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/notifications/appointment/confirmation` | Send booking confirmation email |
+| POST | `/api/notifications/appointment/reminder` | Send reminder (cron-triggered) |
+| POST | `/api/notifications/appointment/cancel` | Send cancellation notification |
+| POST | `/api/notifications/appointment/message` | Send message between parties |
+| POST | `/api/notifications/review-request` | Send post-appointment review email |
+| POST | `/api/notifications/hours-change` | Bulk notify employees of hours change |
+| POST | `/api/notifications/test` | Test email configuration |
+
+### Services, Products, Cart, Reviews, Images
+Full CRUD available for each resource group — see `/api/docs` (Swagger UI) for complete endpoint reference.
+
+---
+
+## Database Schema (Highlights)
+
+30+ tables managed via SQLAlchemy ORM. Key design decisions:
+
+- **Isolated workflows per salon** — each salon's data is scoped to prevent cross-tenant access
+- **Strategic indexing** on geospatial columns (latitude, longitude) and foreign keys for performant location-based queries
+- **Price capture at booking** — `price_at_book` on appointments ensures historical accuracy independent of service price changes
+- **Soft deletes** via `is_active` flags on services and products rather than hard deletes
+
+---
+
+## Getting Started
+
+### Prerequisites
+- Python 3.11+
+- MySQL Server
+- AWS S3 bucket + credentials
+- Resend API key
+
+### Installation
+
+```bash
+git clone https://github.com/TheRickMJ03/jade-backend.git
+cd jade-backend
+
+python -m venv myenv
+source myenv/bin/activate        # macOS/Linux
+# or: myenv\Scripts\activate     # Windows
+
+pip install -r requirements.txt
+```
+
+### Environment Variables
+
+Create a `.env` file in the project root:
+
 ```env
-    # Local DB Credentials:
-    MYSQL_PUBLIC_URL=mysql+pymysql://<USER>:<PASSWORD>@<HOST>:<PORT>/salon_app
-```
-   **For Railway Development Database:**
-```env
-    # Railway Development DB:
-    MYSQL_PUBLIC_URL=mysql://root:<MYSQL_ROOT_PASSWORD>@mysql.railway.internal:3306/salon_app_dev
-```
+# Database
+MYSQL_PUBLIC_URL=mysql+pymysql://<USER>:<PASSWORD>@<HOST>:<PORT>/salon_app
 
-3.  **Update Your Credentials:** Replace the placeholder values with your actual database information:
-    - `<USER>`: Your database username
-    - `<PASSWORD>`: Your database password  
-    - `<HOST>`: Your database host (typically `localhost` for local)
-    - `<PORT>`: Your database port (typically `3306` for MySQL)
-    - `<MYSQL_ROOT_PASSWORD>`: Your Railway MySQL root password (for Railway option)
+# Authentication
+JWT_SECRET_KEY=your_secret_key
 
+# AWS S3
+AWS_ACCESS_KEY_ID=your_key
+AWS_SECRET_ACCESS_KEY=your_secret
+AWS_S3_BUCKET=your_bucket_name
 
-4.  **Security Note:** Add `.env` to your `.gitignore` file to prevent committing sensitive credentials to version control:
-```gitignore
-    .env
+# Email
+RESEND_API_KEY=your_resend_key
 ```
 
+### Run the Server
 
-### 3. Database Model Generation (`app/models.py`)
-
-The Python models for your database tables are auto-generated from the live MySQL schema.
-
-* **No need to run this command if models.py is up-to-date.**
-* **Run this command** if a database schema change occurs or if your `app/models.py` file becomes corrupted (e.g., due to the null byte error you previously resolved).
-
-To re-generate the models using the declarative base:
-
-
-# Replace the connection string with your full, personal database URL
-sqlacodegen_v2 --generator declarative "mysql+pymysql://<user>:<password>@<host>:<port>/<db_name>" > app/models.py
-
-
-
-### 4. Run the Flask Application
-
-Run the main application file:
+```bash
+cd backend
 python main.py
+```
 
+API available at `http://localhost:5000`
+Swagger docs at `http://localhost:5000/api/docs`
 
-### Available Endpoints
-The backend currently exposes two meta-data endpoints for populating the frontend user interface.
+---
 
+## Testing
 
-## Available Endpoints
+Unit tests cover core business logic including authentication flows, appointment conflict detection, and notification triggers.
 
-The backend currently exposes two meta-data endpoints for populating the frontend user interface.
+```bash
+pytest tests/
+```
 
-| Route | Method | Description | Example Output |
-| :--- | :--- | :--- | :--- |
-| `/api/cities` | `GET` | Fetches a unique list of **cities** that contain a salon that has been verified (`salon_verify.status = 'VERIFIED'`). | `["Newark", "Jersey City"]` |
-| `/api/categories` | `GET` | Fetches a distinct list of all service **categories** (service names) and their associated `icon_url` (if the column exists). | `[{"name": "Braids", "icon_url": "..."}]` |
+Test files are located in `/tests` — contributions to improve coverage are welcome.
+
+---
+
+## Deployment
+
+Deployed on Railway with Gunicorn as the WSGI server:
+
+```bash
+gunicorn main:app --workers 4 --bind 0.0.0.0:$PORT
+```
